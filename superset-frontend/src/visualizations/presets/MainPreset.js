@@ -74,6 +74,11 @@ import {
   TimeColumnFilterPlugin,
   TimeGrainFilterPlugin,
 } from 'src/filters/components';
+
+// 
+import ChartRnalphaStandartPlugin from '@superset-ui/plugin-chart-rnalpha-standart';
+
+
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
 import { HandlebarsChartPlugin } from '@superset-ui/plugin-chart-handlebars';
 import { PopKPIPlugin } from '@superset-ui/plugin-chart-period-over-period-kpi';
@@ -167,6 +172,8 @@ export default class MainPreset extends Preset {
         new EchartsSunburstChartPlugin().configure({ key: 'sunburst_v2' }),
         new HandlebarsChartPlugin().configure({ key: 'handlebars' }),
         new EchartsBubbleChartPlugin().configure({ key: 'bubble_v2' }),
+        new ChartRnalphaStandartPlugin().configure({ key: 'plugin-chart-rnalpha-standart', }),
+
         ...experimentalPlugins,
       ],
     });
