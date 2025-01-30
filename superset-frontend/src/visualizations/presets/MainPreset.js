@@ -75,7 +75,7 @@ import {
   TimeGrainFilterPlugin,
 } from 'src/filters/components';
 
-// 
+// Custom plugins
 import ChartRnalphaStandartPlugin from '@superset-ui/plugin-chart-rnalpha-standart';
 
 

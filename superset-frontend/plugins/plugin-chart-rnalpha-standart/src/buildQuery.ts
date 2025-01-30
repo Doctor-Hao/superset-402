@@ -29,7 +29,6 @@ import {
 import { PostProcessingRule } from '@superset-ui/core/src/query/types/PostProcessing';
 import { BuildQuery } from '@superset-ui/core/src/chart/registries/ChartBuildQueryRegistrySingleton';
 import { TableChartFormData } from './types';
-import { updateExternalFormData } from './DataTable/utils/externalAPIs';
 
 /**
  * Infer query mode from form data. If `all_columns` is set, then raw records mode,
@@ -143,14 +142,9 @@ const buildQuery: BuildQuery<TableChartFormData> = (
       formData.server_pagination &&
       options?.extras?.cachedChanges?.[formData.slice_id] &&
       JSON.stringify(options?.extras?.cachedChanges?.[formData.slice_id]) !==
-        JSON.stringify(queryObject.filters)
+      JSON.stringify(queryObject.filters)
     ) {
       queryObject = { ...queryObject, row_offset: 0 };
-      updateExternalFormData(
-        options?.hooks?.setDataMask,
-        0,
-        queryObject.row_limit ?? 0,
-      );
     }
     // Because we use same buildQuery for all table on the page we need split them by id
     options?.hooks?.setCachedChanges({
@@ -215,7 +209,7 @@ export const cachedBuildQuery = (): BuildQuery<TableChartFormData> => {
         ownState: options?.ownState ?? {},
         hooks: {
           ...options?.hooks,
-          setDataMask: () => {},
+          setDataMask: () => { },
           setCachedChanges,
         },
       },
