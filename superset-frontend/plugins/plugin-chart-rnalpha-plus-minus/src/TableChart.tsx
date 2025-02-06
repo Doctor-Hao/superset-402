@@ -93,7 +93,7 @@ export default function SupersetPluginChartKpiCards(props) {
       const response = await fetch(
         'http://bnipi-rnc-tst1.rosneft.ru:8098/variant/proscons',
         {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -114,7 +114,6 @@ export default function SupersetPluginChartKpiCards(props) {
       setIsSaving(false);
     }
   };
-
 
   // Подстройка высоты textarea
   const adjustHeight = (textarea) => {
