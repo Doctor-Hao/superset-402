@@ -179,10 +179,11 @@ export default function transformProps(
     theme,
     inContextMenu,
   } = chartProps;
+
   const refs: Refs = {};
   const { data = [] } = queriesData[0];
   const coltypeMapping = getColtypesMapping(queriesData[0]);
-  const { setDataMask = () => {}, onContextMenu, onLegendStateChanged } = hooks;
+  const { setDataMask = () => { }, onContextMenu, onLegendStateChanged } = hooks;
   const {
     currencyFormat,
     granularitySqla = '',
@@ -423,7 +424,7 @@ export default function transformProps(
     },
   ];
 
-  const echartOptions: EChartsOption = {
+  let echartOptions: EChartsOption = {
     grid: {
       ...defaultGrid,
       top: theme.gridUnit * 7,
@@ -472,6 +473,115 @@ export default function transformProps(
     },
     series: barSeries,
   };
+
+  const { useCustomTemplate } = formData;
+  // Если галочка включена, объединяем с предопределенным шаблоном
+  if (formData.useCustomTemplate) {
+    // Получаем индексы для сравнения из формы (приводим к числу)
+    const compareStart = Number(formData.comparisonColumn1);
+    const compareEnd = Number(formData.comparisonColumn2);
+    const totalColumns = Array.isArray(xAxisData) ? xAxisData.length : 0;
+
+    // Проверяем корректность введённых индексов:
+    if (
+      isNaN(compareStart) ||
+      isNaN(compareEnd) ||
+      compareStart < 0 ||
+      compareEnd >= totalColumns ||
+      compareStart >= compareEnd
+    ) {
+      console.error('Некорректные индексы сравнения');
+    } else {
+      // 1. Формируем новый порядок для оси X.
+      // Новый массив начинается со столбца с индексом compareStart,
+      // затем идут все остальные столбцы (оставляем их на своих местах),
+      // за исключением выбранных, и завершается столбцом с индексом compareEnd.
+      const newXAxisData: string[] = [];
+      newXAxisData.push(xAxisData[compareStart]);
+      for (let i = 0; i < xAxisData.length; i++) {
+        if (i !== compareStart && i !== compareEnd) {
+          newXAxisData.push(xAxisData[i]);
+        }
+      }
+      newXAxisData.push(xAxisData[compareEnd]);
+
+      // 2. Переставляем данные для каждой серии согласно новому порядку.
+      // Для каждого ряда создаём новый массив, где элемент с индексом compareStart станет первым,
+      // элемент с индексом compareEnd – последним, а остальные остаются на своих местах.
+      barSeries.forEach(series => {
+        const originalData = series.data;
+        const newData = [];
+        newData.push(originalData[compareStart]);
+        for (let i = 0; i < originalData.length; i++) {
+          if (i !== compareStart && i !== compareEnd) {
+            newData.push(originalData[i]);
+          }
+        }
+        newData.push(originalData[compareEnd]);
+        series.data = newData;
+      });
+
+      // Обновляем ось X в конфигурации чарта
+      echartOptions.xAxis = {
+        ...echartOptions.xAxis,
+        data: newXAxisData,
+      };
+
+      // 3. Опционально: делаем промежуточные столбцы полупрозрачными.
+      const newTotalColumns = newXAxisData.length;
+      barSeries.forEach(series => {
+        series.data = series.data.map((dataPoint, index) => {
+          // Если не первый (индекс 0) и не последний (индекс newTotalColumns - 1)
+          if (index > 0 && index < newTotalColumns - 1) {
+            return {
+              ...dataPoint,
+              itemStyle: {
+                ...(dataPoint.itemStyle || {}),
+                opacity: 0.1, // Полупрозрачность для промежуточных столбцов
+              },
+            };
+          }
+          return dataPoint;
+        });
+      });
+
+      // 4. Вычисляем значения для выбранных столбцов.
+      // Здесь для расчёта берём исходные данные из transformedData.
+      const firstValue = Number(transformedData[compareStart][metricLabel]);
+      const lastValue = Number(transformedData[compareEnd][metricLabel]);
+      const difference = lastValue - firstValue;
+      const midValue = (firstValue + lastValue) / 2;
+      const newLastIndex = newXAxisData.length - 1;
+
+      // 5. Добавляем стрелку (markLine) для серии "Total"
+      barSeries.forEach(series => {
+        if (series.name === LEGEND.TOTAL) {
+          series.markLine = {
+            symbol: ['arrow', 'arrow'], // Стрелка появляется на конце линии
+            label: {
+              show: true,
+              position: 'middle',
+              formatter: `Δ = ${difference}`,
+            },
+            lineStyle: {
+              color: '#000',
+              width: 2,
+            },
+            data: [
+              [
+                { coord: [0, midValue] },
+                { coord: [newLastIndex, midValue] },
+              ],
+            ],
+            zlevel: 10, // Отрисовка поверх остальных элементов
+          };
+        }
+      });
+    }
+  }
+
+
+
 
   return {
     refs,
