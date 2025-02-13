@@ -78,6 +78,7 @@ import {
 // Custom plugins
 import ChartRnalphaStandartPlugin from '@superset-ui/plugin-chart-rnalpha-standart';
 import ChartRnalphaPlusMinusPlugin from '@superset-ui/plugin-chart-rnalpha-plus-minus';
+import ChartRnalphaTableCustomV1Plugin from '@superset-ui/plugin-chart-rnalpha-table-custom-v1';
 
 
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
@@ -175,6 +176,7 @@ export default class MainPreset extends Preset {
         new EchartsBubbleChartPlugin().configure({ key: 'bubble_v2' }),
         new ChartRnalphaStandartPlugin().configure({ key: 'plugin-chart-rnalpha-standart', }),
         new ChartRnalphaPlusMinusPlugin().configure({ key: 'plugin-chart-rnalpha-plus-minus', }),
+        new ChartRnalphaTableCustomV1Plugin().configure({ key: 'plugin-chart-rnalpha-table-custom-v1', }),
 
         ...experimentalPlugins,
       ],
