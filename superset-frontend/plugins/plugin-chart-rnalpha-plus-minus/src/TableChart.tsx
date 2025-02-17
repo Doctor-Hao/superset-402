@@ -18,6 +18,7 @@ const Styles = styled.div`
   border-radius: ${({ theme }) => theme.gridUnit * 2}px;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
+  overflow: auto; /* Добавляем скроллинг при переполнении */
 
   table {
     width: 100%;
@@ -59,7 +60,7 @@ const Styles = styled.div`
 
 
 export default function SupersetPluginChartKpiCards(props) {
-  const { data, height, width, endpoint } = props;
+  const { data, height, width, queryData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
   const [tableData, setTableData] = useState<DataRow[]>([]);
@@ -67,13 +68,11 @@ export default function SupersetPluginChartKpiCards(props) {
 
   useEffect(() => {
     console.log('Plugin props', data);
-    console.log('endpoint', endpoint);
 
     if (data) {
       setTableData([...data]); // Копируем массив, чтобы избежать мутаций
     }
   }, [data]);
-
 
   // Обработчик изменения значения в textarea
   const handleInputChange = (rowIndex, field, value) => {
@@ -87,33 +86,55 @@ export default function SupersetPluginChartKpiCards(props) {
   // Отправка данных на сервер
   const handleSave = async () => {
     setIsSaving(true);
-    try {
-      console.log("handleSave", tableData[0])
+    let attempts = 0;
+    const maxAttempts = 5;
 
-      const response = await fetch(
-        'http://bnipi-rnc-tst1.rosneft.ru:8098/variant/proscons',
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(tableData[0]),
-        },
-      );
+    const formResult = {
+      var_id: tableData[0].VAR_ID,
+      proj_id: tableData[0].PROJ_ID,
+      plus: tableData[0].VAR_PLUS,
+      minus: tableData[0].VAR_MINUS,
+      prerequsites: tableData[0].PREREQUISITES,
+    };
 
+    console.log("📤 Отправка данных...", formResult);
 
-      if (response.ok) {
-        alert('Данные успешно сохранены!');
-      } else {
-        alert('Ошибка при сохранении данных');
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(
+          'http://bnipi-rnc-tst1.rosneft.ru:8098/variant/proscons',
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formResult),
+          }
+        );
+
+        if (response.ok) {
+          console.log('✅ Данные успешно сохранены!');
+          setIsSaving(false);
+          return; // Если успех, завершаем выполнение
+        } else {
+          console.warn(`⚠️ Ошибка при сохранении (Попытка ${attempts + 1}/${maxAttempts})`);
+        }
+      } catch (error) {
+        console.error(`🚨 Ошибка сети (Попытка ${attempts + 1}/${maxAttempts}):`, error);
       }
-    } catch (error) {
-      console.error('Ошибка сети:', error);
-      alert('Ошибка сети при сохранении данных');
-    } finally {
-      setIsSaving(false);
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        console.log(`🔄 Повторная попытка через 2 секунды... (${attempts}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
+
+    alert('❌ Ошибка: Данные не удалось сохранить. Повторите попытку позднее...');
+    setIsSaving(false);
   };
+
+
 
   // Подстройка высоты textarea
   const adjustHeight = (textarea) => {
@@ -123,77 +144,116 @@ export default function SupersetPluginChartKpiCards(props) {
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
-      <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: isSaving ? '#aaa' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {isSaving ? 'Сохранение...' : 'Сохранить значения таблицы'}
-        </button>
-      </div>
-      <div>
-        <table>
-          <thead>
-            <th>Предпосылки варианта</th>
-          </thead>
-          <tbody>
-            {tableData.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                <td>
-                  <textarea
-                    value={row.prerequsites || ''}
-                    onChange={e => {
-                      handleInputChange(rowIndex, 'prerequsites', e.target.value);
-                      adjustHeight(e.target); // Подстраиваем высоту
-                    }}
-                    ref={(textarea) => textarea && adjustHeight(textarea)} // Автоподстройка при загрузке
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <table>
-          <thead>
-            <th>Преимущества</th>
-            <th>Недостатки</th>
-          </thead>
-          <tbody>
-            {tableData.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                <td>
-                  <textarea
-                    value={row.plus || ''}
-                    onChange={e => {
-                      handleInputChange(rowIndex, 'plus', e.target.value);
-                      adjustHeight(e.target);
-                    }}
-                    ref={(textarea) => textarea && adjustHeight(textarea)}
-                  />
-                </td>
-                <td>
-                  <textarea
-                    value={row.minus || ''}
-                    onChange={e => {
-                      handleInputChange(rowIndex, 'minus', e.target.value);
-                      adjustHeight(e.target);
-                    }}
-                    ref={(textarea) => textarea && adjustHeight(textarea)}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tableData.length > 1 ? (
+        <div style={{ textAlign: 'center', padding: '20px', fontSize: '16px', fontWeight: 'bold' }}>
+          Выберите только 1 вариант и 1 проект
+        </div>
+      ) : (
+        <>
+          <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: isSaving ? '#aaa' : '#4CAF50',
+                color: 'white',
+                border: 'none',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {isSaving ? (
+                <>
+                  <div className="spinner" style={{
+                    width: '14px',
+                    height: '14px',
+                    border: '2px solid white',
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    marginRight: '8px',
+                    animation: 'spin 0.8s linear infinite'
+                  }}></div>
+                  Сохранение...
+                </>
+              ) : (
+                'Сохранить значения таблицы'
+              )}
+            </button>
+          </div>
 
+          <div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Предпосылки варианта</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    <td>
+                      <textarea
+                        value={row.PREREQUISITES || ''}
+                        onChange={e => {
+                          handleInputChange(rowIndex, 'PREREQUISITES', e.target.value);
+                          adjustHeight(e.target);
+                        }}
+                        ref={textarea => textarea && adjustHeight(textarea)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Преимущества</th>
+                  <th>Недостатки</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    <td>
+                      <textarea
+                        value={row.VAR_PLUS || ''}
+                        onChange={e => {
+                          handleInputChange(rowIndex, 'VAR_PLUS', e.target.value);
+                          adjustHeight(e.target);
+                        }}
+                        ref={textarea => textarea && adjustHeight(textarea)}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        value={row.VAR_MINUS || ''}
+                        onChange={e => {
+                          handleInputChange(rowIndex, 'VAR_MINUS', e.target.value);
+                          adjustHeight(e.target);
+                        }}
+                        ref={textarea => textarea && adjustHeight(textarea)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <style>
+            {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}
+          </style>
+        </>
+      )}
     </Styles>
   );
 }
