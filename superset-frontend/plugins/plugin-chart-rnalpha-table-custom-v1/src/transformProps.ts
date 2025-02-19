@@ -238,7 +238,8 @@ const transformProps = (
     show_totals: showTotals,
     conditional_formatting: conditionalFormatting,
     allow_rearrange_columns: allowRearrangeColumns,
-    endpoint
+    endpoint,
+    hidden_columns
   } = formData;
   const timeGrain = extractTimegrain(formData);
 
@@ -293,7 +294,8 @@ const transformProps = (
     timeGrain,
     allowRearrangeColumns,
     onContextMenu,
-    endpoint: endpoint
+    endpoint: endpoint,
+    formData
   };
 };
 

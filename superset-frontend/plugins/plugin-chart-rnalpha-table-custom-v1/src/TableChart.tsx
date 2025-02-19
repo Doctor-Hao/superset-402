@@ -70,60 +70,6 @@ const StyledTextArea = styled.textarea`
   }
 `;
 
-// Функция для преобразования плоских ключей в иерархию
-const generateHeaderData = (data: DataRow[]): HeaderColumn[] => {
-  const keys = Object.keys(data[0] || {});
-  const result: HeaderColumn[] = [];
-
-  keys.forEach(key => {
-    const parts = key.split('.');
-    let currentLevel = result;
-
-    parts.forEach((part, index) => {
-      let existing = currentLevel.find(item => item.label === part);
-
-      if (!existing) {
-        existing = { label: part, colSpan: 1 };
-        currentLevel.push(existing);
-      }
-
-      if (index === parts.length - 1) {
-        existing.rowSpan = 1; // Финальный уровень
-      } else {
-        existing.children = existing.children || [];
-        currentLevel = existing.children;
-      }
-    });
-  });
-
-  // Подсчитаем colSpan для родителей
-  const calculateColSpan = (columns: HeaderColumn[]): number => {
-    return columns.reduce((colSpan, column) => {
-      if (column.children) {
-        column.colSpan = calculateColSpan(column.children);
-      }
-      return colSpan + (column.colSpan || 1);
-    }, 0);
-  };
-  calculateColSpan(result);
-
-  return result;
-};
-
-// Расчет максимальной глубины заголовков
-const calculateMaxDepth = (columns: HeaderColumn[]): number => {
-  return columns.reduce((depth, column) => {
-    if (column.children) {
-      return Math.max(depth, 1 + calculateMaxDepth(column.children));
-    }
-    return depth;
-  }, 1);
-};
-
-const reverseData = (data: DataRow[]) => {
-  return [...data].reverse(); // Создаем новый массив и переворачиваем его
-};
-
 // Функция автоизменения высоты textarea
 const autoResize = (element: HTMLTextAreaElement) => {
   if (element) {
@@ -136,7 +82,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
 ) {
   const {
-    data, height, width, endpoint
+    data, height, width, endpoint, formData
   } = props;
   const rootElem = createRef<HTMLDivElement>();
   const textAreaRefs = useRef<(HTMLTextAreaElement | null)[][]>([]);
@@ -166,32 +112,83 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
   }, [data]);
 
+  // Получаем скрытые индексы из formData
+  const hiddenIndexes = formData.hidden_columns_indexes
+    ? formData.hidden_columns_indexes.split(',').map(idx => parseInt(idx.trim(), 10)).filter(idx => !isNaN(idx))
+    : [];
+
+  // Определяем порядок колонок
+  const allColumns = tableData.length ? Object.keys(tableData[0]) : [];
+  const visibleColumns = allColumns.filter((_, index) => !hiddenIndexes.includes(index));
 
   // Отправка данных на сервер
   const handleSave = async () => {
     setIsSaving(true);
-    try {
-      console.log("tableData", tableData)
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(tableData),
-      });
+    let attempts = 0;
+    const maxAttempts = 5;
+    while (attempts < maxAttempts) {
 
-      if (response.ok) {
-        alert('Данные успешно сохранены!');
-      } else {
-        alert('Ошибка при сохранении данных');
+      try {
+        // Парсим JSON из сопоставления колонок
+        let mapping = [];
+        try {
+          mapping = JSON.parse(formData.columns_mapping || '[]');
+        } catch (err) {
+          alert('Ошибка в формате JSON сопоставления колонок');
+          return;
+        }
+
+        // Формируем новый массив данных, где для каждой строки:
+        // ключом будет значение из mapping.api_key, а значением – данные из таблицы
+        const mappedData = tableData.map(row => {
+          const mappedRow: { [key: string]: any } = {};
+          mapping.forEach(item => {
+            // item — это объект, где ключом является название колонки из таблицы,
+            // а значением объект с описанием (в т.ч. с полем api_key)
+            const originalColumn = Object.keys(item)[0];
+            const { api_key } = item[originalColumn];
+            if (api_key && row[originalColumn] !== undefined) {
+              mappedRow[api_key] = row[originalColumn];
+            }
+          });
+          return mappedRow;
+        });
+
+        const payload = formData.send_as_array ? mappedData : mappedData[0];
+
+        console.log("payload", payload)
+
+        // Пример отправки всех строк, можно изменить логику, если требуется отправлять только одну строку
+        const response = await fetch(endpoint, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          console.log('✅ Данные успешно сохранены!');
+          setIsSaving(false);
+          return; // Если успех, завершаем выполнение
+        } else {
+          console.error('Ошибка при сохранении данных');
+        }
+      } catch (error) {
+        console.error('Ошибка сети:', error);
       }
-    } catch (error) {
-      console.error('Ошибка сети:', error);
-      alert('Ошибка сети при сохранении данных');
-    } finally {
-      setIsSaving(false);
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        console.log(`🔄 Повторная попытка через 2 секунды... (${attempts}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
     }
+    alert('❌ Ошибка: Данные не удалось сохранить. Повторите попытку позднее...');
+    setIsSaving(false);
   };
+
 
   // Обновляем значение в ячейке
   const handleInputChange = (rowIndex: number, columnKey: string, value: string) => {
@@ -214,56 +211,41 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setTableData(prevData => [...prevData, newRow]);
   };
 
-  // Отсортированные данные (снизу вверх)
-  // const reversedData = reverseData(tableData);
-  const reversedData = tableData;
-
-  // Генерация структуры заголовков
-  const headerData = generateHeaderData(tableData);
-
-  if (!headerData || !headerData.length) {
-    return <div>No header data available</div>;
-  }
-
-  // Рендеринг заголовков
-  const renderHeaderRows = (columns: HeaderColumn[], level = 0, maxDepth: number): JSX.Element[][] => {
-    const rows: JSX.Element[][] = [];
-    const processLevel = (cols: HeaderColumn[], depth: number) => {
-      rows[depth] = rows[depth] || []; // Создаем уровень, если его еще нет
-      cols.forEach((col, index) => {
-        rows[depth].push(
-          <th
-            key={`header-cell-${depth}-${index}`}
-            colSpan={col.colSpan || 1}
-            rowSpan={col.children ? 1 : maxDepth - depth} // Растягиваем leaf узлы
-          >
-            {col.label}
-          </th>
-        );
-        if (col.children) {
-          processLevel(col.children, depth + 1);
-        }
-      });
-    };
-
-    processLevel(columns, level);
-    return rows;
-  };
-
   // Финальный рендеринг заголовков
-  const renderHeaders = (columns: HeaderColumn[]): JSX.Element[] => {
-    const maxDepth = calculateMaxDepth(columns);
-    const headerRows = renderHeaderRows(columns, 0, maxDepth);
+  const renderHeaders = () => {
+    let mappingDict: Record<string, { name: string; api_key: string }> = {};
 
-    return headerRows.map((row, index) => <tr key={`header-row-${index}`}>{row}</tr>);
+    // Находим русское имя поля columns_mapping
+    try {
+      const mappingArray = JSON.parse(formData.columns_mapping || '[]');
+      mappingDict = mappingArray.reduce((acc: any, item: any) => {
+        const originalColumn = Object.keys(item)[0];
+        if (originalColumn) {
+          acc[originalColumn] = item[originalColumn];
+        }
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Ошибка парсинга columns_mapping:', error);
+    }
+
+    return (
+      <tr>
+        {visibleColumns.map((column, index) => {
+          // Если для колонки есть сопоставление, берём свойство name, иначе оставляем исходное название
+          const headerLabel = mappingDict[column]?.name || column;
+          return <th key={`header-${index}`}>{headerLabel}</th>;
+        })}
+      </tr>
+    );
   };
 
 
-  // Рендеринг строк данных
+  // **Обновленный рендер строк данных с фильтрацией по индексам**
   const renderDataRows = () => {
     return tableData.map((row, rowIndex) => (
       <tr key={`row-${rowIndex}`}>
-        {Object.keys(row).map((key, cellIndex) => (
+        {visibleColumns.map((key, cellIndex) => (
           <td key={`cell-${rowIndex}-${cellIndex}`} style={{ padding: '4px', boxSizing: 'border-box' }}>
             <StyledTextArea
               ref={el => {
@@ -286,7 +268,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   return (
     <Styles ref={rootElem} height={height} width={width}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-        <button
+        {/* <button
           onClick={handleAddRow}
           style={{
             marginRight: '8px',
@@ -298,7 +280,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           }}
         >
           Добавить строку
-        </button>
+        </button> */}
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -315,10 +297,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       </div>
       <table>
         <thead>
-          {renderHeaders(headerData)}
+          {renderHeaders()}
         </thead>
         <tbody>
-          {renderDataRows(reversedData)}
+          {renderDataRows()}
         </tbody>
       </table>
     </Styles>
