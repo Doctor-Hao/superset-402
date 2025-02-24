@@ -2,6 +2,7 @@
 import React, { useRef, useLayoutEffect } from 'react';
 import { StyledTextArea } from '../styles';
 import { autoResize } from '../utils/autosizeTextArea';
+import { ColorCircle } from './ColorCircle';
 
 interface DataRow {
     [key: string]: string | number | null;
@@ -10,11 +11,10 @@ interface DataRow {
 interface Props {
     tableData: DataRow[];
     visibleColumns: string[];
-    mappingDict: Record<string, { name: string; api_key: string }>;
+    mappingDict: Record<string, { name?: string; api_key?: string; column_color?: boolean }>;
     onInputChange: (rowIndex: number, columnKey: string, value: string) => void;
 }
 
-// Компонента для отрисовки таблицы
 export const InternalTable: React.FC<Props> = ({
     tableData,
     visibleColumns,
@@ -23,7 +23,6 @@ export const InternalTable: React.FC<Props> = ({
 }) => {
     const textAreaRefs = useRef<(HTMLTextAreaElement | null)[][]>([]);
 
-    // Автовысота при монтировании/изменении tableData
     useLayoutEffect(() => {
         setTimeout(() => {
             textAreaRefs.current.forEach(row => {
@@ -36,7 +35,6 @@ export const InternalTable: React.FC<Props> = ({
         }, 0);
     }, [tableData]);
 
-    // Рендер шапки
     const renderHeaders = () => (
         <tr>
             {visibleColumns.map((column, index) => {
@@ -46,25 +44,39 @@ export const InternalTable: React.FC<Props> = ({
         </tr>
     );
 
-    // Рендер строк
     const renderDataRows = () => {
         return tableData.map((row, rowIndex) => (
             <tr key={`row-${rowIndex}`}>
-                {visibleColumns.map((key, cellIndex) => (
-                    <td key={`cell-${rowIndex}-${cellIndex}`} style={{ padding: '4px' }}>
-                        <StyledTextArea
-                            ref={el => {
-                                if (!textAreaRefs.current[rowIndex]) {
-                                    textAreaRefs.current[rowIndex] = [];
-                                }
-                                textAreaRefs.current[rowIndex][cellIndex] = el;
-                            }}
-                            value={row[key] || ''}
-                            onChange={e => onInputChange(rowIndex, key, e.target.value)}
-                            onInput={e => autoResize(e.target as HTMLTextAreaElement)}
-                        />
-                    </td>
-                ))}
+                {visibleColumns.map((key, cellIndex) => {
+                    const cellValue = row[key] || '';
+                    const isColorColumn = !!mappingDict[key]?.column_color;
+
+                    return (
+                        <td key={`cell-${rowIndex}-${cellIndex}`} style={{ padding: '4px' }}>
+                            {isColorColumn ? (
+                                <ColorCircle
+                                    color={typeof cellValue === 'string' ? cellValue : ''}
+                                    onChange={(newColor: string) =>
+                                        onInputChange(rowIndex, key, newColor)
+                                    }
+                                    size={30}
+                                />
+                            ) : (
+                                <StyledTextArea
+                                    ref={el => {
+                                        if (!textAreaRefs.current[rowIndex]) {
+                                            textAreaRefs.current[rowIndex] = [];
+                                        }
+                                        textAreaRefs.current[rowIndex][cellIndex] = el;
+                                    }}
+                                    value={String(cellValue)}
+                                    onChange={e => onInputChange(rowIndex, key, e.target.value)}
+                                    onInput={e => autoResize(e.target as HTMLTextAreaElement)}
+                                />
+                            )}
+                        </td>
+                    );
+                })}
             </tr>
         ));
     };

@@ -26,16 +26,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [mappingDict, setMappingDict] = useState<Record<string, { name: string; api_key: string }>>(
     {},
   );
-
-  // Кастомные хуки
+  const [mappingArray, setMappingArray] = useState<any[]>([]);
   const { isSaving, handleSave } = useInternalData(endpoint);
-  const {
-    externalData,
-    setExternalData,
-    isLoading,
-    handleLoadExternal,
-    handleSaveExternal,
-  } = useExternalData(endpoint, [], tableData);
+
 
   // Загрузка из props
   useEffect(() => {
@@ -54,19 +47,30 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // Парсим JSON из formData.columns_mapping
   useEffect(() => {
     try {
-      const mappingArray = JSON.parse(formData.columns_mapping || '[]');
+      const parsed = JSON.parse(formData.columns_mapping || '[]');
       const dict: Record<string, { name: string; api_key: string }> = {};
-      mappingArray.forEach((item: any) => {
+      parsed.forEach((item: any) => {
         const originalColumn = Object.keys(item)[0];
         if (originalColumn) {
           dict[originalColumn] = item[originalColumn];
         }
       });
       setMappingDict(dict);
+      setMappingArray(parsed); // <-- сохраняем сам массив в стейт
     } catch (error) {
       console.error('Ошибка парсинга columns_mapping:', error);
     }
   }, [formData.columns_mapping]);
+
+  // Кастомные хуки
+  const {
+    externalData,
+    setExternalData,
+    isLoading,
+    handleLoadExternal,
+    handleSaveExternal,
+  } = useExternalData(endpoint, mappingArray, tableData);
+
 
   // Получаем hiddenIndexes (из formData)
   const hiddenIndexes = formData.hidden_columns_indexes

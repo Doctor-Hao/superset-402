@@ -2,30 +2,37 @@
 import React from 'react';
 import { StyledTextArea } from '../styles';
 import { autoResize } from '../utils/autosizeTextArea';
+import { ColorCircle } from './ColorCircle'; // <-- общий компонент
 
 interface ExternalTableProps {
-    externalData: any; // Тип можно уточнить
-    mappingDict: Record<string, { name: string; api_key: string }>;
+    externalData: any;
     setExternalData: React.Dispatch<React.SetStateAction<any>>;
+    mappingDict: Record<string, { name?: string; api_key?: string; column_color?: boolean }>;
 }
 
 export const ExternalTable: React.FC<ExternalTableProps> = ({
     externalData,
-    mappingDict,
     setExternalData,
+    mappingDict,
 }) => {
     if (!externalData) return null;
 
-    // Определяем динамические колонки — ключи, которые являются массивами
+    // Ищем ключи, где значения — это массив
     const dynamicColumns = Object.keys(externalData).filter(key => Array.isArray(externalData[key]));
     if (dynamicColumns.length === 0) {
         return <div>Нет данных для отображения</div>;
     }
 
-    // Определяем количество строк (максимум по всем массивам)
     const rowCount = Math.max(...dynamicColumns.map(col => externalData[col].length));
 
-    // Рендерим таблицу
+    // Обновление конкретной ячейки
+    const handleChange = (col: string, rowIndex: number, newVal: string) => {
+        const newExternal = { ...externalData };
+        newExternal[col] = [...externalData[col]];
+        newExternal[col][rowIndex] = newVal;
+        setExternalData(newExternal);
+    };
+
     return (
         <table>
             <thead>
@@ -38,23 +45,30 @@ export const ExternalTable: React.FC<ExternalTableProps> = ({
                 </tr>
             </thead>
             <tbody>
-                {Array.from({ length: rowCount }).map((_, i) => (
-                    <tr key={`external-row-${i}`}>
-                        {dynamicColumns.map(col => (
-                            <td key={`${col}-${i}`}>
-                                <StyledTextArea
-                                    value={externalData[col][i] || ''}
-                                    onChange={e => {
-                                        const newVal = e.target.value;
-                                        const newExternalData = { ...externalData };
-                                        newExternalData[col] = [...externalData[col]];
-                                        newExternalData[col][i] = newVal;
-                                        setExternalData(newExternalData);
-                                    }}
-                                    onInput={e => autoResize(e.target as HTMLTextAreaElement)}
-                                />
-                            </td>
-                        ))}
+                {Array.from({ length: rowCount }).map((_, rowIndex) => (
+                    <tr key={`row-${rowIndex}`}>
+                        {dynamicColumns.map(col => {
+                            const cellValue = externalData[col][rowIndex] || '';
+                            const isColorColumn = !!mappingDict[col]?.column_color;
+
+                            return (
+                                <td key={`${col}-${rowIndex}`}>
+                                    {isColorColumn ? (
+                                        <ColorCircle
+                                            color={typeof cellValue === 'string' ? cellValue : ''}
+                                            onChange={(newColor: string) => handleChange(col, rowIndex, newColor)}
+                                            size={30}
+                                        />
+                                    ) : (
+                                        <StyledTextArea
+                                            value={cellValue}
+                                            onChange={e => handleChange(col, rowIndex, e.target.value)}
+                                            onInput={e => autoResize(e.target as HTMLTextAreaElement)}
+                                        />
+                                    )}
+                                </td>
+                            );
+                        })}
                     </tr>
                 ))}
             </tbody>
