@@ -81,15 +81,27 @@ const config = {
           {
             name: 'columns_mapping',
             config: {
-              type: 'TextControl',
+              type: 'TextAreaControl',
               label: t('Сопоставление колонок для API'),
               description: t(
                 'Введите JSON-массив объектов вида: ' +
                 '[ { "название_колонки": { "name": "Название в шапке", "api_key": "ключ для API" } } ]'
               ),
-              default: '[{"nameColumn": {"name": "Колонка 1","api_key": "поле_для_API"}}]',
+              default:
+                `
+[
+  {"nameColumn": 
+    {"name": "Колонка 1","api_key": "поле_для_API"}
+  },
+  {"nameColumn2": 
+    {"name": "Колонка 2","api_key": "поле_для_API"}
+  }
+]`,
+              language: 'plaintext',    // Чтобы не включалась логика модального JSON-редактора
+              // freeForm: true,         // Если хотите разрешить любую строку (не только JSON)
             },
-          },
+          }
+
         ],
         [
           {
