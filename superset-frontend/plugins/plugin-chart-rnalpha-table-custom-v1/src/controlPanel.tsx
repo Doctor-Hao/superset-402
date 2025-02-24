@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import { t } from '@superset-ui/core';
 import { sharedControls } from '@superset-ui/chart-controls';
 
@@ -10,9 +9,7 @@ const config = {
     {
       label: t('Filters'),
       expanded: true,
-      controlSetRows: [
-        ['adhoc_filters'],
-      ],
+      controlSetRows: [['adhoc_filters']],
     },
     {
       label: t('Query'),
@@ -24,11 +21,10 @@ const config = {
             config: {
               type: 'SelectControl',
               label: t('Endpoint'),
-              description: t('Адрес до таблицы в которую отправлять данные'),
+              description: t('Адрес до таблицы, в которую отправлять данные'),
               default: '',
               freeForm: true, // Разрешает ввод вручную
               mapStateToProps: ({ datasource }) => {
-                const tableName = datasource?.table_name || 'default_table';
                 return {
                   options: [
                     {
@@ -38,6 +34,10 @@ const config = {
                     {
                       label: `general_overview`,
                       value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/general_overview`,
+                    },
+                    {
+                      label: `variant/factories`,
+                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/variant/factories`,
                     },
                   ],
                 };
@@ -81,8 +81,8 @@ const config = {
           {
             name: 'columns_mapping',
             config: {
-              type: 'TextControl', // используем многострочный контрол
-              label: t('Сопоставление колонок'),
+              type: 'TextControl',
+              label: t('Сопоставление колонок для API'),
               description: t(
                 'Введите JSON-массив объектов вида: ' +
                 '[ { "название_колонки": { "name": "Название в шапке", "api_key": "ключ для API" } } ]'
@@ -98,6 +98,17 @@ const config = {
               type: 'CheckboxControl',
               label: t('Отправлять массив json'),
               description: t('Если галочка установлена, отправляется все строки, иначе – только первая строка'),
+              default: false,
+            },
+          },
+        ],
+        [
+          {
+            name: 'use_external_data',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Получать данные из другого источника'),
+              description: t('Если установлено, данные будут загружаться по GET-запросу'),
               default: false,
             },
           },

@@ -101,7 +101,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }, [data]); // Срабатывает при загрузке данных
 
   const [tableData, setTableData] = useState<DataRow[]>([]);
+  const [externalData, setExternalData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     console.log('Plugin props', data);
@@ -111,6 +113,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       setTableData([...data]); // Копируем массив, чтобы избежать мутаций
     }
   }, [data]);
+
+  // При наличии галочки "Получать данные из другого источника" загружаем GET данные автоматически
+  useEffect(() => {
+    if (formData.use_external_data && tableData.length > 0) {
+      handleLoadExternal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.use_external_data, tableData]);
 
   // Получаем скрытые индексы из formData
   const hiddenIndexes = formData.hidden_columns_indexes
@@ -264,45 +274,269 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     ));
   };
 
+  // Загрузка внешних данных через GET. Используем только columns_mapping[0] для формирования параметра.
+  const handleLoadExternal = async () => {
+    setIsLoading(true);
+    let mapping = [];
+    try {
+      mapping = JSON.parse(formData.columns_mapping || '[]');
+    } catch (err) {
+      alert('Ошибка в формате JSON сопоставления колонок');
+      setIsLoading(false);
+      return;
+    }
+    if (!tableData.length) {
+      alert('Нет данных в таблице для формирования GET-запроса');
+      setIsLoading(false);
+      return;
+    }
+    const firstRow = tableData[0];
+    let urlWithValue = endpoint;
+    if (mapping.length > 0) {
+      const firstMapping = mapping[0];
+      const originalColumn = Object.keys(firstMapping)[0];
+      if (firstRow.hasOwnProperty(originalColumn)) {
+        // Формируем URL вида: endpoint/{значение}
+        urlWithValue = `${endpoint}/${firstRow[originalColumn]}`;
+      }
+    }
+
+    const maxAttempts = 5;
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(urlWithValue, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (response.ok) {
+          const dataFromGet = await response.json();
+          // Сохраняем полученные данные – динамические колонки определим при рендеринге
+          setExternalData(dataFromGet);
+          console.log('✅ Внешние данные успешно получены!');
+          break;
+        } else {
+          console.error('Ошибка при выполнении GET-запроса');
+        }
+      } catch (error) {
+        console.error('Ошибка сети при GET-запросе:', error);
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.error('❌ GET-запрос завершился неудачно после 5 попыток');
+      }
+    }
+    setIsLoading(false);
+  };
+
+
+  // Рендер внешней таблицы с динамическими колонками, используя mapping для заголовков
+  const renderExternalTable = () => {
+    if (!externalData) return null;
+
+    // Получаем сопоставление из columns_mapping
+    let mappingDict: Record<string, { name: string; api_key: string }> = {};
+    try {
+      const mappingArray = JSON.parse(formData.columns_mapping || '[]');
+      mappingDict = mappingArray.reduce((acc: any, item: any) => {
+        const originalColumn = Object.keys(item)[0];
+        if (originalColumn) {
+          acc[originalColumn] = item[originalColumn];
+        }
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Ошибка парсинга columns_mapping:', error);
+    }
+
+    // Определяем динамические колонки: ключи, значения которых являются массивами
+    const dynamicColumns = Object.keys(externalData).filter(key => Array.isArray(externalData[key]));
+    if (dynamicColumns.length === 0) return <div>Нет данных для отображения</div>;
+
+    // Определяем количество строк – берем максимум длин массивов (предполагается, что длины совпадают)
+    const rowCount = Math.max(...dynamicColumns.map(col => externalData[col].length));
+
+    return (
+      <table>
+        <thead>
+          <tr>
+            {dynamicColumns.map(col => (
+              <th key={col}>
+                {mappingDict[col] && mappingDict[col].name ? mappingDict[col].name : col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rowCount }).map((_, i) => (
+            <tr key={`external-row-${i}`}>
+              {dynamicColumns.map(col => (
+                <td key={`${col}-${i}`}>
+                  <StyledTextArea
+                    value={externalData[col][i] || ''}
+                    onChange={e => {
+                      const newVal = e.target.value;
+                      // Обновляем значение в массиве для данного столбца
+                      const newExternalData = { ...externalData };
+                      newExternalData[col] = [...externalData[col]];
+                      newExternalData[col][i] = newVal;
+                      setExternalData(newExternalData);
+                    }}
+                    onInput={e => autoResize(e.target as HTMLTextAreaElement)}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+
+  // Сохранение внешних данных через PATCH
+  const handleSaveExternal = async () => {
+    setIsSaving(true);
+    if (!externalData) {
+      alert('Нет внешних данных для сохранения');
+      setIsSaving(false);
+      return;
+    }
+    let mapping = [];
+    try {
+      mapping = JSON.parse(formData.columns_mapping || '[]');
+    } catch (err) {
+      alert('Ошибка в формате JSON сопоставления колонок');
+      setIsSaving(false);
+      return;
+    }
+
+    // Клонируем externalData, чтобы не мутировать state напрямую
+    const payload = { ...externalData };
+
+    // Если сопоставление существует и таблица содержит данные,
+    // добавляем поле с ключом из mapping[0].api_key и значением из соответствующей колонки
+    if (mapping.length > 0 && tableData.length > 0) {
+      const firstMapping = mapping[0];
+      const originalColumn = Object.keys(firstMapping)[0];
+      const { api_key } = firstMapping[originalColumn];
+      if (tableData[0].hasOwnProperty(originalColumn)) {
+        payload[api_key] = tableData[0][originalColumn];
+      }
+    }
+
+    const maxAttempts = 5;
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          console.log('✅ Внешние данные успешно сохранены!');
+          break;
+        } else {
+          console.error('Ошибка при сохранении внешних данных');
+        }
+      } catch (error) {
+        console.error('Ошибка сети при PATCH-запросе для внешних данных:', error);
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        console.log(`🔄 Повторная попытка PATCH-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.error('❌ PATCH-запрос завершился неудачно после 5 попыток');
+      }
+    }
+    setIsSaving(false);
+  };
+
+
+  // Функция добавления новой строки в режимe внешних данных
+  const handleAddExternalRow = () => {
+    if (!externalData) {
+      alert('Нет внешних данных для добавления строки');
+      return;
+    }
+    // Для каждого ключа, значение которого является массивом, добавляем пустую строку
+    const newExternalData = { ...externalData };
+    Object.keys(newExternalData).forEach(key => {
+      if (Array.isArray(newExternalData[key])) {
+        newExternalData[key] = [...newExternalData[key], ''];
+      }
+    });
+    setExternalData(newExternalData);
+  };
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-        {/* <button
-          onClick={handleAddRow}
-          style={{
-            marginRight: '8px',
-            padding: '4px 8px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          Добавить строку
-        </button> */}
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          style={{
-            padding: '4px 8px',
-            backgroundColor: isSaving ? '#aaa' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {isSaving ? 'Сохранение...' : 'Сохранить'}
-        </button>
-      </div>
-      <table>
-        <thead>
-          {renderHeaders()}
-        </thead>
-        <tbody>
-          {renderDataRows()}
-        </tbody>
-      </table>
+      {formData.use_external_data ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <button
+              onClick={handleSaveExternal}
+              disabled={isSaving}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: isSaving ? '#aaa' : '#4CAF50',
+                color: 'white',
+                border: 'none',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                marginLeft: '8px',
+              }}
+            >
+              {isSaving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+            <button
+              onClick={handleAddExternalRow}
+              disabled={isSaving}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: isSaving ? '#aaa' : '#4CAF50',
+                color: 'white',
+                border: 'none',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                marginLeft: '8px',
+              }}
+            >
+              Добавить строку
+            </button>
+          </div>
+          {renderExternalTable()}
+        </>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: isSaving ? '#aaa' : '#4CAF50',
+                color: 'white',
+                border: 'none',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSaving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          </div>
+          <table>
+            <thead>{renderHeaders()}</thead>
+            <tbody>{renderDataRows()}</tbody>
+          </table>
+        </>
+      )}
     </Styles>
   );
 }
