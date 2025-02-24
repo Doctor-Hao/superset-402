@@ -344,7 +344,7 @@
     "source-map": "^0.7.4",
     "source-map-support": "^0.5.21",
     "speed-measure-webpack-plugin": "^1.5.0",
-    "storybook": "^7.6.13",
+    "storybook": "^8.5.2",
     "storybook-addon-jsx": "^7.3.14",
     "style-loader": "^3.3.4",
     "thread-loader": "^3.0.4",
