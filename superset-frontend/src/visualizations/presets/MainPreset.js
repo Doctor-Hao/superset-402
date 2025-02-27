@@ -81,6 +81,7 @@ import ChartRnalphaPlusMinusPlugin from '@superset-ui/plugin-chart-rnalpha-plus-
 import ChartRnalphaTableCustomV1Plugin from '@superset-ui/plugin-chart-rnalpha-table-custom-v1';
 import ChartRnalphaTableImagePlugin from '@superset-ui/plugin-chart-rnalpha-table-image';
 import ChartRnalphaProgectMilestonesPlugin from '@superset-ui/plugin-chart-rnalpha-project-milestones';
+import ChartRnalphaProgectInfrastructureDescriptionPlugin from '@superset-ui/plugin-chart-rnalpha-project-infrastructure-description';
 
 
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
@@ -181,6 +182,7 @@ export default class MainPreset extends Preset {
         new ChartRnalphaTableCustomV1Plugin().configure({ key: 'plugin-chart-rnalpha-table-custom-v1', }),
         new ChartRnalphaTableImagePlugin().configure({ key: 'plugin-chart-rnalpha-table-image', }),
         new ChartRnalphaProgectMilestonesPlugin().configure({ key: 'plugin-chart-rnalpha-project-milestones', }),
+        new ChartRnalphaProgectInfrastructureDescriptionPlugin().configure({ key: 'plugin-chart-rnalpha-project-infrastructure-description', }),
 
         ...experimentalPlugins,
       ],
