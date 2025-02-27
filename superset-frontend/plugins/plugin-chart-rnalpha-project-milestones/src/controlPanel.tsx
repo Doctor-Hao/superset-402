@@ -8,6 +8,13 @@ import { sharedControls } from '@superset-ui/chart-controls';
 const config = {
   controlPanelSections: [
     {
+      label: t('Filters'),
+      expanded: true,
+      controlSetRows: [
+        ['adhoc_filters'],
+      ],
+    },
+    {
       label: t('Query'),
       expanded: true,
       controlSetRows: [

@@ -1,15 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { DataTableProps } from './DataTable';
-import { Styles, StyledTextArea } from './styles';
+import { Styles, StyledTextArea, StyledDateInput } from './styles';
+import { ControlButtons } from './components/ControlButtons';
 
-export function autoResize(element: HTMLTextAreaElement) {
-  if (element) {
-    element.style.height = 'auto'; // Сбрасываем высоту
-    element.style.height = `${element.scrollHeight}px`; // Устанавливаем новую высоту
-  }
-}
+
+
 
 // Моковые данные
 const mockData = [
@@ -19,7 +16,10 @@ const mockData = [
 
 const mockApiResponse = {
   data: [
-    { text: 'Событие 1', milestone_date: '2025-02-26' },
+    {
+      text: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
+      milestone_date: '2025-02-26'
+    },
     { text: 'Событие 2', milestone_date: '2025-03-15' },
   ],
 };
@@ -32,41 +32,45 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const { height, width, data: initialData } = props;
   const [data, setData] = useState<D[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<D[]>([]);
-  const textAreasRef = useRef<(HTMLTextAreaElement | null)[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
+  const rootElem = createRef<HTMLDivElement>();
 
   useEffect(() => {
     // TODO mockDATA
-    if (mockData.length > 0) {
-      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-      setProjId(firstProjId);
-      setData(mockApiResponse.data);
-      setEditedData(mockApiResponse.data);
-      handleLoadExternal(projId);
-    }
-    if (initialData.length > 0) {
-      // const projId = initialData[0]?.PROJ_ID; // Получаем первый PROJ_ID
-      // if (projId) {
-      //   handleLoadExternal(projId);
-      // } else {
-      //   console.warn('❌ Не найден PROJ_ID в initialData');
-      // }
-    }
+    // if (mockData.length > 0) {
+    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    //   setProjId(firstProjId);
+    //   setData(mockApiResponse.data);
+    //   setEditedData(mockApiResponse.data);
+    // }
+
   }, [initialData]); // Вызываем только при изменении initialData
 
+  // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
   useEffect(() => {
-    // После загрузки данных или их изменения ресайзим все текстовые области
-    textAreasRef.current.forEach((textarea) => {
-      if (textarea) autoResize(textarea);
-    });
-  }, [editedData]);
+    if (initialData.length > 0) {
+      const firstProjId = initialData[0]?.PROJ_ID;
+      if (firstProjId && firstProjId !== projId) {
+        setProjId(firstProjId); // Обновляем `projId`
+      }
+    }
+  }, [initialData]);
+
+  // 2️⃣ Загружаем данные после обновления `projId`
+  useEffect(() => {
+    if (projId) {
+      handleLoadExternal(projId);
+    }
+  }, [projId]);
+
 
   // ========== GET-логика ==========
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
 
-    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones?${projId}`;
+    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
 
     // Пример retry в 5 попыток
@@ -82,6 +86,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         if (response.ok) {
           const dataFromGet = await response.json();
           setData(dataFromGet.data);
+          setEditedData(dataFromGet.data);
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
@@ -108,6 +113,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       console.error('❌ Ошибка: PROJ_ID не найден');
       return;
     }
+    setIsSaveLoading(true)
+
     const requestBody = {
       proj_id: projId,
       data: editedData,
@@ -117,12 +124,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
     const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones`;
 
-
     try {
       const response = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: requestBody }),
+        body: JSON.stringify({
+          proj_id: projId,
+          data: editedData,
+        }),
       });
 
       if (response.ok) {
@@ -132,54 +141,79 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       }
     } catch (error) {
       console.error('Ошибка сети при PATCH-запросе:', error);
+    } finally {
+      setIsSaveLoading(false)
     }
   };
 
+  // ========== Добавление новой строки ==========
+  const handleAddRow = () => {
+    const newRow = { text: '', milestone_date: '' }; // Пустая строка
+    setEditedData([...editedData, newRow]); // Добавляем строку в конец массива
+  };
+
   // ========== Обновление данных при редактировании ==========
-  const handleChange = (index: number, field: string, value: string) => {
-    const updatedData = [...editedData];
-    updatedData[index] = { ...updatedData[index], [field]: value };
-    setEditedData(updatedData);
-  }
+  const handleChange = (rowIndex: number, field: string, value: string) => {
+    setEditedData(prevData =>
+      prevData.map((row, index) =>
+        index === rowIndex ? { ...row, [field]: value } : row,
+      ),
+    );
+  };
+
+  // Подстройка высоты textarea
+  const autoResize = (textarea) => {
+    textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
+    textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
+  };
 
   return (
-    <Styles height={height} width={width}>
-      {isLoading ? <p>Загрузка...</p> : null}
-      <button onClick={handleSave}>Сохранить</button>
-      <table>
-        <thead>
-          <tr>
-            <th>Текст</th>
-            <th>Дата</th>
-          </tr>
-        </thead>
-        <tbody>
-          {editedData.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              <td>
-                <StyledTextArea
-                  ref={(el) => (textAreasRef.current[rowIndex] = el)}
-                  value={row.text}
-                  onChange={(e) => {
-                    handleChange(rowIndex, 'text', e.target.value);
-                    autoResize(e.target);
-                  }}
-                />
-              </td>
-              <td>
-                <StyledTextArea
-                  ref={(el) => (textAreasRef.current[rowIndex + editedData.length] = el)}
-                  value={row.milestone_date}
-                  onChange={(e) => {
-                    handleChange(rowIndex, 'milestone_date', e.target.value);
-                    autoResize(e.target);
-                  }}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Styles ref={rootElem} height={height} width={width}>
+      {isLoading ? (
+        <p>Загрузка...</p>
+      ) : (
+        <>
+          <ControlButtons
+            isSaving={isSaveLoading}
+            onSave={handleSave}
+            onAddRow={handleAddRow}
+          />
+          <table>
+            <thead>
+              <tr>
+                <th>№ п/п</th>
+                <th>Ключевые вехи проекта</th>
+                <th>Дата</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editedData.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  <td>
+                    {rowIndex + 1}
+                  </td>
+                  <td>
+                    <StyledTextArea
+                      value={row.text || ''}
+                      onChange={(e) => {
+                        handleChange(rowIndex, 'text', e.target.value)
+                        autoResize(e.target as HTMLTextAreaElement)
+                      }}
+                      ref={textarea => textarea && autoResize(textarea)}
+                    />
+                  </td>
+                  <td>
+                    <StyledDateInput
+                      type="date"
+                      value={row.milestone_date || ''}
+                      onChange={(e) => handleChange(rowIndex, 'milestone_date', e.target.value)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>)}
     </Styles>
   );
 }

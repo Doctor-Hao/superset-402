@@ -36,10 +36,10 @@ const metadata = new ChartMetadata({
     Behavior.DrillToDetail,
     Behavior.DrillBy,
   ],
-  category: t('Table'),
+  category: t('Table слайды'),
   canBeAnnotationTypes: ['EVENT', 'INTERVAL'],
   description: t(
-    '/project/milestones',
+    'Ключевые вехи проекта (31 слайд)(/project/milestones)',
   ),
   exampleGallery: [{ url: example1 }, { url: example2 }, { url: example3 }],
   name: t('/project/milestones'),
