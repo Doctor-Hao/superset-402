@@ -24,14 +24,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     sticky?: DataTableProps<D>['sticky'];
   },
 ) {
-  const { height, width, data: initialData } = props;
+  const { height, width, data: initialData, formData } = props;
   const [data, setData] = useState<D[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<D>();
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
-  const url = "http://bnipi-rnc-tst1.rosneft.ru:8098/project/infrastructure/description"
+  const url = formData.endpoint
 
 
   useEffect(() => {
