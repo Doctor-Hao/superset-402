@@ -15,8 +15,24 @@ const mockData = [
 ];
 
 const mockApiResponse = {
-  "oil_description": "Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка\nШестая строка\nСедьмая строка\nВосьмая строка\nДевятая строка\nДесятая строка",
-  "ppd_description": "Описание проекта\nЕще одна строка описания\nДополнительная информация"
+  data: [
+    {
+      "risk_description": "Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка\nШестая строка\nСедьмая строка\nВосьмая строка\nДевятая строка\nДесятая строка",
+      "reduction_factors": "Описание проекта\nЕще одна строка описания\nДополнительная информация",
+      "probability": {
+        "value": "low",
+        "value_translate": "string"
+      },
+      "impacts": {
+        "value": "middle",
+        "value_translate": "string"
+      },
+      "managebility": {
+        "value": "high",
+        "value_translate": "string"
+      }
+    }
+  ]
 }
 
 
@@ -28,30 +44,17 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const { height, width, data: initialData, formData } = props;
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
-  const [editedData, setEditedData] = useState<{}>();
+  const [editedData, setEditedData] = useState<D[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
 
-  const handleLoadExternalMock = async (projId: string) => {
-    setIsLoading(true);
-
-    // Симуляция задержки сети 1.5 сек.
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Используем моковые данные вместо реального запроса
-    setEditedData(mockApiResponse);
-    console.log("✅ Данные успешно загружены (мок)");
-
-    setIsLoading(false);
-  };
-
   useEffect(() => {
     // mockDATA
-    // if (mockData.length > 0) {
-    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-    //   setProjId(firstProjId);
-    // }
+    if (mockData.length > 0) {
+      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+      setProjId(firstProjId);
+    }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -68,10 +71,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
-      // handleLoadExternalMock(projId)
-      handleLoadExternal(projId);
+      handleLoadExternalMock(projId)
+      // handleLoadExternal(projId);
     }
   }, [projId]);
+
+  const handleLoadExternalMock = async (projId: string) => {
+    setIsLoading(true);
+
+    // Симуляция задержки сети 1.5 сек.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Используем моковые данные вместо реального запроса
+    setEditedData(mockApiResponse.data);
+    console.log("✅ Данные успешно загружены (мок)");
+
+    setIsLoading(false);
+  };
 
 
   // ========== GET-логика ==========
@@ -93,7 +109,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         });
         if (response.ok) {
           const dataFromGet = await response.json();
-          setEditedData(dataFromGet);
+          setEditedData(dataFromGet.data);
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
@@ -124,7 +140,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
     const requestBody = {
       proj_id: projId,
-      [formData.property_name]: editedData?.[formData.property_name],
+      data: editedData,
     };
 
     console.log('📤 Отправка обновленных данных:', requestBody);
@@ -148,12 +164,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
   };
 
+  // ========== Добавление новой строки ==========
+  const handleAddRow = () => {
+    const newRow = { text: '', milestone_date: '' }; // Пустая строка
+    setEditedData([...editedData, newRow]); // Добавляем строку в конец массива
+  };
+
   // ========== Обновление данных при редактировании ==========
-  const handleChange = (field, value: string) => {
-    setEditedData(prevData => ({
-      ...prevData!,
-      [field]: value,
-    }));
+  const handleChange = (rowIndex: number, field: string, value: string) => {
+    setEditedData(prevData =>
+      prevData.map((row, index) =>
+        index === rowIndex ? { ...row, [field]: value } : row,
+      ),
+    );
   };
 
   // Подстройка высоты textarea
@@ -171,26 +194,48 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           <ControlButtons
             isSaving={isSaveLoading}
             onSave={handleSave}
+            onAddRow={handleAddRow}
           />
           <table>
             <thead>
               <tr>
-                <th>{[formData.header_name]}</th>
+                <th>Риски</th>
+                <th>Описание</th>
+                <th>Факторы снижения риска</th>
+                <th>Вероятность</th>
+                <th>Масштаб действия</th>
+                <th>Управляемость</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <StyledTextArea
-                    value={editedData?.[formData.property_name] || ''}
-                    onChange={(e) => {
-                      handleChange(formData.property_name, e.target.value);
-                      autoResize(e.target as HTMLTextAreaElement)
-                    }}
-                    ref={textarea => textarea && autoResize(textarea)}
-                  />
-                </td>
-              </tr>
+              {editedData.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  <td>
+                    {rowIndex + 1}
+                  </td>
+                  <td>
+                    <StyledTextArea
+                      value={row.risk_description || ''}
+                      onChange={(e) => {
+                        handleChange(rowIndex, 'risk_description', e.target.value)
+                        autoResize(e.target as HTMLTextAreaElement)
+                      }}
+                      ref={textarea => textarea && autoResize(textarea)}
+                    />
+                  </td>
+                  <td>
+                    <StyledTextArea
+                      value={row.reduction_factors || ''}
+                      onChange={(e) => {
+                        handleChange(rowIndex, 'reduction_factors', e.target.value)
+                        autoResize(e.target as HTMLTextAreaElement)
+                      }}
+                      ref={textarea => textarea && autoResize(textarea)}
+                    />
+                  </td>
+
+                </tr>
+              ))}
             </tbody>
           </table>
         </>)}
