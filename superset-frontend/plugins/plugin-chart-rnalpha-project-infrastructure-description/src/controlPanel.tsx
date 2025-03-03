@@ -61,6 +61,30 @@ const config = {
             },
           },
         ],
+        [
+          {
+            name: 'property_name',
+            config: {
+              type: 'TextControl',
+              label: t('Наименование свойста'),
+              description: t('Название свойства которое будет отображаться и отправляться'),
+              default: 'oil_description',
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'header_name',
+            config: {
+              type: 'TextControl',
+              label: t('Наименование шапки'),
+              description: t('Название шапки которое отображается в колонке'),
+              default: 'Описание',
+              renderTrigger: true,
+            },
+          },
+        ],
       ],
     },
   ],

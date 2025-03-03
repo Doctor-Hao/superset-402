@@ -1,4 +1,4 @@
-import React, { createRef, useEffect, useState } from 'react';
+import React, { createRef, useEffect, useRef, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { DataTableProps } from './DataTable';
@@ -15,9 +15,10 @@ const mockData = [
 ];
 
 const mockApiResponse = {
-  oil_description: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
-  ppd_description: `Первая строка`
-};
+  "oil_description": "Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка\nШестая строка\nСедьмая строка\nВосьмая строка\nДевятая строка\nДесятая строка",
+  "ppd_description": "Описание проекта\nЕще одна строка описания\nДополнительная информация"
+}
+
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D> & {
@@ -25,23 +26,32 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   },
 ) {
   const { height, width, data: initialData, formData } = props;
-  const [data, setData] = useState<D[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
-  const [editedData, setEditedData] = useState<D>();
+  const [editedData, setEditedData] = useState<{}>();
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
 
+  const handleLoadExternalMock = async (projId: string) => {
+    setIsLoading(true);
+
+    // Симуляция задержки сети 1.5 сек.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Используем моковые данные вместо реального запроса
+    setEditedData(mockApiResponse);
+    console.log("✅ Данные успешно загружены (мок)");
+
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    // TODO mockDATA
-    if (mockData.length > 0) {
-      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-      setProjId(firstProjId);
-      setData(mockApiResponse);
-      setEditedData(mockApiResponse);
-    }
+    // mockDATA
+    // if (mockData.length > 0) {
+    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    //   setProjId(firstProjId);
+    // }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -58,7 +68,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
-      // handleLoadExternal(projId);
+      // handleLoadExternalMock(projId)
+      handleLoadExternal(projId);
     }
   }, [projId]);
 
@@ -82,8 +93,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         });
         if (response.ok) {
           const dataFromGet = await response.json();
-          setData(dataFromGet.data);
-          setEditedData(dataFromGet.data);
+          setEditedData(dataFromGet);
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
@@ -114,7 +124,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
     const requestBody = {
       proj_id: projId,
-      oil_description: editedData?.oil_description,
+      [formData.property_name]: editedData?.[formData.property_name],
     };
 
     console.log('📤 Отправка обновленных данных:', requestBody);
@@ -123,10 +133,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       const response = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proj_id: projId,
-          oil_description: editedData?.oil_description,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -142,7 +149,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   // ========== Обновление данных при редактировании ==========
-  const handleChange = (field: keyof typeof mockApiResponse, value: string) => {
+  const handleChange = (field, value: string) => {
     setEditedData(prevData => ({
       ...prevData!,
       [field]: value,
@@ -168,16 +175,16 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           <table>
             <thead>
               <tr>
-                <th>Описание</th>
+                <th>{[formData.header_name]}</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
                   <StyledTextArea
-                    value={editedData?.oil_description || ''}
+                    value={editedData?.[formData.property_name] || ''}
                     onChange={(e) => {
-                      handleChange('oil_description', e.target.value);
+                      handleChange(formData.property_name, e.target.value);
                       autoResize(e.target as HTMLTextAreaElement)
                     }}
                     ref={textarea => textarea && autoResize(textarea)}
