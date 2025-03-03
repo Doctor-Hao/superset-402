@@ -52,7 +52,7 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `project-infrastructure-description`,
+                      label: `project-risk`,
                       value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/risk`,
                     },
                   ],
