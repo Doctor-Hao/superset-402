@@ -81,6 +81,7 @@ import ChartRnalphaPlusMinusPlugin from '@superset-ui/plugin-chart-rnalpha-plus-
 import ChartRnalphaTableCustomV1Plugin from '@superset-ui/plugin-chart-rnalpha-table-custom-v1';
 import ChartRnalphaTableImagePlugin from '@superset-ui/plugin-chart-rnalpha-table-image';
 import ChartRnalphaProgectMilestonesPlugin from '@superset-ui/plugin-chart-rnalpha-project-milestones';
+import ChartRnalphaProgectRiskPlugin from '@superset-ui/plugin-chart-rnalpha-project-risk';
 import ChartRnalphaProgectInfrastructureDescriptionPlugin from '@superset-ui/plugin-chart-rnalpha-project-infrastructure-description';
 
 
@@ -183,6 +184,7 @@ export default class MainPreset extends Preset {
         new ChartRnalphaTableImagePlugin().configure({ key: 'plugin-chart-rnalpha-table-image', }),
         new ChartRnalphaProgectMilestonesPlugin().configure({ key: 'plugin-chart-rnalpha-project-milestones', }),
         new ChartRnalphaProgectInfrastructureDescriptionPlugin().configure({ key: 'plugin-chart-rnalpha-project-infrastructure-description', }),
+        new ChartRnalphaProgectRiskPlugin().configure({ key: 'plugin-chart-rnalpha-project-risk', }),
 
         ...experimentalPlugins,
       ],
