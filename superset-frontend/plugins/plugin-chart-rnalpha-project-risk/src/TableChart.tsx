@@ -27,7 +27,7 @@ const mockApiResponse = {
         "value": "middle",
         "value_translate": "string"
       },
-      "managebility": {
+      "manageability": {
         "value": "high",
         "value_translate": "string"
       }
@@ -37,14 +37,14 @@ const mockApiResponse = {
 
 const colorMap = {
   low: 'green',
-  middle: 'yellow',
-  high: 'red',
+  medium: 'yellow',
+  hight: 'red',
 };
 
 const riskLabels = {
-  low: 'Низкая вероятность',
-  middle: 'Средняя вероятность',
-  high: 'Высокая вероятность',
+  low: 'Низкая',
+  medium: 'Средняя',
+  hight: 'Высокая',
 };
 
 const RiskCell = ({ value, onChange }) => {
@@ -313,7 +313,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     </td>
                     <RiskCell value={row.probability?.value} onChange={(val) => handleChange(rowIndex, 'probability', val)} />
                     <RiskCell value={row.impacts?.value} onChange={(val) => handleChange(rowIndex, 'impacts', val)} />
-                    <RiskCell value={row.managebility?.value} onChange={(val) => handleChange(rowIndex, 'managebility', val)} />
+                    <RiskCell value={row.manageability?.value} onChange={(val) => handleChange(rowIndex, 'manageability', val)} />
                   </tr>
                 ))}
               </tbody>
