@@ -39,7 +39,7 @@ const metadata = new ChartMetadata({
   category: t('Table слайды'),
   canBeAnnotationTypes: ['EVENT', 'INTERVAL'],
   description: t(
-    'Описательная часть (56-58 слайд)(project/infrastructure/description)',
+    'Описательная часть (56-58,71 слайд)(project/infrastructure/description)',
   ),
   exampleGallery: [{ url: example1 }, { url: example2 }, { url: example3 }],
   name: t('Описательная часть (56-58, 71 слайд)'),
