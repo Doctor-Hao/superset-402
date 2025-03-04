@@ -206,11 +206,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
     setIsSaveLoading(true)
 
-    const formattedData = editedData.map(({ probability, impacts, managebility, ...rest }) => ({
+    const formattedData = editedData.map(({ probability, impacts, manageability, ...rest }) => ({
       ...rest,
       probability: probability?.value,
       impacts: impacts?.value,
-      managebility: managebility?.value,
+      manageability: manageability?.value,
     }));
 
 
@@ -242,7 +242,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   // ========== Добавление новой строки ==========
   const handleAddRow = () => {
-    setEditedData([...editedData, { risk_description: '', reduction_factors: '', probability: { value: '' }, impacts: { value: '' }, managebility: { value: '' } }]);
+    setEditedData([...editedData, { risk_description: '', reduction_factors: '', probability: { value: '' }, impacts: { value: '' }, manageability: { value: '' } }]);
   };
   // ========== Обновление данных при редактировании ==========
   const handleChange = (rowIndex: number, field: string, value: string) => {
