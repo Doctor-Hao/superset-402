@@ -46,10 +46,19 @@ export default function buildQuery(formData: QueryFormData) {
     ...formData,
   };
 
-  const formData1 = removeFormDataSuffix(baseFormData, '_b');
-  const formData2 = retainFormDataSuffix(baseFormData, '_b');
+  // 1) Query A — убираем все суффиксы _b и _c
+  const formDataA = removeFormDataSuffix(removeFormDataSuffix(baseFormData, '_b'), '_c');
+  // 2) Query B — оставляем только поля с суффиксом _b, убираем _c
+  const formDataB = retainFormDataSuffix(removeFormDataSuffix(baseFormData, '_c'), '_b');
+  // 3) Query C — оставляем поля с суффиксом _c, убираем _b
+  const formDataC = retainFormDataSuffix(removeFormDataSuffix(baseFormData, '_b'), '_c');
 
-  const queryContexts = [formData1, formData2].map(fd =>
+  const formDatas = [formDataA, formDataB];
+  if (Array.isArray(formDataC.metrics) && formDataC.metrics.length > 0) {
+    formDatas.push(formDataC);
+  }
+
+  const queryContexts = formDatas.map(fd =>
     buildQueryContext(fd, baseQueryObject => {
       const queryObject = {
         ...baseQueryObject,
@@ -86,8 +95,10 @@ export default function buildQuery(formData: QueryFormData) {
     }),
   );
 
+  const finalQueries = queryContexts.flatMap(qc => qc.queries);
+
   return {
     ...queryContexts[0],
-    queries: [...queryContexts[0].queries, ...queryContexts[1].queries],
+    queries: finalQueries,
   };
 }

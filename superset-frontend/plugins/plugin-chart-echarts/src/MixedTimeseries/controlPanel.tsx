@@ -11,7 +11,8 @@
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
@@ -59,10 +60,32 @@ const {
   yAxisIndex,
 } = DEFAULT_FORM_DATA;
 
+/**
+ * Создадим отдельную функцию, чтобы сделать
+ * "metrics" для Query C - опциональными (без validateNonEmpty).
+ */
+function getOptionalMetricsControl() {
+  // Базово копируем настройки из sharedControls.metrics:
+  const baseMetrics = { ...sharedControls.metrics };
+
+  // Сбрасываем валидаторы, чтобы не требовать заполнение
+  // (в sharedControls.metrics обычно есть validateNonEmpty).
+  // Также можно убрать "required: true" при необходимости.
+  baseMetrics.validators = [];
+  // baseMetrics.required = false; // Если стоит в исходном коде
+
+  return baseMetrics;
+}
+
 function createQuerySection(
   label: string,
   controlSuffix: string,
 ): ControlPanelSectionConfig {
+  // По умолчанию для A/B берём sharedControls.metrics,
+  // а для C делаем опциональные метрики:
+  const isQueryC = controlSuffix === '_c';
+  const metricsControl = isQueryC ? getOptionalMetricsControl() : sharedControls.metrics;
+
   return {
     label,
     expanded: true,
@@ -70,7 +93,7 @@ function createQuerySection(
       [
         {
           name: `metrics${controlSuffix}`,
-          config: sharedControls.metrics,
+          config: metricsControl,
         },
       ],
       [
@@ -293,6 +316,9 @@ const config: ControlPanelConfig = {
     createAdvancedAnalyticsSection(t('Advanced analytics Query A'), ''),
     createQuerySection(t('Query B'), '_b'),
     createAdvancedAnalyticsSection(t('Advanced analytics Query B'), '_b'),
+    // Третий запрос (Query C) - поля не обязательные
+    createQuerySection(t('Query C'), '_c'),
+    createAdvancedAnalyticsSection(t('Advanced analytics Query C'), '_c'),
     sections.annotationsAndLayersControls,
     sections.titleControls,
     {
@@ -302,6 +328,7 @@ const config: ControlPanelConfig = {
         ['color_scheme'],
         ...createCustomizeSection(t('Query A'), ''),
         ...createCustomizeSection(t('Query B'), 'B'),
+        ...createCustomizeSection(t('Query C'), 'C'),
         [
           {
             name: 'zoomable',
@@ -360,9 +387,9 @@ const config: ControlPanelConfig = {
               default: yAxisBounds,
               description: t(
                 'Bounds for the primary Y-axis. When left empty, the bounds are ' +
-                  'dynamically defined based on the min/max of the data. Note that ' +
-                  "this feature will only expand the axis range. It won't " +
-                  "narrow the data's extent.",
+                'dynamically defined based on the min/max of the data. Note that ' +
+                "this feature will only expand the axis range. It won't " +
+                "narrow the data's extent.",
               ),
             },
           },
