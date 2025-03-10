@@ -83,6 +83,7 @@ import ChartRnalphaTableImagePlugin from '@superset-ui/plugin-chart-rnalpha-tabl
 import ChartRnalphaProgectMilestonesPlugin from '@superset-ui/plugin-chart-rnalpha-project-milestones';
 import ChartRnalphaProgectRiskPlugin from '@superset-ui/plugin-chart-rnalpha-project-risk';
 import ChartRnalphaProgectInfrastructureDescriptionPlugin from '@superset-ui/plugin-chart-rnalpha-project-infrastructure-description';
+import ChartRnalphaProgectFirstAndSecondLevelRisksPlugin from '@superset-ui/plugin-chart-rnalpha-project-first-and-second-level-risks';
 
 
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
@@ -185,6 +186,7 @@ export default class MainPreset extends Preset {
         new ChartRnalphaProgectMilestonesPlugin().configure({ key: 'plugin-chart-rnalpha-project-milestones', }),
         new ChartRnalphaProgectInfrastructureDescriptionPlugin().configure({ key: 'plugin-chart-rnalpha-project-infrastructure-description', }),
         new ChartRnalphaProgectRiskPlugin().configure({ key: 'plugin-chart-rnalpha-project-risk', }),
+        new ChartRnalphaProgectFirstAndSecondLevelRisksPlugin().configure({ key: 'plugin-chart-rnalpha-project-first-and-second-level-risks', }),
 
         ...experimentalPlugins,
       ],
