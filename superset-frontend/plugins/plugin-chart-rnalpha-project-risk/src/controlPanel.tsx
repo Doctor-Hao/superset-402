@@ -52,7 +52,11 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `project-risk`,
+                      label: `project-risk prod`,
+                      value: `http://10.205.110.50:8098/project/risk`,
+                    },
+                    {
+                      label: `project-risk rnc-tst1`,
                       value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/risk`,
                     },
                   ],
