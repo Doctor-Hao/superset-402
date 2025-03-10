@@ -60,11 +60,12 @@ const Styles = styled.div`
 
 
 export default function SupersetPluginChartKpiCards(props) {
-  const { data, height, width, queryData } = props;
+  const { data, height, width, queryData, formData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const url = formData.endpoint
 
   useEffect(() => {
     console.log('Plugin props', data);
@@ -102,7 +103,7 @@ export default function SupersetPluginChartKpiCards(props) {
     while (attempts < maxAttempts) {
       try {
         const response = await fetch(
-          'http://bnipi-rnc-tst1.rosneft.ru:8098/variant/proscons',
+          url,
           {
             method: 'PATCH',
             headers: {

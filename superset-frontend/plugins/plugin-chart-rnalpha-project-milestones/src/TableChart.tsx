@@ -29,13 +29,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     sticky?: DataTableProps<D>['sticky'];
   },
 ) {
-  const { height, width, data: initialData } = props;
+  const { height, width, data: initialData, formData } = props;
   const [data, setData] = useState<D[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<D[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
+  const url = formData.endpoint
 
   useEffect(() => {
     // TODO mockDATA
@@ -70,8 +71,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
 
-    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones/${projId}`;
-    console.log(`🔗 GET запрос: ${url}`);
+    const payload_url = `${url}/${projId}`;
+    console.log(`🔗 GET запрос: ${payload_url}`);
 
     // Пример retry в 5 попыток
     const maxAttempts = 5;
@@ -79,7 +80,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
     while (attempts < maxAttempts) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(payload_url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -121,8 +122,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     };
 
     console.log('📤 Отправка обновленных данных:', requestBody);
-
-    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones`;
 
     try {
       const response = await fetch(url, {
