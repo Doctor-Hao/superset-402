@@ -41,37 +41,23 @@ const config = {
         ],
         [
           {
-            name: 'ptc_id',
+            name: 'var_id',
             config: {
               type: 'TextControl',
-              label: t('Фильтр по PTC_ID'),
-              description: t('Введите PTC_ID, чтобы фильтровать изображения'),
+              label: t('id VAR_ID'),
+              description: t('Введите VAR_ID, чтобы фильтровать изображения'),
               default: '',
             },
           },
         ],
         [
           {
-            name: 'hidden_columns_indexes',
+            name: 'dash_id',
             config: {
               type: 'TextControl',
-              label: t('Спрятать колонки по индексу'),
-              description: t('Пример "0,2,4"'),
+              label: t('id DASH_ID'),
+              description: t('Введите dash_id, чтобы фильтровать изображения'),
               default: '',
-            },
-          },
-        ],
-        [
-          {
-            name: 'columns_mapping',
-            config: {
-              type: 'TextControl',
-              label: t('Сопоставление колонок'),
-              description: t(
-                'Введите JSON-массив объектов вида: ' +
-                '[ "Название колонки с картинкой" ]'
-              ),
-              default: '["nameColumn"]',
             },
           },
         ],

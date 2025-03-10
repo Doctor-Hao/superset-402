@@ -21,36 +21,12 @@ const Styles = styled.div<{ height: number; width: number }>`
   table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid black;
+    border: 0px solid black;
 
-    th, td {
-      border: 1px solid white;
-      padding: 8px;
-      text-align: center;
-      vertical-align: middle;
-      word-wrap: break-word;
-      white-space: normal;
-    }
-
-    th {
-      background-color: #f9bd00;
-      font-weight: bold;
-    }
   }
 
-  tr:nth-of-type(odd) {
-    background-color: rgb(226,226,226);
-  }
 `;
 
-const blobToBase64 = async (blob) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-  });
-};
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
@@ -58,58 +34,75 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const { data, height, width, formData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
+  const [isLoading, setIsLoading] = useState(false);
   const [tableData, setTableData] = useState<DataRow[]>([]);
-  const [imageData, setImageData] = useState({});
-  const [filteredData, setFilteredData] = useState<DataRow[]>([]);
+  const variant_id = formData.var_id
+  const dashboard_id = formData.dash_id
 
   useEffect(() => {
     if (data) {
-      setTableData([...data]);
-      fetchImages(data);
+      fetchImages();
     }
+
+    // Тестовая mini-картинка (dataURL в base64):
+    // const testBase64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAUAAAASCAYAAABa3+D9AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAACZ0RVh0Q3JlYXRpb24gVGltZQAwOS8xOS8yM9ccVHoAAAExSURBVDiNlZNLTsUwEEaTr3/bQGgQwpHaXAwdvzwog2C2B4cIXHrDn1Knx63toTqboNf4FwMn2eBHHGKT5H1lz4qaw2w5/IScLwC3wn3w9oWQj/3AUxWWkWZhkXqQBMKqECQUtAJkDhhCAlKEbLyOsOReHo6+ezabnqgbwfSFSJ5Sz2XuJVk6D2daAZAHXYzl88Iu5HLZL74CRqAWJAbQPxGuhby0h1Ea0QZ0B94lU9X6NlzX0H4FG94JdjrUn7Ep5zpWkS1+lQC0LlxUNew4bImODmSJ5hZEkRfOw+V3hy+S1HJ1h/Skef5moctRdCbRn3zaOvtY3y9zqkTkv9id5X+I8zOuE6eHIZeQAAAABJRU5ErkJggg==';
+
+    // Эмулируем «результат запроса» – т.е. кладём в массив единственный элемент,
+    // setTableData([{ image: testBase64Image }]);
   }, [data]);
 
-  // Получаем колонку с картинками и PTC_ID из formData
-  const imageColumn = formData.columns_mapping ? JSON.parse(formData.columns_mapping)[0] : null;
-  const ptcIdFilter = formData.ptc_id ? formData.ptc_id.trim() : '';
-
   // Загружаем изображения из BLOB
-  const fetchImages = async (tableData) => {
-    const newImageData = {};
+  const fetchImages = async () => {
+    setIsLoading(true);
 
-    tableData.forEach(async (row, rowIndex) => {
-      if (imageColumn && row[imageColumn]) {
-        try {
-          const response = await fetch(`data:image/png;base64,${row[imageColumn]}`);
-          const blob = await response.blob();
-          const base64Image = await blobToBase64(blob);
-          newImageData[rowIndex] = base64Image;
-        } catch (error) {
-          console.error("Ошибка загрузки изображения:", error);
+    // Пример retry в 5 попыток
+    const maxAttempts = 5;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(`http://10.205.110.59:443/picture/foto/download/${variant_id}/${dashboard_id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          const json = await response.json();
+
+          setTableData([{ image: json.image }]);
+          console.log("tableData", tableData)
+          console.log('✅ Внешние данные получены');
+          break; // прерываем цикл при успехе
+        } else {
+          console.error('Ошибка при GET-запросе, статус:', response.status);
         }
+      } catch (error) {
+        console.error('Ошибка сети при GET-запросе:', error);
       }
-    });
+      attempts++;
+      if (attempts < maxAttempts) {
+        console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
+        await new Promise(res => setTimeout(res, 2000));
+      } else {
+        console.error('❌ GET-запрос завершился неудачно после 5 попыток');
+        setTableData([{ image: null }]);
+      }
+    }
 
-    setImageData(newImageData);
+    setIsLoading(false);
   };
 
-  // Фильтрация данных по PTC_ID
-  useEffect(() => {
-    if (ptcIdFilter) {
-      setFilteredData(tableData.filter(row => String(row.PTC_ID) === ptcIdFilter));
-    } else {
-      setFilteredData(tableData);
-    }
-  }, [tableData, ptcIdFilter]);
-
   const renderDataRows = () => {
-    return filteredData.map((row, rowIndex) => (
-      <tr key={`row-${rowIndex}`}>
-        <td style={{ textAlign: 'center', padding: '10px' }}>
-          {imageData[rowIndex] ? (
-            <img src={imageData[rowIndex]} alt="Image" style={{ maxWidth: '100%', height: 'auto' }} />
+    return tableData.map((row, index) => (
+      <tr key={index}>
+        <td>
+          {row.image ? (
+            <img
+              src={`data:image/png;base64,${row.image}`}
+              alt="SomeImage"
+              style={{ maxWidth: '100%', height: 'auto' }}
+            />
           ) : (
-            "Нет изображения"
+            'Нет изображения'
           )}
         </td>
       </tr>
@@ -118,6 +111,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
+      {isLoading && <div>Загрузка изображения...</div>}
+
       <table>
         <tbody>{renderDataRows()}</tbody>
       </table>
