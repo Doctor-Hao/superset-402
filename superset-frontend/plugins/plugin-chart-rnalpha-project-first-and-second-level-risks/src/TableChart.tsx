@@ -5,9 +5,6 @@ import { DataTableProps } from './DataTable';
 import { Styles, StyledTextArea, StyledDateInput } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 
-
-
-
 // Моковые данные
 const mockData = [
   { PROJ_ID: '12345', project_name: 'Project Alpha' },
@@ -17,8 +14,9 @@ const mockData = [
 const mockApiResponse = {
   data: [
     {
-      text: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
-      milestone_date: '2025-02-26'
+      row_num: 1,
+      risks_by_direction: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
+      third_level_risk_count: 1
     },
     { text: 'Событие 2', milestone_date: '2025-03-15' },
   ],
@@ -29,22 +27,21 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     sticky?: DataTableProps<D>['sticky'];
   },
 ) {
-  const { height, width, data: initialData } = props;
+  const { height, width, data: initialData, formData } = props;
   const [data, setData] = useState<D[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<D[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
+  const url = formData.endpoint
 
   useEffect(() => {
-    // TODO mockDATA
-    // if (mockData.length > 0) {
+    // mockDATA
     //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
     //   setProjId(firstProjId);
     //   setData(mockApiResponse.data);
     //   setEditedData(mockApiResponse.data);
-    // }
 
   }, [initialData]); // Вызываем только при изменении initialData
 

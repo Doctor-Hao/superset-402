@@ -163,9 +163,9 @@ const processColumns = memoizeOne(function processColumns(
       } else if (isMetric || (isNumber && (numberFormat || currency))) {
         formatter = currency
           ? new CurrencyFormatter({
-              d3Format: numberFormat,
-              currency,
-            })
+            d3Format: numberFormat,
+            currency,
+          })
           : getNumberFormatter(numberFormat);
       }
       return {
@@ -219,7 +219,7 @@ const transformProps = (
     ownState: serverPaginationData,
     hooks: {
       onAddFilter: onChangeFilter,
-      setDataMask = () => {},
+      setDataMask = () => { },
       onContextMenu,
     },
     emitCrossFilters,
@@ -292,6 +292,7 @@ const transformProps = (
     timeGrain,
     allowRearrangeColumns,
     onContextMenu,
+    formData
   };
 };
 
