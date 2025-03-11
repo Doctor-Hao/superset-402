@@ -18,7 +18,11 @@ const mockApiResponse = {
       risks_by_direction: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
       third_level_risk_count: 1
     },
-    { text: 'Событие 2', milestone_date: '2025-03-15' },
+    {
+      row_num: 2,
+      risks_by_direction: `Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка`,
+      third_level_risk_count: 2
+    },
   ],
 };
 
@@ -38,10 +42,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     // mockDATA
-    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-    //   setProjId(firstProjId);
-    //   setData(mockApiResponse.data);
-    //   setEditedData(mockApiResponse.data);
+    // const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    // setProjId(firstProjId);
+    // setData(mockApiResponse.data);
+    // setEditedData(mockApiResponse.data);
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -49,7 +53,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (initialData.length > 0) {
       const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
+      if (firstProjId) {
         setProjId(firstProjId); // Обновляем `projId`
       }
     }
@@ -67,8 +71,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
 
-    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones/${projId}`;
-    console.log(`🔗 GET запрос: ${url}`);
+    const payload_url = `${url}/${projId}`;
+    console.log(`🔗 GET запрос: ${payload_url}`);
 
     // Пример retry в 5 попыток
     const maxAttempts = 5;
@@ -76,7 +80,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
     while (attempts < maxAttempts) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(payload_url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -104,65 +108,20 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsLoading(false);
   };
 
-  // ========== PATCH-логика ==========
-  const handleSave = async () => {
-    if (!projId) {
-      console.error('❌ Ошибка: PROJ_ID не найден');
-      return;
-    }
-    setIsSaveLoading(true)
-
-    const requestBody = {
-      proj_id: projId,
-      data: editedData,
-    };
-
-    console.log('📤 Отправка обновленных данных:', requestBody);
-
-    const url = `http://bnipi-rnc-tst1.rosneft.ru:8098/project/milestones`;
-
-    try {
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proj_id: projId,
-          data: editedData,
-        }),
-      });
-
-      if (response.ok) {
-        console.log('✅ Данные успешно обновлены!');
-      } else {
-        console.error('Ошибка при PATCH-запросе, статус:', response.status);
-      }
-    } catch (error) {
-      console.error('Ошибка сети при PATCH-запросе:', error);
-    } finally {
-      setIsSaveLoading(false)
+  const getRiskWord = (count) => {
+    if (count % 100 >= 11 && count % 100 <= 14) return 'рисков';
+    switch (count % 10) {
+      case 1:
+        return 'риск';
+      case 2:
+      case 3:
+      case 4:
+        return 'риска';
+      default:
+        return 'рисков';
     }
   };
 
-  // ========== Добавление новой строки ==========
-  const handleAddRow = () => {
-    const newRow = { text: '', milestone_date: '' }; // Пустая строка
-    setEditedData([...editedData, newRow]); // Добавляем строку в конец массива
-  };
-
-  // ========== Обновление данных при редактировании ==========
-  const handleChange = (rowIndex: number, field: string, value: string) => {
-    setEditedData(prevData =>
-      prevData.map((row, index) =>
-        index === rowIndex ? { ...row, [field]: value } : row,
-      ),
-    );
-  };
-
-  // Подстройка высоты textarea
-  const autoResize = (textarea) => {
-    textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
-    textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
-  };
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
@@ -170,41 +129,25 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <>
-          <ControlButtons
-            isSaving={isSaveLoading}
-            onSave={handleSave}
-            onAddRow={handleAddRow}
-          />
           <table>
             <thead>
               <tr>
-                <th>№ п/п</th>
-                <th>Ключевые вехи проекта</th>
-                <th>Дата</th>
+                <th>№</th>
+                <th>Ключевые Риски 1 и 2 Уровня по направлениям</th>
+                <th>Количество Рисков 3 Уровня</th>
               </tr>
             </thead>
             <tbody>
               {editedData.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   <td>
-                    {rowIndex + 1}
+                    {row.row_num}
                   </td>
                   <td>
-                    <StyledTextArea
-                      value={row.text || ''}
-                      onChange={(e) => {
-                        handleChange(rowIndex, 'text', e.target.value)
-                        autoResize(e.target as HTMLTextAreaElement)
-                      }}
-                      ref={textarea => textarea && autoResize(textarea)}
-                    />
+                    {row.risks_by_direction}
                   </td>
                   <td>
-                    <StyledDateInput
-                      type="date"
-                      value={row.milestone_date || ''}
-                      onChange={(e) => handleChange(rowIndex, 'milestone_date', e.target.value)}
-                    />
+                    {row.third_level_risk_count} {getRiskWord(row.third_level_risk_count)}
                   </td>
                 </tr>
               ))}
