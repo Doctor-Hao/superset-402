@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `project-risk prod`,
-                      value: `http://10.205.110.50:8098/project/risk`,
+                      value: `https://10.205.110.50:8098/project/risk`,
                     },
                     {
                       label: `project-risk rnc-tst1`,

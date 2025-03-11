@@ -29,7 +29,7 @@ const config = {
                   options: [
                     {
                       label: `tasks_and_goals prod`,
-                      value: `http://10.205.110.50:8098/project/tasks_and_goals`,
+                      value: `https://10.205.110.50:8098/project/tasks_and_goals`,
                     },
                     {
                       label: `tasks_and_goals rnc-tst1`,
@@ -37,7 +37,7 @@ const config = {
                     },
                     {
                       label: `general_overview prod`,
-                      value: `http://10.205.110.50:8098/project/general_overview`,
+                      value: `https://10.205.110.50:8098/project/general_overview`,
                     },
                     {
                       label: `general_overview rnc-tst1`,
@@ -45,7 +45,7 @@ const config = {
                     },
                     {
                       label: `variant/factories prod`,
-                      value: `http://10.205.110.50:8098/variant/factories`,
+                      value: `https://10.205.110.50:8098/variant/factories`,
                     },
                     {
                       label: `variant/factories rnc-tst1`,

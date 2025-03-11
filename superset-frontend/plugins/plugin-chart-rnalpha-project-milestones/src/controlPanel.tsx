@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `project/milestones prod`,
-                      value: `http://10.205.110.50:8098/project/milestones`,
+                      value: `https://10.205.110.50:8098/project/milestones`,
                     },
                     {
                       label: `project/milestones rnc-tst1`,

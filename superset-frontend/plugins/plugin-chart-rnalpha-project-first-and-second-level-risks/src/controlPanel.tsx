@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `first_and_second_level_risks prod`,
-                      value: `http://10.205.110.50:8098/project/risk/first_and_second_level_risks`,
+                      value: `https://10.205.110.50:8098/project/risk/first_and_second_level_risks`,
                     },
                     {
                       label: `first_and_second_level_risks rnc-tst1`,
