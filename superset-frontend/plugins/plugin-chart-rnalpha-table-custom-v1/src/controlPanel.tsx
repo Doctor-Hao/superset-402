@@ -28,28 +28,20 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `tasks_and_goals prod`,
-                      value: `https://10.205.110.50:8098/project/tasks_and_goals`,
+                      label: `tasks_and_goals`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/tasks_and_goals`,
                     },
                     {
-                      label: `tasks_and_goals rnc-tst1`,
-                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/tasks_and_goals`,
+                      label: `general_overview`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/general_overview`,
                     },
                     {
-                      label: `general_overview prod`,
-                      value: `https://10.205.110.50:8098/project/general_overview`,
+                      label: `variant/factories`,
+                      value: `${process.env.BACKEND_PROD_URL}/variant/factories`,
                     },
                     {
-                      label: `general_overview rnc-tst1`,
-                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/general_overview`,
-                    },
-                    {
-                      label: `variant/factories prod`,
-                      value: `https://10.205.110.50:8098/variant/factories`,
-                    },
-                    {
-                      label: `variant/factories rnc-tst1`,
-                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/variant/factories`,
+                      label: `project/infrastructure/description`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/infrastructure/description`,
                     },
                   ],
                 };

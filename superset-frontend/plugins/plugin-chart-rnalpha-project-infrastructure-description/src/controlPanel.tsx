@@ -52,12 +52,12 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `project-infrastructure-description prod`,
-                      value: `https://10.205.110.50:8098/project/infrastructure/description`,
+                      label: `project-infrastructure-description`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/infrastructure/description`,
                     },
                     {
-                      label: `project-infrastructure-description rnc-tst1`,
-                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/infrastructure/description`,
+                      label: `project/energy/description`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/energy/description`,
                     },
                   ],
                 };

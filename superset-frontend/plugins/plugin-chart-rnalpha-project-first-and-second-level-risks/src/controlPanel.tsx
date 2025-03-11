@@ -52,12 +52,8 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `first_and_second_level_risks prod`,
-                      value: `https://10.205.110.50:8098/project/risk/first_and_second_level_risks`,
-                    },
-                    {
-                      label: `first_and_second_level_risks rnc-tst1`,
-                      value: `http://bnipi-rnc-tst1.rosneft.ru:8098/project/risk/first_and_second_level_risks`,
+                      label: `first_and_second_level_risks`,
+                      value: `${process.env.BACKEND_PROD_URL}/project/risk/first_and_second_level_risks`,
                     },
                   ],
                 };
