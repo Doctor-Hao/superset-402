@@ -53,11 +53,11 @@ const config = {
                   options: [
                     {
                       label: `project-infrastructure-description`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/infrastructure/description`,
+                      value: `${process.env.BACKEND_URL}/project/infrastructure/description`,
                     },
                     {
                       label: `project/energy/description`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/energy/description`,
+                      value: `${process.env.BACKEND_URL}/project/energy/description`,
                     },
                   ],
                 };

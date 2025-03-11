@@ -29,19 +29,19 @@ const config = {
                   options: [
                     {
                       label: `tasks_and_goals`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/tasks_and_goals`,
+                      value: `${process.env.BACKEND_URL}/project/tasks_and_goals`,
                     },
                     {
                       label: `general_overview`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/general_overview`,
+                      value: `${process.env.BACKEND_URL}/project/general_overview`,
                     },
                     {
                       label: `variant/factories`,
-                      value: `${process.env.BACKEND_PROD_URL}/variant/factories`,
+                      value: `${process.env.BACKEND_URL}/variant/factories`,
                     },
                     {
                       label: `project/infrastructure/description`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/infrastructure/description`,
+                      value: `${process.env.BACKEND_URL}/project/infrastructure/description`,
                     },
                   ],
                 };

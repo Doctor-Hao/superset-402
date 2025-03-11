@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `Плюсы минусы`,
-                      value: `${process.env.BACKEND_PROD_URL}/variant/proscons`,
+                      value: `${process.env.BACKEND_URL}/variant/proscons`,
                     },
                   ],
                 };

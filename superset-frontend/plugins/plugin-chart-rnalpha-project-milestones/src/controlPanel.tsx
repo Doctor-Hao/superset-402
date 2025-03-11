@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `project/milestones`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/milestones`,
+                      value: `${process.env.BACKEND_URL}/project/milestones`,
                     },
                   ],
                 };

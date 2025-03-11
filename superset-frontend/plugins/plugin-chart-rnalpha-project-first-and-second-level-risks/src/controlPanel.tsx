@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `first_and_second_level_risks`,
-                      value: `${process.env.BACKEND_PROD_URL}/project/risk/first_and_second_level_risks`,
+                      value: `${process.env.BACKEND_URL}/project/risk/first_and_second_level_risks`,
                     },
                   ],
                 };
