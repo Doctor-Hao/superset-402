@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `project-infrastructure-description prod`,
-                      value: `http://10.205.110.50:8098/project/infrastructure/description`,
+                      value: `https://10.205.110.50:8098/project/infrastructure/description`,
                     },
                     {
                       label: `project-infrastructure-description rnc-tst1`,

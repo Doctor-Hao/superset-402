@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `Плюсы минусы prod`,
-                      value: `http://10.205.110.50:8098/variant/proscons`,
+                      value: `https://10.205.110.50:8098/variant/proscons`,
                     },
                     {
                       label: `Плюсы минусы rnc-tst1`,
