@@ -17,6 +17,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+const Dotenv = require('dotenv-webpack');
+
 const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
@@ -77,6 +79,10 @@ const plugins = [
     process: 'process/browser.js',
   }),
 
+  new Dotenv({
+    path: path.resolve(__dirname, '.env'), // путь к вашему .env
+    // systemvars: true, // использовать переменные из системных ENV
+  }),
   // creates a manifest.json mapping of name to hashed output used in template files
   new WebpackManifestPlugin({
     publicPath: output.publicPath,
