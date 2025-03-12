@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `project-risk`,
-                      value: `${process.env.BACKEND_URL}/project/risk`,
+                      value: `${process.env.BACKEND_URL}/proscons_api/project/risk`,
                     },
                   ],
                 };

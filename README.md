@@ -20,6 +20,11 @@ source env/bin/activate
 
 ## Запуск Superset
 
+### superset-frontend .env
+Внутри папки superset-frontend находится .env
+BACKEND_URL - адрес до backend (proscons)
+
+
 ### Основной сервер Superset (Docker)
 
 Перейдите в главную папку проекта и запустите:
