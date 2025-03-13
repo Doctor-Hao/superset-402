@@ -71,7 +71,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
 
-    const payload_url = `${url}/${projId}`;
+    const payload_url = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${payload_url}`);
 
     // Пример retry в 5 попыток
@@ -124,7 +124,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     console.log('📤 Отправка обновленных данных:', requestBody);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`${process.env.BACKEND_URL}${url}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

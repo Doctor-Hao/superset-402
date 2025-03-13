@@ -26,7 +26,7 @@ export function useInternalData(endpoint: string) {
 
         while (attempts < maxAttempts) {
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),

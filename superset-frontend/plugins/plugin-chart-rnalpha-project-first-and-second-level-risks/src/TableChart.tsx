@@ -71,7 +71,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
 
-    const payload_url = `${url}/${projId}`;
+    const payload_url = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${payload_url}`);
 
     // Пример retry в 5 попыток

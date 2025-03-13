@@ -77,7 +77,7 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
 
         while (attempts < maxAttempts) {
             try {
-                const response = await fetch(urlWithPath, {
+                const response = await fetch(`${process.env.BACKEND_URL}${urlWithPath}`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                 });
@@ -134,7 +134,7 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
 
         while (attempts < maxAttempts) {
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),

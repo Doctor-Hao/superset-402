@@ -45,7 +45,7 @@ const config = {
             config: {
               type: 'SelectControl',
               label: t('Endpoint'),
-              description: t('Адрес до таблицы, в которую отправлять данные. Пример: http://bnipi-rnc-tst1.rosneft.ru:8098/'),
+              description: t(`api до таблицы, в которую отправлять данные. Пример: /variant/proscons (url:${process.env.BACKEND_URL})`),
               default: '',
               freeForm: true, // Разрешает ввод вручную
               mapStateToProps: ({ datasource }) => {
@@ -53,7 +53,7 @@ const config = {
                   options: [
                     {
                       label: `first_and_second_level_risks`,
-                      value: `${process.env.BACKEND_URL}/proscons_api/project/risk/first_and_second_level_risks`,
+                      value: `/project/risk/first_and_second_level_risks`,
                     },
                   ],
                 };

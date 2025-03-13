@@ -103,7 +103,7 @@ export default function SupersetPluginChartKpiCards(props) {
     while (attempts < maxAttempts) {
       try {
         const response = await fetch(
-          url,
+          `${process.env.BACKEND_URL}${url}`,
           {
             method: 'PATCH',
             headers: {
