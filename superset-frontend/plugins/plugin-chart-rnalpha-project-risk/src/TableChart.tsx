@@ -30,21 +30,39 @@ const mockApiResponse = {
       "manageability": {
         "value": "high",
         "value_translate": "string"
-      }
+      },
+      "risk_num": "string",
+      "risk_direction": "string",
+      "risk_name": "string",
+      "changes_in_risk": {
+        "value": "extremely_low",
+        "value_translate": "string"
+      },
+      "risk_score" {
+        "value": "extremely_low",
+        "value_translate": "string"
+      },
+      "responsible_empl": "string",
+      "deadline": "string",
+      "additional_data": []
     }
   ]
 }
 
 const colorMap = {
+  extremely_low: 'green',
   low: 'green',
   medium: 'yellow',
   hight: 'red',
+  extremely_hight: 'red',
 };
 
 const riskLabels = {
+  extremely_low: 'Супер низкая',
   low: 'Низкая',
   medium: 'Средняя',
   hight: 'Высокая',
+  extremely_hight: 'Очень высокая',
 };
 
 const RiskCell = ({ value, onChange }) => {
@@ -116,13 +134,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
+  const { risk_type } = formData;
 
   useEffect(() => {
     // mockDATA
-    // if (mockData.length > 0) {
-    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-    //   setProjId(firstProjId);
-    // }
+    if (mockData.length > 0) {
+      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+      setProjId(firstProjId);
+    }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -139,8 +158,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
-      // handleLoadExternalMock(projId)
-      handleLoadExternal(projId);
+      handleLoadExternalMock(projId)
+      // handleLoadExternal(projId);
     }
   }, [projId]);
 
@@ -262,118 +281,153 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
   };
 
+  // ==================================================
+  // ==  ФУНКЦИИ ДЛЯ РЕНДЕРА РАЗНЫХ ТИПОВ ТАБЛИЦ =======
+  // ==================================================
+
+  /** Таблица для "Риск" */
+  const renderRiskTable = () => {
+    return (
+      <>
+        <ControlButtons
+          isSaving={isSaveLoading}
+          onSave={handleSave}
+          onAddRow={handleAddRow}
+        />
+        <div style={{ position: 'relative' }}>
+          <table style={{ paddingBottom: '50px' }}>
+            <thead>
+              <tr>
+                <th>Риски</th>
+                <th>Описание</th>
+                <th>Факторы снижения риска</th>
+                <th>Вероятность</th>
+                <th>Масштаб действия</th>
+                <th>Управляемость</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editedData.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  <td>Риск {rowIndex + 1}</td>
+                  <td>
+                    <StyledTextArea
+                      value={(row as any).risk_description || ''}
+                      onChange={e => {
+                        handleChange(rowIndex, 'risk_description', e.target.value);
+                        autoResize(e.target as HTMLTextAreaElement);
+                      }}
+                      ref={textarea => textarea && autoResize(textarea)}
+                    />
+                  </td>
+                  <td>
+                    <StyledTextArea
+                      value={(row as any).reduction_factors || ''}
+                      onChange={e => {
+                        handleChange(rowIndex, 'reduction_factors', e.target.value);
+                        autoResize(e.target as HTMLTextAreaElement);
+                      }}
+                      ref={textarea => textarea && autoResize(textarea)}
+                    />
+                  </td>
+                  <RiskCell
+                    value={(row as any).probability?.value}
+                    onChange={val => handleChange(rowIndex, 'probability', val)}
+                  />
+                  <RiskCell
+                    value={(row as any).impacts?.value}
+                    onChange={val => handleChange(rowIndex, 'impacts', val)}
+                  />
+                  <RiskCell
+                    value={(row as any).manageability?.value}
+                    onChange={val => handleChange(rowIndex, 'manageability', val)}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div
+            style={{
+              position: 'relative',
+              bottom: '0',
+              width: '100%',
+              backgroundColor: '#ffffff',
+              padding: '10px',
+              textAlign: 'left',
+              borderTop: '1px solid #ccc',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '25px',
+                  height: '25px',
+                  borderRadius: '50%',
+                  backgroundColor: 'green',
+                  boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
+                  marginRight: '15px',
+                }}
+              />
+              <span>Низкая вероятность/незначительные последствия/хорошо управляемый</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '25px',
+                  height: '25px',
+                  borderRadius: '50%',
+                  backgroundColor: 'yellow',
+                  boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
+                  marginRight: '15px',
+                }}
+              />
+              <span>Средняя вероятность/средние последствия/средне управляемый</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '25px',
+                  height: '25px',
+                  borderRadius: '50%',
+                  backgroundColor: 'red',
+                  boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
+                  marginRight: '15px',
+                }}
+              />
+              <span>Высокая вероятность/значительные последствия/слабо управляемый</span>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  /** Таблица (или пустая) для "Риск 2" */
+  const renderRisk2Table = () => {
+    // Здесь можно вывести свою таблицу или что-то иное
+    // Пока что просто демонстрация пустого блока:
+    return (
+      <div>
+        <h3>Риск 2 — условно другая таблица</h3>
+        <p>Здесь выводим что-то своё, отличное от "Риск"</p>
+      </div>
+    );
+  };
+
+
   return (
     <Styles ref={rootElem} height={height} width={width}>
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
         <>
-          <ControlButtons
-            isSaving={isSaveLoading}
-            onSave={handleSave}
-            onAddRow={handleAddRow}
-          />
-          <div style={{ position: 'relative' }}>
-            <table style={{ paddingBottom: '50px' }}>
-              <thead>
-                <tr>
-                  <th>Риски</th>
-                  <th>Описание</th>
-                  <th>Факторы снижения риска</th>
-                  <th>Вероятность</th>
-                  <th>Масштаб действия</th>
-                  <th>Управляемость</th>
-                </tr>
-              </thead>
-              <tbody>
-                {editedData.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    <td>
-                      Риск {rowIndex + 1}
-                    </td>
-                    <td>
-                      <StyledTextArea
-                        value={row.risk_description || ''}
-                        onChange={(e) => {
-                          handleChange(rowIndex, 'risk_description', e.target.value)
-                          autoResize(e.target as HTMLTextAreaElement)
-                        }}
-                        ref={textarea => textarea && autoResize(textarea)}
-                      />
-                    </td>
-                    <td>
-                      <StyledTextArea
-                        value={row.reduction_factors || ''}
-                        onChange={(e) => {
-                          handleChange(rowIndex, 'reduction_factors', e.target.value)
-                          autoResize(e.target as HTMLTextAreaElement)
-                        }}
-                        ref={textarea => textarea && autoResize(textarea)}
-                      />
-                    </td>
-                    <RiskCell value={row.probability?.value} onChange={(val) => handleChange(rowIndex, 'probability', val)} />
-                    <RiskCell value={row.impacts?.value} onChange={(val) => handleChange(rowIndex, 'impacts', val)} />
-                    <RiskCell value={row.manageability?.value} onChange={(val) => handleChange(rowIndex, 'manageability', val)} />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div
-              style={{
-                position: 'relative',
-                bottom: '0',
-                width: '100%',
-                backgroundColor: '#ffffff',
-                padding: '10px',
-                textAlign: 'left',
-                borderTop: '1px solid #ccc',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '25px',
-                    height: '25px',
-                    borderRadius: '50%',
-                    backgroundColor: 'green',
-                    boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
-                    marginRight: '15px'
-                  }}
-                ></span>
-                <span>Низкая вероятность/незначительные последствия/хорошо управляемый</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '25px',
-                    height: '25px',
-                    borderRadius: '50%',
-                    backgroundColor: 'yellow',
-                    boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
-                    marginRight: '15px'
-                  }}
-                ></span>
-                <span>Средняя вероятность/средние последствия/средне управляемый</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '25px',
-                    height: '25px',
-                    borderRadius: '50%',
-                    backgroundColor: 'red',
-                    boxShadow: '0px 4px 6px rgba(0,0,0,0.2)',
-                    marginRight: '15px'
-                  }}
-                ></span>
-                <span>Высокая вероятность/значительные последствия/слабо управляемый</span>
-              </div>
-            </div>
-          </div>
-        </>)}
+          {risk_type === 'risk' && renderRiskTable()}
+          {risk_type === 'risk2' && renderRisk2Table()}
+        </>
+      )}
     </Styles>
   );
 }

@@ -61,6 +61,22 @@ const config = {
             },
           },
         ],
+        [
+          {
+            name: 'risk_type',
+            config: {
+              type: 'SelectControl',
+              label: t('Тип таблицы'),
+              description: t('Выберите вариант отображения'),
+              default: 'risk', // Пусть по умолчанию отображается "Риск"
+              choices: [
+                ['risk', 'Вариант 1'],
+                ['risk2', 'Вариант 2'],
+              ],
+              clearable: false,
+            },
+          },
+        ],
       ],
     },
   ],
