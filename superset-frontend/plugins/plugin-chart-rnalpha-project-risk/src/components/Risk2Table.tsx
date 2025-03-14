@@ -1,239 +1,194 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
 
+interface Risk {
+    id: string;
+    groupId: number;
+    risk_direction: string;
+    risk_num?: string;
+    risk_name?: string;
+    probability?: { value: string };
+    impacts?: { value: string };
+    npv?: string;
+    deadline?: string;
+    red_flag?: boolean;
+}
+
 interface Risk2TableProps {
-    data: any[];
-    onChange: (newData: any[]) => void;
+    data: Risk[];
+    onChange: (newData: Risk[]) => void;
     onSave: () => void;
     isSaving: boolean;
 }
 
 const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSaving }) => {
-    // Группировка по стабильному ключу groupId
-    function groupByDirection(items: any[]) {
-        const groups: Record<string, { groupName: string; rows: any[] }> = {};
-        items.forEach(item => {
-            const key = item.groupId || 'default';
-            if (!groups[key]) {
-                groups[key] = { groupName: item.risk_direction || '', rows: [] };
+
+    // 🛠 Генерация `groupId` для `risk_direction`
+    const generateGroupId = (() => {
+        const map = new Map<string, number>();
+        let counter = 1;
+        return (risk_direction: string) => {
+            if (!map.has(risk_direction)) {
+                map.set(risk_direction, counter++);
             }
-            groups[key].rows.push(item);
+            return map.get(risk_direction)!;
+        };
+    })();
+
+    // 🛠 Обогащаем данные (добавляем `groupId` и `id`, если их нет)
+    const processedData = data.map((risk, index) => ({
+        ...risk,
+        groupId: risk.groupId ?? generateGroupId(risk.risk_direction),
+        id: risk.id ?? `risk_${index}_${Date.now()}`,
+    }));
+
+    // 🔄 Группировка данных
+    const groupedData = processedData.reduce<Record<number, Risk[]>>((acc, risk) => {
+        if (!acc[risk.groupId]) acc[risk.groupId] = [];
+        acc[risk.groupId].push(risk);
+        return acc;
+    }, {});
+
+    // 🔢 Пересчет `risk_num` и `groupId`
+    const recalculateRiskNumbers = (newData: Risk[]) => {
+        // 🔄 Пересчитываем `groupId`, чтобы они шли подряд
+        const uniqueGroups = [...new Set(newData.map(risk => risk.groupId))].sort((a, b) => a - b);
+        const groupIdMap = new Map(uniqueGroups.map((id, index) => [id, index + 1]));
+
+        return newData.map((risk, index, array) => {
+            const newGroupId = groupIdMap.get(risk.groupId)!;
+            const groupRisks = array.filter(r => r.groupId === risk.groupId);
+            const riskIndex = groupRisks.findIndex(r => r.id === risk.id) + 1;
+            return {
+                ...risk,
+                groupId: newGroupId,
+                risk_num: `${newGroupId}.${riskIndex}`,
+            };
         });
-        return groups;
-    }
-    function getGroupedArray(items: any[]) {
-        const grouped = groupByDirection(items);
-        return Object.entries(grouped).map(([groupId, data]) => ({
-            groupId,
-            groupName: data.groupName,
-            rows: data.rows,
-        }));
-    }
-    // Мемоизация группировки для стабильности ключей и сохранения фокуса
-    const groupedArr = useMemo(() => getGroupedArray(data), [data]);
-
-    // Функция обновления элемента по его id
-    const updateItem = (rowId: string, fieldName: string, newValue: any) => {
-        const newData = data.map(item =>
-            item.id === rowId ? { ...item, [fieldName]: newValue } : item
-        );
-        onChange(newData);
     };
 
-    // Компоненты ячеек
-    const InputCell = ({
-        rowId,
-        value,
-        fieldName,
-        style,
-    }: {
-        rowId: string;
-        value: string | number;
-        fieldName: string;
-        style?: React.CSSProperties;
-    }) => {
-        const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            updateItem(rowId, fieldName, e.target.value);
-        };
-        return (
-            <td style={style}>
-                <input style={{ width: '90%' }} value={value ?? ''} onChange={onChange} />
-            </td>
-        );
+    // 📝 Обновление данных
+    const handleChange = (groupId: number | null, rowId: string | null, field: keyof Risk, value: any) => {
+        onChange(processedData.map(risk =>
+            rowId
+                ? (risk.id === rowId ? { ...risk, [field]: typeof risk[field] === 'object' ? { value } : value } : risk)
+                : (risk.groupId === groupId ? { ...risk, risk_direction: value } : risk)
+        ));
     };
 
-    const TextareaCell = ({
-        rowId,
-        value,
-        fieldName,
-        style,
-    }: {
-        rowId: string;
-        value: string;
-        fieldName: string;
-        style?: React.CSSProperties;
-    }) => {
-        const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-            updateItem(rowId, fieldName, e.target.value);
-        };
-        return (
-            <td style={{ textAlign: 'left', ...style }}>
-                <StyledTextArea value={value || ''} onChange={onChange} />
-            </td>
-        );
-    };
-
-    const ImpactsCell = ({
-        rowId,
-        value,
-        style,
-    }: {
-        rowId: string;
-        value: number;
-        style?: React.CSSProperties;
-    }) => {
-        const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-            updateItem(rowId, 'numericImpacts', parseInt(e.target.value, 10));
-        };
-        return (
-            <td style={{ textAlign: 'center', ...style }}>
-                <select value={value || 0} onChange={onChange}>
-                    <option value={0}>-</option>
-                    <option value={1}>1 (extremely_low)</option>
-                    <option value={2}>2 (low)</option>
-                    <option value={3}>3 (medium)</option>
-                    <option value={4}>4 (hight)</option>
-                    <option value={5}>5 (extremely_hight)</option>
-                </select>
-            </td>
-        );
-    };
-
-    // Добавление новой группы (подраздела)
+    // ➕ Добавление подраздела
     const handleAddGroup = () => {
-        const newId = `tmp_${Date.now()}_${Math.random()}`;
-        const newDirection = `Новая группа ${Math.floor(Math.random() * 1000)}`;
-        const newRow = {
-            id: newId,
-            groupId: newId, // новый stable ключ для группы
-            risk_direction: newDirection,
-            risk_num: '',
+        const newGroupId = Math.max(0, ...processedData.map(r => r.groupId)) + 1;
+        const newRow: Risk = {
+            id: `grp_${Date.now()}`,
+            groupId: newGroupId,
+            risk_direction: `Новый раздел ${newGroupId}`,
+            risk_num: `${newGroupId}.1`,
             risk_name: '',
-            numericImpacts: 0,
-            probability_percentage: 0,
+            probability: { value: '' },
+            impacts: { value: '' },
             npv: '',
             deadline: '',
             red_flag: false,
         };
-        onChange([...data, newRow]);
+        onChange(recalculateRiskNumbers([...processedData, newRow]));
     };
 
-    // Добавление новой строки внутри группы
-    const handleAddRowInGroup = (groupId: string) => {
-        const newId = `tmp_${Date.now()}_${Math.random()}`;
-        const group = groupedArr.find(g => g.groupId === groupId);
-        const groupName = group ? group.groupName : '';
-        const newRow = {
+    // ➕ Добавление риска в подраздел
+    const handleAddRowInGroup = (groupId: number) => {
+        const newId = `row_${Date.now()}`;
+        const newRow: Risk = {
             id: newId,
-            groupId, // используем тот же groupId
-            risk_direction: groupName,
+            groupId,
+            risk_direction: processedData.find(r => r.groupId === groupId)?.risk_direction || `Новый раздел`,
             risk_num: '',
             risk_name: '',
-            numericImpacts: 0,
-            probability_percentage: 0,
+            probability: { value: '' },
+            impacts: { value: '' },
             npv: '',
             deadline: '',
             red_flag: false,
         };
-        onChange([...data, newRow]);
+        onChange(recalculateRiskNumbers([...processedData, newRow]));
+    };
+
+    // 🗑 Удаление подраздела
+    const handleDeleteGroup = (groupId: number) => {
+        const filteredData = processedData.filter(risk => risk.groupId !== groupId);
+        onChange(recalculateRiskNumbers(filteredData));
+    };
+
+    // 🗑 Удаление риска
+    const handleDeleteRow = (id: string) => {
+        const filteredData = processedData.filter(risk => risk.id !== id);
+        onChange(recalculateRiskNumbers(filteredData));
     };
 
     return (
         <div style={{ marginTop: '16px' }}>
-            <ControlButtons
-                isSaving={isSaving}
-                onSave={onSave}
-                onAddRow={handleAddGroup}
-                addRowLabel="Добавить подраздел"
-            />
+            <ControlButtons isSaving={isSaving} onSave={onSave} onAddRow={handleAddGroup} addRowLabel="Добавить подраздел" />
 
             <table style={{ borderCollapse: 'collapse', width: '100%' }} border={1} cellPadding={4}>
-                <thead>
-                    <tr style={{ backgroundColor: '#f0f0f0' }}>
-                        {/* 2 ячейки слева, 4 ячейки под "Оценка риска", 1 ячейка Флаг */}
-                        <th rowSpan={2} style={{ width: '60px', textAlign: 'center' }}>№</th>
-                        <th rowSpan={2} style={{ textAlign: 'left' }}>Ключевые Риски 3 Уровня</th>
-                        <th colSpan={4} style={{ textAlign: 'center' }}>Оценка риска</th>
-                        <th rowSpan={2} style={{ width: '50px', textAlign: 'center' }}>Флаг</th>
+                <thead style={{ backgroundColor: '#f0f0f0' }}>
+                    <tr>
+                        <th rowSpan={2}>№</th>
+                        <th rowSpan={2}>Ключевые Риски 3 Уровня</th>
+                        <th colSpan={4}>Текущая оценка и влияние риска</th>
+                        <th rowSpan={2}>Флаг</th>
+                        <th rowSpan={2}>Удалить</th>
                     </tr>
-                    <tr style={{ backgroundColor: '#f0f0f0' }}>
-                        <th style={{ textAlign: 'center', width: '80px' }}>Воздействие</th>
-                        <th style={{ textAlign: 'center', width: '80px' }}>Вероятность</th>
-                        <th style={{ textAlign: 'center', width: '120px' }}>NPV</th>
-                        <th style={{ textAlign: 'center', width: '80px' }}>Срок</th>
+                    <tr>
+                        <th>Воздействие</th>
+                        <th>Вероятность</th>
+                        <th>NPV</th>
+                        <th>Срок</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {groupedArr.map(group => (
-                        <React.Fragment key={group.groupId}>
+                    {Object.entries(groupedData).map(([groupId, risks]) => (
+                        <React.Fragment key={groupId}>
                             <tr style={{ backgroundColor: '#e0e0e0' }}>
-                                <td colSpan={7} style={{ textAlign: 'left', fontWeight: 'bold' }}>
-                                    <input
-                                        style={{ fontWeight: 'bold', width: '40%' }}
-                                        value={group.groupName}
-                                        onChange={e => {
-                                            const newVal = e.target.value;
-                                            const newData = data.map(item =>
-                                                item.groupId === group.groupId ? { ...item, risk_direction: newVal } : item
-                                            );
-                                            onChange(newData);
-                                        }}
+                                <td colSpan={8}>
+                                    <StyledTextArea
+                                        value={risks[0].risk_direction}
+                                        onChange={e => handleChange(Number(groupId), null, 'risk_direction', e.target.value)}
                                     />
-                                    <button onClick={() => handleAddRowInGroup(group.groupId)} style={{ marginLeft: 20 }}>
-                                        + Риск
-                                    </button>
+                                    <button onClick={() => handleAddRowInGroup(Number(groupId))}>+ Риск</button>
+                                    <button onClick={() => handleDeleteGroup(Number(groupId))} style={{ color: 'red' }}>Удалить подраздел</button>
                                 </td>
                             </tr>
-                            {group.rows.map((row: any, index: number) => (
+
+                            {risks.map((row) => (
                                 <tr key={row.id}>
-                                    <InputCell
-                                        rowId={row.id}
-                                        fieldName="risk_num"
-                                        value={row.risk_num}
-                                        style={{ textAlign: 'left', width: 60 }}
-                                    />
-                                    <TextareaCell
-                                        rowId={row.id}
-                                        fieldName="risk_name"
-                                        value={row.risk_name}
-                                        style={{ width: '240px' }}
-                                    />
-                                    <ImpactsCell rowId={row.id} value={row.numericImpacts || 0} />
-                                    <InputCell
-                                        rowId={row.id}
-                                        fieldName="probability_percentage"
-                                        value={row.probability_percentage ?? ''}
-                                        style={{ textAlign: 'center', width: 80 }}
-                                    />
-                                    <InputCell
-                                        rowId={row.id}
-                                        fieldName="npv"
-                                        value={row.npv ?? ''}
-                                        style={{ textAlign: 'center', width: 120 }}
-                                    />
-                                    <InputCell
-                                        rowId={row.id}
-                                        fieldName="deadline"
-                                        value={row.deadline ?? ''}
-                                        style={{ textAlign: 'center', width: 80 }}
-                                    />
-                                    <td style={{ textAlign: 'center' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!!row.red_flag}
-                                            onChange={e => updateItem(row.id, 'red_flag', e.target.checked)}
+                                    <td>{row.risk_num}</td>
+                                    <td>
+                                        <StyledTextArea
+                                            value={row.risk_name || ''}
+                                            onChange={e => handleChange(null, row.id, 'risk_name', e.target.value)}
                                         />
+                                    </td>
+                                    <td>
+                                        <select value={row.impacts?.value || ''} onChange={e => handleChange(null, row.id, 'impacts', e.target.value)}>
+                                            {[1, 2, 3, 4, 5].map(num => <option key={num} value={num}>{num}</option>)}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select value={row.probability?.value || ''} onChange={e => handleChange(null, row.id, 'probability', e.target.value)}>
+                                            {[...Array(101)].map((_, i) => <option key={i} value={i}>{i}%</option>)}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input value={row.npv || ''} onChange={e => handleChange(null, row.id, 'npv', e.target.value)} />
+                                    </td>
+                                    <td>
+                                        <input value={row.deadline || ''} onChange={e => handleChange(null, row.id, 'deadline', e.target.value)} />
+                                    </td>
+                                    <td onClick={() => handleChange(null, row.id, 'red_flag', !row.red_flag)} style={{ cursor: 'pointer' }}>
+                                        {row.red_flag ? '🚩' : ''}
+                                    </td>
+                                    <td>
+                                        <button onClick={() => handleDeleteRow(row.id)} style={{ color: 'red' }}>❌</button>
                                     </td>
                                 </tr>
                             ))}
