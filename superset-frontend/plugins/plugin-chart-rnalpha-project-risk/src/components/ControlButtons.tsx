@@ -3,12 +3,14 @@ import React from 'react';
 
 interface ControlButtonsProps {
     isSaving: boolean;
+    addRowLabel?: string;
     onSave: () => void;
     onAddRow?: () => void; // Может быть опциональным
 }
 
 export const ControlButtons: React.FC<ControlButtonsProps> = ({
     isSaving,
+    addRowLabel = 'Добавить строку',
     onSave,
     onAddRow,
 }) => {
@@ -40,7 +42,7 @@ export const ControlButtons: React.FC<ControlButtonsProps> = ({
                         marginLeft: '8px',
                     }}
                 >
-                    Добавить строку
+                    {addRowLabel}
                 </button>
             )}
         </div>

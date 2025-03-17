@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
 
@@ -8,6 +8,7 @@ interface Risk {
     risk_direction: string;
     risk_num?: string;
     risk_name?: string;
+    changes_in_risk?: { value: string };
     probability?: { value: string };
     impacts?: { value: string };
     npv?: string;
@@ -23,6 +24,7 @@ interface Risk2TableProps {
 }
 
 const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSaving }) => {
+    const [isEditing, setIsEditing] = useState(false); // Режим редактирования
 
     // 🛠 Генерация `groupId` для `risk_direction`
     const generateGroupId = (() => {
@@ -41,6 +43,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
         ...risk,
         groupId: risk.groupId ?? generateGroupId(risk.risk_direction),
         id: risk.id ?? `risk_${index}_${Date.now()}`,
+        changes_in_risk: risk.changes_in_risk ?? { value: '' },
     }));
 
     // 🔄 Группировка данных
@@ -52,7 +55,6 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
 
     // 🔢 Пересчет `risk_num` и `groupId`
     const recalculateRiskNumbers = (newData: Risk[]) => {
-        // 🔄 Пересчитываем `groupId`, чтобы они шли подряд
         const uniqueGroups = [...new Set(newData.map(risk => risk.groupId))].sort((a, b) => a - b);
         const groupIdMap = new Map(uniqueGroups.map((id, index) => [id, index + 1]));
 
@@ -86,6 +88,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             risk_direction: `Новый раздел ${newGroupId}`,
             risk_num: `${newGroupId}.1`,
             risk_name: '',
+            changes_in_risk: { value: '' },
             probability: { value: '' },
             impacts: { value: '' },
             npv: '',
@@ -104,6 +107,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             risk_direction: processedData.find(r => r.groupId === groupId)?.risk_direction || `Новый раздел`,
             risk_num: '',
             risk_name: '',
+            changes_in_risk: { value: '' },
             probability: { value: '' },
             impacts: { value: '' },
             npv: '',
@@ -127,16 +131,23 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
 
     return (
         <div style={{ marginTop: '16px' }}>
-            <ControlButtons isSaving={isSaving} onSave={onSave} onAddRow={handleAddGroup} addRowLabel="Добавить подраздел" />
+            {/* Кнопка входа в режим редактирования */}
+            <button className="icon-button edit" onClick={() => setIsEditing(!isEditing)}>
+                ✏️ {isEditing ? "Выход из редактирования" : "Редактировать"}
+            </button>
+
+            {isEditing && (
+                <ControlButtons isSaving={isSaving} onSave={onSave} onAddRow={handleAddGroup} addRowLabel="Добавить подраздел" />
+            )}
 
             <table style={{ borderCollapse: 'collapse', width: '100%' }} border={1} cellPadding={4}>
                 <thead style={{ backgroundColor: '#f0f0f0' }}>
                     <tr>
                         <th rowSpan={2}>№</th>
-                        <th rowSpan={2}>Ключевые Риски 3 Уровня</th>
+                        <th rowSpan={2} colSpan={2}>Ключевые Риски 3 Уровня</th>
                         <th colSpan={4}>Текущая оценка и влияние риска</th>
                         <th rowSpan={2}>Флаг</th>
-                        <th rowSpan={2}>Удалить</th>
+                        {isEditing && <th rowSpan={2}>Удалить</th>}
                     </tr>
                     <tr>
                         <th>Воздействие</th>
@@ -149,49 +160,84 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                     {Object.entries(groupedData).map(([groupId, risks]) => (
                         <React.Fragment key={groupId}>
                             <tr style={{ backgroundColor: '#e0e0e0' }}>
-                                <td colSpan={8}>
+                                <td colSpan={isEditing ? 9 : 8}>
                                     <StyledTextArea
                                         value={risks[0].risk_direction}
                                         onChange={e => handleChange(Number(groupId), null, 'risk_direction', e.target.value)}
                                     />
-                                    <button onClick={() => handleAddRowInGroup(Number(groupId))}>+ Риск</button>
-                                    <button onClick={() => handleDeleteGroup(Number(groupId))} style={{ color: 'red' }}>Удалить подраздел</button>
+                                    {isEditing && (
+                                        <div className="group-buttons">
+                                            <button className="icon-button add" onClick={() => handleAddRowInGroup(Number(groupId))}>
+                                                ➕ Добавить риск
+                                            </button>
+                                            <button className="icon-button delete" onClick={() => handleDeleteGroup(Number(groupId))}>
+                                                🗑 Удалить подраздел
+                                            </button>
+                                        </div>
+                                    )}
                                 </td>
                             </tr>
 
-                            {risks.map((row) => (
-                                <tr key={row.id}>
-                                    <td>{row.risk_num}</td>
-                                    <td>
-                                        <StyledTextArea
-                                            value={row.risk_name || ''}
-                                            onChange={e => handleChange(null, row.id, 'risk_name', e.target.value)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <select value={row.impacts?.value || ''} onChange={e => handleChange(null, row.id, 'impacts', e.target.value)}>
-                                            {[1, 2, 3, 4, 5].map(num => <option key={num} value={num}>{num}</option>)}
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select value={row.probability?.value || ''} onChange={e => handleChange(null, row.id, 'probability', e.target.value)}>
-                                            {[...Array(101)].map((_, i) => <option key={i} value={i}>{i}%</option>)}
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input value={row.npv || ''} onChange={e => handleChange(null, row.id, 'npv', e.target.value)} />
-                                    </td>
-                                    <td>
-                                        <input value={row.deadline || ''} onChange={e => handleChange(null, row.id, 'deadline', e.target.value)} />
-                                    </td>
-                                    <td onClick={() => handleChange(null, row.id, 'red_flag', !row.red_flag)} style={{ cursor: 'pointer' }}>
-                                        {row.red_flag ? '🚩' : ''}
-                                    </td>
-                                    <td>
-                                        <button onClick={() => handleDeleteRow(row.id)} style={{ color: 'red' }}>❌</button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {risks.map((row) => {
+                                const isExcluded = row.changes_in_risk?.value === "excluded_risk";
+
+                                return (
+                                    <tr key={row.id}>
+                                        <td>{row.risk_num}</td>
+                                        <td>
+                                            <StyledTextArea
+                                                value={row.risk_name || ''}
+                                                onChange={e => handleChange(null, row.id, 'risk_name', e.target.value)}
+                                                disabled={isExcluded}
+                                            />
+                                        </td>
+                                        <td style={{ width: '60px' }}>
+                                            <select value={row.changes_in_risk?.value || ''} onChange={e => handleChange(null, row.id, 'changes_in_risk', e.target.value)}>
+                                                <option value="empty"></option>
+                                                <option value="new_risk">
+                                                    ➕
+                                                </option>
+                                                <option value="excluded_risk">❌</option>
+                                            </select>
+                                        </td>
+
+                                        {/* Если "Риск исключается", объединяем 5 колонок в одну */}
+                                        {isExcluded ? (
+                                            <td colSpan={5} style={{ textAlign: 'center' }}>
+                                                Исключается по результатам проведенных мероприятий (риск не актуален)
+                                            </td>
+                                        ) : (
+                                            <>
+                                                <td>
+                                                    <select value={row.impacts?.value || ''} onChange={e => handleChange(null, row.id, 'impacts', e.target.value)}>
+                                                        {[1, 2, 3, 4, 5].map(num => <option key={num} value={num}>{num}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select value={row.probability?.value || ''} onChange={e => handleChange(null, row.id, 'probability', e.target.value)}>
+                                                        {[...Array(101)].map((_, i) => <option key={i} value={i}>{i}%</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input value={row.npv || ''} onChange={e => handleChange(null, row.id, 'npv', e.target.value)} />
+                                                </td>
+                                                <td>
+                                                    <input value={row.deadline || ''} onChange={e => handleChange(null, row.id, 'deadline', e.target.value)} />
+                                                </td>
+                                                <td onClick={() => handleChange(null, row.id, 'red_flag', !row.red_flag)} className="flag-cell">
+                                                    {row.red_flag ? '🚩' : ''}
+                                                </td>
+                                            </>
+                                        )}
+
+                                        {isEditing && (
+                                            <td>
+                                                <button className="icon-button delete-risk" onClick={() => handleDeleteRow(row.id)}>❌</button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
                         </React.Fragment>
                     ))}
                 </tbody>
