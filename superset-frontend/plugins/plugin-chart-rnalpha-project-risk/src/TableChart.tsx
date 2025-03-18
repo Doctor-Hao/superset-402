@@ -5,6 +5,7 @@ import { DataTableProps } from './DataTable';
 import { Styles } from './styles';
 import Risk1Table from './components/Risk1Table';
 import Risk2Table from './components/Risk2Table';
+import RiskMatrix from './components/RiskMatrix';
 
 
 const impactMap: Record<string, string> = {
@@ -41,6 +42,52 @@ const mockApiResponse = {
       },
       "risk_num": "1.1",
       "risk_direction": "Разведка",
+      "risk_name": "Неопределенности",
+      "changes_in_risk": {
+        "value": "new_risk",
+        "value_translate": "string"
+      },
+      "risk_score" {
+        "value": "extremely_low",
+        "value_translate": "string"
+      },
+      "responsible_empl": "string",
+      "npv": 0,
+      "deadline_days": 11,
+      "deadline": "11.01.2025",
+      "red_flag": true,
+      "additional_data": [
+        {
+          "completed_events": "string",
+          "rolling_events": "string",
+          "new_events": "string",
+          "changes_in_risk": {
+            "value": "empty",
+            "value_translate": "string"
+          },
+          "responsible_empl": "string",
+          "deadline": "string"
+        }
+      ]
+    },
+    {
+      "risk_description": "Первстрока\nДесятая строка",
+      "reduction_factors": "Описание проекта\nЕще одна строка описания\nДополнительная информация",
+      "probability": {
+        "value": "low",
+        "value_translate": "string"
+      },
+      "probability_percentage": 25,
+      "impacts": {
+        "value": "low",
+        "value_translate": "string"
+      },
+      "manageability": {
+        "value": "high",
+        "value_translate": "string"
+      },
+      "risk_num": "1.2",
+      "risk_direction": "No Разведка",
       "risk_name": "Неопределенности",
       "changes_in_risk": {
         "value": "new_risk",
@@ -221,9 +268,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <>
           {risk_type === 'risk' ? (
             <Risk1Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
-          ) : (
+          ) : risk_type === 'risk2' ? (
             <Risk2Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
-          )}
+          ) : risk_type === 'risk3' ? (
+            <RiskMatrix data={editedData} />
+          ) : null}
         </>
       )}
     </Styles>

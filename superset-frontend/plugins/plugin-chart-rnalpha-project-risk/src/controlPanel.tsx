@@ -72,6 +72,7 @@ const config = {
               choices: [
                 ['risk', 'Вариант 1'],
                 ['risk2', 'Вариант 2'],
+                ['risk3', 'Вариант 3 (Карта рисков)'],
               ],
               clearable: false,
             },
