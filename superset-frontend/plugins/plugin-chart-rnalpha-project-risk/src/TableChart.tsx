@@ -77,9 +77,9 @@ const mockApiResponse = {
         "value": "low",
         "value_translate": "string"
       },
-      "probability_percentage": 25,
+      "probability_percentage": 75,
       "impacts": {
-        "value": "low",
+        "value": "middle",
         "value_translate": "string"
       },
       "manageability": {
