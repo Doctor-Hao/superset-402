@@ -7,7 +7,13 @@ import Risk1Table from './components/Risk1Table';
 import Risk2Table from './components/Risk2Table';
 
 
-
+const impactMap: Record<string, string> = {
+  "1": "extremely_low",
+  "2": "low",
+  "3": "medium",
+  "4": "high",
+  "5": "extremely_high"
+};
 
 // Моковые данные
 const mockData = [
@@ -45,6 +51,8 @@ const mockApiResponse = {
         "value_translate": "string"
       },
       "responsible_empl": "string",
+      "npv": 0,
+      "deadline_days": 11,
       "deadline": "11.01.2025",
       "red_flag": true,
       "additional_data": [
@@ -83,10 +91,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     // mockDATA
-    if (mockData.length > 0) {
-      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-      setProjId(firstProjId);
-    }
+    // if (mockData.length > 0) {
+    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    //   setProjId(firstProjId);
+    // }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -103,8 +111,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
-      handleLoadExternalMock(projId)
-      // handleLoadExternal(projId);
+      // handleLoadExternalMock(projId)
+      handleLoadExternal(projId);
     }
   }, [projId]);
 
@@ -169,21 +177,20 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       return;
     }
     setIsSaveLoading(true)
-    const requestBody = { proj_id: projId, data: editedData };
-    // const formattedData = editedData.map(({ probability, impacts, manageability, changes_in_risk, risk_score, ...rest }) => ({
-    //   ...rest,
-    //   probability: probability?.value,
-    //   impacts: impacts?.value,
-    //   manageability: manageability?.value,
-    //   changes_in_risk: changes_in_risk?.value,
-    //   risk_score: risk_score?.value,
-    // }));
+    const formattedData = editedData.map(({ probability, impacts, manageability, changes_in_risk, risk_score, ...rest }) => ({
+      ...rest,
+      probability: probability?.value,
+      impacts: impactMap[impacts?.value],
+      manageability: manageability?.value,
+      changes_in_risk: changes_in_risk?.value,
+      risk_score: risk_score?.value,
+    }));
 
 
-    // const requestBody = {
-    //   proj_id: projId,
-    //   data: formattedData,
-    // };
+    const requestBody = {
+      proj_id: projId,
+      data: formattedData,
+    };
 
     console.log('📤 Отправка обновленных данных:', requestBody);
 

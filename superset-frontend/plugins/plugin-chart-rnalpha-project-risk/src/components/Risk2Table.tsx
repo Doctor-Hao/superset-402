@@ -12,7 +12,7 @@ interface Risk {
     probability?: { value: string };
     impacts?: { value: string };
     npv?: string;
-    deadline?: string;
+    deadline_days?: string;
     red_flag?: boolean;
 }
 
@@ -92,7 +92,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             probability: { value: '' },
             impacts: { value: '' },
             npv: '',
-            deadline: '',
+            deadline_days: '',
             red_flag: false,
         };
         onChange(recalculateRiskNumbers([...processedData, newRow]));
@@ -111,7 +111,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             probability: { value: '' },
             impacts: { value: '' },
             npv: '',
-            deadline: '',
+            deadline_days: '',
             red_flag: false,
         };
         onChange(recalculateRiskNumbers([...processedData, newRow]));
@@ -152,16 +152,17 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                     <tr>
                         <th>Воздействие</th>
                         <th>Вероятность</th>
-                        <th>NPV</th>
-                        <th>Срок</th>
+                        <th>на NPV, млн.р.</th>
+                        <th>на срок, дни</th>
                     </tr>
                 </thead>
                 <tbody>
                     {Object.entries(groupedData).map(([groupId, risks]) => (
                         <React.Fragment key={groupId}>
-                            <tr style={{ backgroundColor: '#e0e0e0' }}>
+                            <tr style={{ backgroundColor: '#d4d2d2' }}>
                                 <td colSpan={isEditing ? 9 : 8}>
                                     <StyledTextArea
+                                        style={{ fontWeight: 'bold' }}
                                         value={risks[0].risk_direction}
                                         onChange={e => handleChange(Number(groupId), null, 'risk_direction', e.target.value)}
                                     />
@@ -183,7 +184,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
 
                                 return (
                                     <tr key={row.id}>
-                                        <td>{row.risk_num}</td>
+                                        <td style={{ width: '40px' }}>{row.risk_num}</td>
                                         <td>
                                             <StyledTextArea
                                                 value={row.risk_name || ''}
@@ -208,21 +209,21 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                             </td>
                                         ) : (
                                             <>
-                                                <td>
+                                                <td style={{ width: '120px' }}>
                                                     <select value={row.impacts?.value || ''} onChange={e => handleChange(null, row.id, 'impacts', e.target.value)}>
                                                         {[1, 2, 3, 4, 5].map(num => <option key={num} value={num}>{num}</option>)}
                                                     </select>
                                                 </td>
-                                                <td>
+                                                <td style={{ width: '120px' }}>
                                                     <select value={row.probability?.value || ''} onChange={e => handleChange(null, row.id, 'probability', e.target.value)}>
                                                         {[...Array(101)].map((_, i) => <option key={i} value={i}>{i}%</option>)}
                                                     </select>
                                                 </td>
-                                                <td>
+                                                <td style={{ width: '120px' }}>
                                                     <input value={row.npv || ''} onChange={e => handleChange(null, row.id, 'npv', e.target.value)} />
                                                 </td>
-                                                <td>
-                                                    <input value={row.deadline || ''} onChange={e => handleChange(null, row.id, 'deadline', e.target.value)} />
+                                                <td style={{ width: '120px' }}>
+                                                    <input value={row.deadline_days || ''} onChange={e => handleChange(null, row.id, 'deadline_days', e.target.value)} />
                                                 </td>
                                                 <td onClick={() => handleChange(null, row.id, 'red_flag', !row.red_flag)} className="flag-cell">
                                                     {row.red_flag ? '🚩' : ''}
