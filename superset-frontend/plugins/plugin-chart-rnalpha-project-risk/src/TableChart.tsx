@@ -145,6 +145,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   }, [initialData]); // Вызываем только при изменении initialData
 
+  // 2️⃣ Загружаем данные после обновления `projId`
+  useEffect(() => {
+    if (projId) {
+      // handleLoadExternalMock(projId)
+      handleLoadExternal(projId);
+    }
+  }, [projId]);
+
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
   useEffect(() => {
     if (initialData.length > 0) {
@@ -155,13 +163,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
   }, [initialData]);
 
-  // 2️⃣ Загружаем данные после обновления `projId`
-  useEffect(() => {
-    if (projId) {
-      // handleLoadExternalMock(projId)
-      handleLoadExternal(projId);
-    }
-  }, [projId]);
 
   const handleLoadExternalMock = async (projId: string) => {
     setIsLoading(true);
