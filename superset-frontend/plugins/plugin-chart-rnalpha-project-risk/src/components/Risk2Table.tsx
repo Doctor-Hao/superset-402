@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
+import AutoResizeTextArea from './AutoResizeTextArea';
 
 interface Risk {
     id: string;
@@ -186,7 +187,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                     <tr key={row.id}>
                                         <td style={{ width: '40px' }}>{row.risk_num}</td>
                                         <td>
-                                            <StyledTextArea
+                                            <AutoResizeTextArea
                                                 value={row.risk_name || ''}
                                                 onChange={e => handleChange(null, row.id, 'risk_name', e.target.value)}
                                                 disabled={isExcluded}

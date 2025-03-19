@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
+import AutoResizeTextArea from './AutoResizeTextArea';
+import RiskCell from './RiskCell';
 
 interface Risk {
     id: string;
@@ -180,35 +182,32 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                 return (
                                     <tr key={row.id}>
                                         <td style={{ width: '40px' }}>{row.risk_num}</td>
-                                        <td>
-                                            <StyledTextArea
-                                                value={row.risk_name || ''}
-                                                onChange={e => handleChange(null, row.id, 'risk_name', e.target.value)}
+                                        <td style={{ width: '250px' }}>
+                                            <AutoResizeTextArea
+                                                value={row.risk_name || ""}
+                                                onChange={(e) => handleChange(null, row.id, "risk_name", e.target.value)}
                                             />
                                         </td>
                                         <td style={{ width: '40px' }}>
-                                            <select value={row.risk_score?.value || ''} onChange={e => handleChange(null, row.id, 'risk_score', e.target.value)}>
-                                                <option value="empty"></option>
-                                                <option value="new_risk">
-                                                    ➕
-                                                </option>
-                                                <option value="excluded_risk">❌</option>
-                                            </select>
-                                        </td>
-                                        <td style={{}}>
-                                            <StyledTextArea
-                                                value={row.reduction_factors || ''}
-                                                onChange={e => handleChange(null, row.id, 'reduction_factors', e.target.value)}
+                                            <RiskCell
+                                                value={row.risk_score?.value}
+                                                onChange={(val) => handleChange(null, row.id, "risk_score", val)}
                                             />
                                         </td>
                                         <td style={{}}>
-                                            <StyledTextArea
+                                            <AutoResizeTextArea
+                                                value={row.reduction_factors || ""}
+                                                onChange={(e) => handleChange(null, row.id, "reduction_factors", e.target.value)}
+                                            />
+                                        </td>
+                                        <td style={{}}>
+                                            <AutoResizeTextArea
                                                 value={row.risk_description || ''}
                                                 onChange={e => handleChange(null, row.id, 'risk_description', e.target.value)}
                                             />
                                         </td>
                                         <td style={{ width: '80px' }}>
-                                            <StyledTextArea
+                                            <AutoResizeTextArea
                                                 value={row.responsible_empl || ''}
                                                 onChange={e => handleChange(null, row.id, 'responsible_empl', e.target.value)}
                                             />

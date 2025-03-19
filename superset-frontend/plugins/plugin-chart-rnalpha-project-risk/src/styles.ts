@@ -192,7 +192,7 @@ export const StyledDateInput = styled.input`
 
 export const StyledTextArea = styled.textarea`
   width: 100%;
-  min-height: 40px;
+  min-height: 20px;
   resize: none; /* По умолчанию ресайз отключён */
   border: none;
   padding: 4px;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
+import RiskCell from './RiskCell';
 
 interface Risk1TableProps {
     data: any[];
@@ -8,80 +9,6 @@ interface Risk1TableProps {
     onSave: () => void;
     isSaving: boolean;
 }
-
-const colorMap = {
-    extremely_low: 'green',
-    low: 'green',
-    medium: 'yellow',
-    hight: 'red',
-    extremely_hight: 'red',
-};
-
-const riskLabels = {
-    extremely_low: 'Супер низкая',
-    low: 'Низкая',
-    medium: 'Средняя',
-    hight: 'Высокая',
-    extremely_hight: 'Очень высокая',
-};
-
-
-const RiskCell = ({ value, onChange }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <td onClick={() => setIsOpen(!isOpen)} style={{ cursor: 'pointer', position: 'relative', textAlign: 'center', width: '100px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <span
-                    style={{
-                        display: 'inline-block',
-                        width: '50px',
-                        height: '50px',
-                        borderRadius: '50%',
-                        backgroundColor: colorMap[value] || 'gray',
-                        boxShadow: '0px 4px 6px rgba(0,0,0,0.2)'
-                    }}
-                ></span>
-            </div>
-            {isOpen && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        background: 'white',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px',
-                        boxShadow: '0px 2px 5px rgba(0,0,0,0.2)',
-                        padding: '4px',
-                        zIndex: 10,
-                        width: '120px',
-                        textAlign: 'center'
-                    }}
-                >
-                    {Object.keys(colorMap).map((key) => (
-                        <div
-                            key={key}
-                            onClick={() => {
-                                onChange(key);
-                                setIsOpen(false);
-                            }}
-                            style={{
-                                padding: '6px',
-                                cursor: 'pointer',
-                                backgroundColor: key === value ? '#ddd' : 'white',
-                                transition: 'background-color 0.2s',
-                            }}
-                            onMouseEnter={(e) => (e.target.style.backgroundColor = '#f0f0f0')}
-                            onMouseLeave={(e) => (e.target.style.backgroundColor = key === value ? '#ddd' : 'white')}
-                        >
-                            {riskLabels[key]}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </td>
-    );
-};
-
 
 const Risk1Table: React.FC<Risk1TableProps> = ({ data, onChange, onSave, isSaving }) => {
 
@@ -162,15 +89,15 @@ const Risk1Table: React.FC<Risk1TableProps> = ({ data, onChange, onSave, isSavin
                                 </td>
                                 <RiskCell
                                     value={(row as any).probability?.value}
-                                    onChange={val => handleChange(rowIndex, 'probability', val)}
+                                    onChange={(val) => handleChange(rowIndex, "probability", val)}
                                 />
                                 <RiskCell
                                     value={(row as any).impacts?.value}
-                                    onChange={val => handleChange(rowIndex, 'impacts', val)}
+                                    onChange={(val) => handleChange(rowIndex, "impacts", val)}
                                 />
                                 <RiskCell
                                     value={(row as any).manageability?.value}
-                                    onChange={val => handleChange(rowIndex, 'manageability', val)}
+                                    onChange={(val) => handleChange(rowIndex, "manageability", val)}
                                 />
                             </tr>
                         ))}
