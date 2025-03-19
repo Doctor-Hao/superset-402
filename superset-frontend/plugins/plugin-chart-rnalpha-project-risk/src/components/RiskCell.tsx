@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 
 const colorMap = {
-    extremely_low: "green",
-    low: "green",
-    medium: "yellow",
-    high: "red",
-    extremely_high: "red",
+    extremely_low: "#92cf4e",
+    low: "#00b34f",
+    medium: "#febf00",
+    high: "#e26b03",
+    extremely_high: "#fb0200",
 };
 
 const riskLabels = {
