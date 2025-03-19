@@ -6,6 +6,7 @@ import { Styles } from './styles';
 import Risk1Table from './components/Risk1Table';
 import Risk2Table from './components/Risk2Table';
 import RiskMatrix from './components/RiskMatrix';
+import Risk4Table from './components/Risk4Table';
 
 
 const impactMap: Record<string, string> = {
@@ -273,6 +274,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             <Risk2Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
           ) : risk_type === 'risk3' ? (
             <RiskMatrix data={editedData} />
+          ) : risk_type === 'risk4' ? (
+            <Risk4Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
           ) : null}
         </>
       )}
