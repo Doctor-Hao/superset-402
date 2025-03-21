@@ -243,6 +243,33 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsLoading(false);
   };
 
+  const generateDefaultAdditionalData = () => ([
+    {
+      completed_events: '-',
+      rolling_events: '-',
+      new_events: '-',
+      changes_in_risk: { value: 'empty' },
+      responsible_empl: '-',
+      deadline: '-',
+    },
+    {
+      completed_events: '-',
+      rolling_events: '-',
+      new_events: '-',
+      changes_in_risk: { value: 'empty' },
+      responsible_empl: '-',
+      deadline: '-',
+    },
+    {
+      completed_events: '-',
+      rolling_events: '-',
+      new_events: '-',
+      changes_in_risk: { value: 'empty' },
+      responsible_empl: '-',
+      deadline: '-',
+    },
+  ]);
+
   // ========== PATCH-логика ==========
   const handleSave = async () => {
     if (!projId) {
@@ -251,7 +278,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
     setIsSaveLoading(true)
 
-    const formattedData = editedData.map((item) => ({
+    const formattedData = editedData.map((item) => {
+      const safeAdditionalData = (item.additional_data?.length === 3 ? item.additional_data : generateDefaultAdditionalData());
+
+      return {
       risk_description: item.risk_description ? item.risk_description : 'low',
       reduction_factors: item.reduction_factors ? item.reduction_factors : 'low',
       probability_percentage: item.probability_percentage ? item.probability_percentage : 0,
@@ -271,7 +301,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       risk_score: item.risk_score?.value ? item.risk_score?.value : 'extremely_low',
 
       // Берём только value из changes_in_risk внутри additional_data
-      additional_data: item.additional_data.map(item => ({
+        additional_data: safeAdditionalData.map(item => ({
         changes_in_risk: item.changes_in_risk?.value ? item.changes_in_risk?.value : 'empty',
         completed_events: item.completed_events ? item.completed_events : '-',
         rolling_events: item.rolling_events ? item.rolling_events : '-',
@@ -279,7 +309,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         responsible_empl: item.responsible_empl ? item.responsible_empl : '-',
         deadline: item.deadline ? item.deadline : '-'
       })),
-    }));
+      }
+    });
 
 
     const requestBody = {

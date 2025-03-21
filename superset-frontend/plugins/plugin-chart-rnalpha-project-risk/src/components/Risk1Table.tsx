@@ -87,18 +87,24 @@ const Risk1Table: React.FC<Risk1TableProps> = ({ data, onChange, onSave, isSavin
                                         ref={textarea => textarea && autoResize(textarea)}
                                     />
                                 </td>
-                                <RiskCell
-                                    value={(row as any).probability?.value}
-                                    onChange={(val) => handleChange(rowIndex, "probability", val)}
-                                />
-                                <RiskCell
-                                    value={(row as any).impacts?.value}
-                                    onChange={(val) => handleChange(rowIndex, "impacts", val)}
-                                />
-                                <RiskCell
-                                    value={(row as any).manageability?.value}
-                                    onChange={(val) => handleChange(rowIndex, "manageability", val)}
-                                />
+                                <td style={{ width: '80px' }}>
+                                    <RiskCell
+                                        value={(row as any).probability?.value}
+                                        onChange={(val) => handleChange(rowIndex, "probability", val)}
+                                    />
+                                </td>
+                                <td style={{ width: '80px' }}>
+                                    <RiskCell
+                                        value={(row as any).impacts?.value}
+                                        onChange={(val) => handleChange(rowIndex, "impacts", val)}
+                                    />
+                                </td>
+                                <td style={{ width: '80px' }}>
+                                    <RiskCell
+                                        value={(row as any).manageability?.value}
+                                        onChange={(val) => handleChange(rowIndex, "manageability", val)}
+                                    />
+                                </td>
                             </tr>
                         ))}
                     </tbody>
