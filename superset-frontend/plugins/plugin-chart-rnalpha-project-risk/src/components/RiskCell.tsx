@@ -25,7 +25,7 @@ const RiskCell: React.FC<RiskCellProps> = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <td onClick={() => setIsOpen(!isOpen)} style={{ cursor: "pointer", position: "relative", textAlign: "center", width: "100px" }}>
+        <div onClick={() => setIsOpen(!isOpen)} style={{ cursor: "pointer", position: "relative", textAlign: "center", width: "100px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                 <span
                     style={{
@@ -73,7 +73,7 @@ const RiskCell: React.FC<RiskCellProps> = ({ value, onChange }) => {
                     ))}
                 </div>
             )}
-        </td>
+        </div>
     );
 };
 
