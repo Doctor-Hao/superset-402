@@ -194,7 +194,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                             />
                                         </td>
                                         <td style={{ width: '60px' }}>
-                                            <select value={row.changes_in_risk?.value || ''} onChange={e => handleChange(null, row.id, 'changes_in_risk', e.target.value)}>
+                                            <select value={row.changes_in_risk?.value || 'empty'} onChange={e => handleChange(null, row.id, 'changes_in_risk', e.target.value)}>
                                                 <option value="empty"></option>
                                                 <option value="new_risk">
                                                     ➕

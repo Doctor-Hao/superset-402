@@ -8,6 +8,7 @@ import Risk2Table from './components/Risk2Table';
 import RiskMatrix from './components/RiskMatrix';
 import Risk4Table from './components/Risk4Table';
 import RiskDesignations from './components/RiskDesignations';
+import Risk5Table from './components/Risk5Table';
 
 
 const impactMap: Record<string, string> = {
@@ -44,7 +45,7 @@ const mockApiResponse = {
       },
       "risk_num": "1.1",
       "risk_direction": "Разведка",
-      "risk_name": "Неопределенности",
+      "risk_name": "Неопределенности 1",
       "changes_in_risk": {
         "value": "new_risk",
         "value_translate": "string"
@@ -60,15 +61,37 @@ const mockApiResponse = {
       "red_flag": true,
       "additional_data": [
         {
-          "completed_events": "string",
+          "completed_events": "string 11",
           "rolling_events": "string",
           "new_events": "string",
           "changes_in_risk": {
             "value": "empty",
             "value_translate": "string"
           },
-          "responsible_empl": "string",
-          "deadline": "string"
+          "responsible_empl": "string 1",
+          "deadline": "string 1"
+        },
+        {
+          "completed_events": "string",
+          "rolling_events": "string 222",
+          "new_events": "string",
+          "changes_in_risk": {
+            "value": "empty",
+            "value_translate": "string"
+          },
+          "responsible_empl": "string 2",
+          "deadline": "string 2"
+        },
+        {
+          "completed_events": "string",
+          "rolling_events": "string",
+          "new_events": "string 333",
+          "changes_in_risk": {
+            "value": "empty",
+            "value_translate": "string"
+          },
+          "responsible_empl": "string 3",
+          "deadline": "string 3"
         }
       ]
     },
@@ -90,7 +113,7 @@ const mockApiResponse = {
       },
       "risk_num": "1.2",
       "risk_direction": "No Разведка",
-      "risk_name": "Неопределенности",
+      "risk_name": "Неопределенности 2",
       "changes_in_risk": {
         "value": "new_risk",
         "value_translate": "string"
@@ -234,6 +257,12 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       manageability: manageability?.value,
       changes_in_risk: changes_in_risk?.value,
       risk_score: risk_score?.value,
+
+      // Берём только value из changes_in_risk внутри additional_data
+      additional_data: additional_data.map(item => ({
+        ...item,
+        changes_in_risk: item.changes_in_risk?.value,
+      })),
     }));
 
 
@@ -279,6 +308,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             <RiskMatrix data={editedData} />
           ) : risk_type === 'risk4' ? (
             <Risk4Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
+          ) : risk_type === 'risk5' ? (
+            <Risk5Table data={editedData} onChange={setEditedData} onSave={handleSave} isSaving={isSaveLoading} />
           ) : null}
         </>
       )}
