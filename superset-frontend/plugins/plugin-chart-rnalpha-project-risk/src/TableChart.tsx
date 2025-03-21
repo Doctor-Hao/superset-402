@@ -250,18 +250,34 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       return;
     }
     setIsSaveLoading(true)
-    const formattedData = editedData.map(({ probability, impacts, manageability, changes_in_risk, risk_score, ...rest }) => ({
-      ...rest,
-      probability: probability?.value,
-      impacts: impactMap[impacts?.value],
-      manageability: manageability?.value,
-      changes_in_risk: changes_in_risk?.value,
-      risk_score: risk_score?.value,
+
+    const formattedData = editedData.map((item) => ({
+      risk_description: item.risk_description ? item.risk_description : 'low',
+      reduction_factors: item.reduction_factors ? item.reduction_factors : 'low',
+      probability_percentage: item.probability_percentage ? item.probability_percentage : 0,
+      risk_num: item.risk_num ? item.risk_num : '-',
+      risk_direction: item.risk_direction ? item.risk_direction : '-',
+      risk_name: item.risk_name ? item.risk_name : '-',
+      responsible_empl: item.responsible_empl ? item.responsible_empl : 'low',
+      npv: item.npv ? item.npv : 0,
+      deadline_days: item.deadline_days ? item.deadline_days : 0,
+      deadline: item.deadline ? item.deadline : 0,
+      red_flag: item.red_flag ? item.red_flag : false,
+
+      probability: item.probability?.value ? item.probability?.value : 'low',
+      impacts: impactMap[item.impacts?.value] ? impactMap[item.impacts?.value] : 'empty',
+      manageability: item.manageability?.value ? item.manageability?.value : 'low',
+      changes_in_risk: item.changes_in_risk?.value ? item.changes_in_risk?.value : 'empty',
+      risk_score: item.risk_score?.value ? item.risk_score?.value : 'extremely_low',
 
       // Берём только value из changes_in_risk внутри additional_data
-      additional_data: additional_data.map(item => ({
-        ...item,
-        changes_in_risk: item.changes_in_risk?.value,
+      additional_data: item.additional_data.map(item => ({
+        changes_in_risk: item.changes_in_risk?.value ? item.changes_in_risk?.value : 'empty',
+        completed_events: item.completed_events ? item.completed_events : '-',
+        rolling_events: item.rolling_events ? item.rolling_events : '-',
+        new_events: item.new_events ? item.new_events : '-',
+        responsible_empl: item.responsible_empl ? item.responsible_empl : '-',
+        deadline: item.deadline ? item.deadline : '-'
       })),
     }));
 

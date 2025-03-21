@@ -3,9 +3,10 @@ import React, { useEffect, useRef } from "react";
 interface AutoResizeTextAreaProps {
     value: string;
     onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    style?: React.CSSProperties; // добавили тип для style
 }
 
-const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange }) => {
+const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange, style }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -28,6 +29,7 @@ const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange
                 border: "none",
                 outline: "none",
                 fontSize: "14px",
+                ...style,
             }}
         />
     );

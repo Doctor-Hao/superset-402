@@ -8,6 +8,25 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedData, setEditedData] = useState([]);
 
+    const generateEmptyAdditionalItem = () => ({
+        id: uuidv4(),
+        completed_events: '',
+        rolling_events: '',
+        new_events: '',
+        changes_in_risk: { value: 'empty' },
+        responsible_empl: '',
+        deadline: '',
+    });
+
+    const normalizeAdditionalData = (data = []) => {
+        const normalized = [...data];
+        while (normalized.length < 3) {
+            normalized.push(generateEmptyAdditionalItem());
+        }
+        return normalized;
+    };
+
+
     useEffect(() => {
         const initializedData = data.map((risk, index) => {
             const existingRiskId = risk.id || uuidv4();
@@ -17,10 +36,12 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
                 ...risk,
                 id: existingRiskId,
                 groupId: existingGroupId,
-                additional_data: (risk.additional_data || []).map(item => ({
-                    ...item,
-                    id: item.id || uuidv4(),
-                })),
+                additional_data: normalizeAdditionalData(
+                    (risk.additional_data || []).map(item => ({
+                        ...item,
+                        id: item.id || uuidv4(),
+                    }))
+                ),
             };
         });
 
@@ -208,10 +229,10 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
                     <tr>
                         <th>№</th>
                         <th>Ключевые Риски 3 Уровня</th>
-                        <th>Оценка¹</th>
+                        <th>Оценка¹ риска</th>
                         <th>Детальное описание Риска (риск-факторы)</th>
                         <th>События</th>
-                        <th>Изменение риска</th>
+                        <th></th>
                         <th>Отв. в ОГ</th>
                         <th>Срок</th>
                         <th>Флаг</th>
@@ -242,80 +263,130 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
                             </tr>
 
                             {risks.map((row) => (
-                                <tr key={row.id}>
-                                    <td>{row.risk_num}</td>
-                                    <td>
+                                <tr key={row.id} style={{ width: '50px', height: '100%' }}>
+                                    <td style={{ width: '30px' }}>{row.risk_num}</td>
+                                    <td style={{ width: '250px' }}>
                                         <AutoResizeTextArea
                                             value={row.risk_name}
                                             onChange={(e) => handleChange(row.id, 'risk_name', e.target.value)}
                                         />
                                     </td>
-                                    <td>
+                                    <td style={{ width: '60px' }}>
                                         <RiskCell
                                             value={row.risk_score?.value}
                                             onChange={(val) => handleChange(row.id, 'risk_score', { value: val })}
                                         />
                                     </td>
-                                    <td>
+                                    <td style={{ width: '300px' }}>
                                         <AutoResizeTextArea
                                             value={row.reduction_factors}
                                             onChange={(e) => handleChange(row.id, 'reduction_factors', e.target.value)}
                                         />
                                     </td>
                                     <td>
-                                        <b>Выполненные:</b>
-                                        <AutoResizeTextArea
-                                            value={row.additional_data[0]?.completed_events || ""}
-                                            onChange={(e) =>
-                                                handleAdditionalDataChange(row.id, row.additional_data[0]?.id, "completed_events", e.target.value)
-                                            }
-                                        />
-                                        <b>Переходящие:</b>
-                                        <AutoResizeTextArea
-                                            value={row.additional_data[1]?.rolling_events || ""}
-                                            onChange={(e) =>
-                                                handleAdditionalDataChange(row.id, row.additional_data[1]?.id, "rolling_events", e.target.value)
-                                            }
-                                        />
-                                        <b>Новые:</b>
-                                        <AutoResizeTextArea
-                                            value={row.additional_data[2]?.new_events || ""}
-                                            onChange={(e) =>
-                                                handleAdditionalDataChange(row.id, row.additional_data[2]?.id, "new_events", e.target.value)
-                                            }
-                                        />
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                height: '100%',
+                                            }}
+                                        >
+                                            <div style={{ textAlign: 'left' }}>
+                                                <b>Выполненные:</b>
+                                                <AutoResizeTextArea
+                                                    value={row.additional_data[0]?.completed_events || ""}
+                                                    onChange={(e) =>
+                                                        handleAdditionalDataChange(row.id, row.additional_data[0]?.id, "completed_events", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div style={{ textAlign: 'left' }}>
+                                                <b>Переходящие:</b>
+                                                <AutoResizeTextArea
+                                                    value={row.additional_data[1]?.rolling_events || ""}
+                                                    onChange={(e) =>
+                                                        handleAdditionalDataChange(row.id, row.additional_data[1]?.id, "rolling_events", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div style={{ textAlign: 'left' }}>
+                                                <b>Новые:</b>
+                                                <AutoResizeTextArea
+                                                    value={row.additional_data[2]?.new_events || ""}
+                                                    onChange={(e) =>
+                                                        handleAdditionalDataChange(row.id, row.additional_data[2]?.id, "new_events", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td>
-                                        {row.additional_data.map(item => (
-                                            <select
-                                                key={item.id}
-                                                value={item.changes_in_risk.value}
-                                                onChange={(e) => handleAdditionalDataChange(row.id, item.id, 'changes_in_risk', { value: e.target.value })}
-                                            >
-                                                <option value="empty"></option>
-                                                <option value="new_risk">➕</option>
-                                                <option value="excluded_risk">❌</option>
-                                            </select>
-                                        ))}
+                                    <td style={{ width: '60px' }}>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                height: '100%',
+                                            }}
+                                        >
+                                            {row.additional_data.map((item, idx) => (
+                                                <div
+                                                    key={item.id}
+                                                >
+                                                    <select
+                                                        value={item.changes_in_risk.value}
+                                                        onChange={(e) =>
+                                                            handleAdditionalDataChange(row.id, item.id, 'changes_in_risk', {
+                                                                value: e.target.value,
+                                                            })
+                                                        }
+                                                    >
+                                                        <option value="empty"></option>
+                                                        <option value="new_risk">➕</option>
+                                                        <option value="excluded_risk">❌</option>
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </td>
-                                    <td>
-                                        {row.additional_data.map(item => (
-                                            <AutoResizeTextArea
-                                                key={item.id}
-                                                value={item.responsible_empl}
-                                                onChange={(e) => handleAdditionalDataChange(row.id, item.id, 'responsible_empl', e.target.value)}
-                                            />
-                                        ))}
+
+                                    <td style={{ maxWidth: '150px' }}>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                height: '100%',
+                                            }}
+                                        >
+                                            {row.additional_data.map(item => (
+                                                <AutoResizeTextArea
+                                                    key={item.id}
+                                                    value={item.responsible_empl}
+                                                    onChange={(e) => handleAdditionalDataChange(row.id, item.id, 'responsible_empl', e.target.value)}
+                                                />
+                                            ))}
+                                        </div>
                                     </td>
-                                    <td>
-                                        {row.additional_data.map(item => (
-                                            <input
-                                                key={item.id}
-                                                type="text"
-                                                value={item.deadline}
-                                                onChange={(e) => handleAdditionalDataChange(row.id, item.id, 'deadline', e.target.value)}
-                                            />
-                                        ))}
+                                    <td style={{ maxWidth: '160px' }}>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                height: '100%',
+                                            }}
+                                        >
+                                            {row.additional_data.map(item => (
+                                                <input
+                                                    key={item.id}
+                                                    type="text"
+                                                    value={item.deadline}
+                                                    onChange={(e) => handleAdditionalDataChange(row.id, item.id, 'deadline', e.target.value)}
+                                                />
+                                            ))}
+                                        </div>
                                     </td>
                                     <td
                                         onClick={() => handleChange(row.id, 'red_flag', !row.red_flag)}
@@ -334,7 +405,7 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
                     ))}
                 </tbody>
             </table>
-        </div>
+        </div >
     );
 };
 
