@@ -197,7 +197,7 @@ const babelLoader = {
     // disable gzip compression for cache files
     // faster when there are millions of small files
     cacheCompression: false,
-    plugins: ['emotion'],
+    plugins: ['@emotion'],
     presets: [
       [
         '@emotion/babel-preset-css-prop',
