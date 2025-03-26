@@ -66,6 +66,7 @@ import {
   EchartsSunburstChartPlugin,
   EchartsBubbleChartPlugin,
   EchartsWaterfallChartPlugin,
+  EchartsRnkinWaterfallMetricsChartPlugin
 } from '@superset-ui/plugin-chart-echarts';
 import {
   SelectFilterPlugin,
@@ -165,6 +166,9 @@ export default class MainPreset extends Preset {
         }),
         new EchartsWaterfallChartPlugin().configure({
           key: 'waterfall',
+        }),
+        new EchartsRnkinWaterfallMetricsChartPlugin().configure({
+          key: 'rnkin_waterfall_metrics',
         }),
         new SelectFilterPlugin().configure({ key: FilterPlugins.Select }),
         new RangeFilterPlugin().configure({ key: FilterPlugins.Range }),

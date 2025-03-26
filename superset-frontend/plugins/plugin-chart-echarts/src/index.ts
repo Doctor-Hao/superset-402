@@ -36,6 +36,7 @@ export { BigNumberChartPlugin, BigNumberTotalChartPlugin } from './BigNumber';
 export { default as EchartsSunburstChartPlugin } from './Sunburst';
 export { default as EchartsBubbleChartPlugin } from './Bubble';
 export { default as EchartsWaterfallChartPlugin } from './Waterfall';
+export { default as EchartsRnkinWaterfallMetricsChartPlugin } from './rnkin-waterfall-metrics';
 
 export { default as BoxPlotTransformProps } from './BoxPlot/transformProps';
 export { default as FunnelTransformProps } from './Funnel/transformProps';
@@ -50,6 +51,7 @@ export { default as TreemapTransformProps } from './Treemap/transformProps';
 export { default as SunburstTransformProps } from './Sunburst/transformProps';
 export { default as BubbleTransformProps } from './Bubble/transformProps';
 export { default as WaterfallTransformProps } from './Waterfall/transformProps';
+export { default as RnkinWaterfallMetricsTransformProps } from './rnkin-waterfall-metrics/transformProps';
 
 export { DEFAULT_FORM_DATA as TimeseriesDefaultFormData } from './Timeseries/constants';
 
