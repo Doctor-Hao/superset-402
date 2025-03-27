@@ -31,55 +31,13 @@ import { showValueControl } from '../controls';
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
-      label: t('Customize'),
-      expanded: true,
-      controlSetRows: [
-        [
-          {
-            name: 'useCustomTemplate',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Использовать шаблон для сравнения двух вариантов'),
-              description: t(
-                'Если отмечено, будет применен предопределенный шаблон для ECharts'
-              ),
-              default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'comparisonColumn1',
-            config: {
-              type: 'TextControl', // Можно заменить на NumberControl, если он у вас доступен
-              label: t('Индекс первого столбца'),
-              renderTrigger: true,
-              default: '0',
-              description: t('Введите индекс столбца, который будет отображаться первым.'),
-            },
-          },
-          {
-            name: 'comparisonColumn2',
-            config: {
-              type: 'TextControl', // Аналогично, можно использовать NumberControl
-              label: t('Индекс второго столбца'),
-              renderTrigger: true,
-              default: '0',
-              description: t('Введите индекс столбца, который будет отображаться последним.'),
-            },
-          },
-        ],
-      ],
-    },
-    {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
-        ['x_axis'],
-        ['time_grain_sqla'],
-        ['groupby'],
-        ['metric'],
+        // ['x_axis'],
+        // ['time_grain_sqla'],
+        // ['groupby'],
+        ['metrics'],
         ['adhoc_filters'],
         ['row_limit'],
       ],
