@@ -107,6 +107,10 @@ npm install --legacy-peer-deps
 sudo apt-get install -y python3-dev build-essential
 ```
 
+Ошибка библиотеки esbuild -> Error: Expected "0.25.2" but got "0.20.0":
+
+- В package.json поднять версию "esbuild": "^0.25.2",
+
 ### Ошибка запуска frontend сервера (`npm run dev-server` или `npm run build`)
 
 Добавьте права исполнения:
