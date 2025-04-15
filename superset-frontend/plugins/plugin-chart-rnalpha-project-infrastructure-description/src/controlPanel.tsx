@@ -52,12 +52,20 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `project-infrastructure-description`,
+                      label: `/project-infrastructure-description`,
                       value: `/project/infrastructure/description`,
                     },
                     {
-                      label: `project/energy/description`,
+                      label: `/project/energy/description`,
                       value: `/proscons_api/project/energy/description`,
+                    },
+                    {
+                      label: `/project/tasks_and_goals`,
+                      value: `/project/tasks_and_goals`,
+                    },
+                    {
+                      label: `/project/low_efficiency/oilfield`,
+                      value: `/project/low_efficiency/oilfield`,
                     },
                   ],
                 };
