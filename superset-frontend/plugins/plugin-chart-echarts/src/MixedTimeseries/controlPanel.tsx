@@ -60,6 +60,43 @@ const {
   yAxisIndex,
 } = DEFAULT_FORM_DATA;
 
+export const commentsSection: ControlSetRow[] = [
+  [<ControlSubSectionHeader>{t('Comments')}</ControlSubSectionHeader>],
+  [
+    {
+      name: 'chartComments', // это будет formData.chartComments
+      config: {
+        type: 'CustomControl', // <-- важно: CustomControl
+        label: t('Dynamic Comments'),
+        description: t('Add multiple comments with text, x, and y coordinates.'),
+        default: [],
+        renderTrigger: true,
+        // Самое важное — функция render
+        render: (control: any, onChange: any) => {
+          console.log('CustomControl render вызван, control.value:', control.value);
+          return <div style={{ border: '1px solid red', padding: 8 }}>123</div>;
+        },
+      },
+    },
+  ],
+];
+
+export const testSection: ControlSetRow[] = [
+  [<ControlSubSectionHeader key="test-header">{t('Test Section')}</ControlSubSectionHeader>],
+  [
+    {
+      name: 'test_control',
+      config: {
+        type: 'TextControl',
+        label: t('Test'),
+        default: 'Hello, world!',
+        renderTrigger: true,
+      },
+    },
+  ],
+];
+
+
 /**
  * Создадим отдельную функцию, чтобы сделать
  * "metrics" для Query C - опциональными (без validateNonEmpty).
@@ -475,8 +512,45 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+
       ],
     },
+
+    // {
+    //   label: t('Comments1'),
+    //   expanded: true,
+    //   controlSetRows: [...commentsSection],
+    // },
+
+    {
+      label: t('Комментарии на график'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'chartComments',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Добавление комментариев на график'),
+              default: '',
+              description: t(
+                'Пример массива для добавления комментариев на график:\n' +
+                `[
+                  { "text": "Первый комментарий", "x": 100, "y": 30 },
+                  { "text": "Второй\nс переносом строки", "x": 350, "y": 100 }
+                ]`
+              ),
+              placeholder: `[
+                { "text": "Первый комментарий", "x": 100, "y": 30 },
+                { "text": "Второй\\nс переносом строки", "x": 350, "y": 100 }
+              ]`,
+              renderTrigger: true,
+            },
+          },
+        ],
+      ],
+    },
+
   ],
   formDataOverrides: formData => {
     const groupby = getStandardizedControls().controls.columns.filter(
