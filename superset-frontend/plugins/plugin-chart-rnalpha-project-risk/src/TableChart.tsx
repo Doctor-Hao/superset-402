@@ -50,7 +50,7 @@ const mockApiResponse = {
         "value": "new_risk",
         "value_translate": "string"
       },
-      "risk_score" {
+      "risk_score": {
         "value": "extremely_low",
         "value_translate": "string"
       },
@@ -118,7 +118,7 @@ const mockApiResponse = {
         "value": "new_risk",
         "value_translate": "string"
       },
-      "risk_score" {
+      "risk_score": {
         "value": "extremely_low",
         "value_translate": "string"
       },
