@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Draggable from 'react-draggable';
+
 import {
   AxisType,
   BinaryQueryObjectFilterClause,
@@ -30,6 +32,7 @@ import { EchartsMixedTimeseriesChartTransformedProps } from './types';
 import Echart from '../components/Echart';
 import { EventHandlers } from '../types';
 import { formatSeriesName } from '../utils/series';
+import { ChartCommentItem } from './ChartCommentsTableControl';
 
 export default function EchartsMixedTimeseries({
   height,
@@ -56,6 +59,30 @@ export default function EchartsMixedTimeseries({
     [seriesBreakdown],
   );
 
+  const [comments, setComments] = useState<ChartCommentItem[]>([]);
+
+  useEffect(() => {
+    if (Array.isArray(formData.commentPositions)) {
+      setComments(formData.commentPositions);
+    }
+    console.log("formData.commentPositions", formData.commentPositions)
+  }, [formData.commentPositions]);
+
+  const updateCommentPosition = (index: number, x: number, y: number) => {
+    const updated = [...comments];
+    updated[index] = { ...updated[index], x, y };
+    setComments(updated);
+
+    // 💾 обновляем formData в Superset
+    setDataMask({
+      extraFormData: {},
+      filterState: {
+        value: updated, // значение будет доступно в transformProps
+      },
+    });
+  };
+
+
   const getCrossFilterDataMask = useCallback(
     (seriesName, seriesIndex) => {
       const selected: string[] = Object.values(selectedValues || {});
@@ -80,22 +107,22 @@ export default function EchartsMixedTimeseries({
               values.length === 0
                 ? []
                 : [
-                    ...currentGroupBy.map((col, idx) => {
-                      const val: DataRecordValue[] = groupbyValues.map(
-                        v => v[idx],
-                      );
-                      if (val === null || val === undefined)
-                        return {
-                          col,
-                          op: 'IS NULL' as const,
-                        };
+                  ...currentGroupBy.map((col, idx) => {
+                    const val: DataRecordValue[] = groupbyValues.map(
+                      v => v[idx],
+                    );
+                    if (val === null || val === undefined)
                       return {
                         col,
-                        op: 'IN' as const,
-                        val: val as (string | number | boolean)[],
+                        op: 'IS NULL' as const,
                       };
-                    }),
-                  ],
+                    return {
+                      col,
+                      op: 'IN' as const,
+                      val: val as (string | number | boolean)[],
+                    };
+                  }),
+                ],
           },
           filterState: {
             value: !groupbyValues.length ? null : groupbyValues,
@@ -193,13 +220,37 @@ export default function EchartsMixedTimeseries({
   };
 
   return (
-    <Echart
-      refs={refs}
-      height={height}
-      width={width}
-      echartOptions={echartOptions}
-      eventHandlers={eventHandlers}
-      selectedValues={selectedValues}
-    />
+    <div style={{ position: 'relative', height, width }}>
+      <Echart
+        refs={refs}
+        height={height}
+        width={width}
+        echartOptions={echartOptions}
+        eventHandlers={eventHandlers}
+        selectedValues={selectedValues}
+      />
+      {comments.map((item, idx) => (
+        <Draggable
+          key={`comment-${idx}`}
+          defaultPosition={{ x: item.x, y: item.y }}
+          onStop={(e, data) => updateCommentPosition(idx, data.x, data.y)}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              zIndex: 999,
+              background: 'rgba(255,255,255,0.9)',
+              padding: 6,
+              borderRadius: 4,
+              border: '1px solid #999',
+              cursor: 'move',
+              maxWidth: 200,
+            }}
+          >
+            {item.text}
+          </div>
+        </Draggable>
+      ))}
+    </div>
   );
 }

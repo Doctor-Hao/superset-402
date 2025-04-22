@@ -528,22 +528,22 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         [
           {
-            name: 'chartComments',
+            name: 'comment_1',
             config: {
-              type: 'TextAreaControl',
-              label: t('Добавление комментариев на график'),
+              type: 'TextControl',
+              label: t('Комментарий 1'),
               default: '',
-              description: t(
-                'Пример массива для добавления комментариев на график:\n' +
-                `[
-                  { "text": "Первый комментарий", "x": 100, "y": 30 },
-                  { "text": "Второй\nс переносом строки", "x": 350, "y": 100 }
-                ]`
-              ),
-              placeholder: `[
-                { "text": "Первый комментарий", "x": 100, "y": 30 },
-                { "text": "Второй\\nс переносом строки", "x": 350, "y": 100 }
-              ]`,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'comment_2',
+            config: {
+              type: 'TextControl',
+              label: t('Комментарий 2'),
+              default: '',
               renderTrigger: true,
             },
           },

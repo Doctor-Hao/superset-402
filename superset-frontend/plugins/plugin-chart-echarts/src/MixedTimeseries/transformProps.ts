@@ -804,9 +804,22 @@ export default function transformProps(
     focusedSeries = seriesName;
   };
 
+  // 💡 если позиции переданы через перетаскивание — приоритетнее
+  const updatedPositions = Array.isArray(filterState.value)
+    ? filterState.value
+    : [
+      { text: formData.comment1 || '', x: 100, y: -100 },
+      { text: formData.comment2 || '', x: 100, y: -200 },
+    ];
+
+  const commentPositions = updatedPositions;
+
   echartOptions.graphic = (echartOptions.graphic || []).concat(commentGraphics);
   return {
-    formData,
+    formData: {
+      ...formData,
+      commentPositions,
+    },
     width,
     height,
     echartOptions,
