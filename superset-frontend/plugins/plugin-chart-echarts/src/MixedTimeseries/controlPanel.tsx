@@ -60,42 +60,6 @@ const {
   yAxisIndex,
 } = DEFAULT_FORM_DATA;
 
-export const commentsSection: ControlSetRow[] = [
-  [<ControlSubSectionHeader>{t('Comments')}</ControlSubSectionHeader>],
-  [
-    {
-      name: 'chartComments', // это будет formData.chartComments
-      config: {
-        type: 'CustomControl', // <-- важно: CustomControl
-        label: t('Dynamic Comments'),
-        description: t('Add multiple comments with text, x, and y coordinates.'),
-        default: [],
-        renderTrigger: true,
-        // Самое важное — функция render
-        render: (control: any, onChange: any) => {
-          console.log('CustomControl render вызван, control.value:', control.value);
-          return <div style={{ border: '1px solid red', padding: 8 }}>123</div>;
-        },
-      },
-    },
-  ],
-];
-
-export const testSection: ControlSetRow[] = [
-  [<ControlSubSectionHeader key="test-header">{t('Test Section')}</ControlSubSectionHeader>],
-  [
-    {
-      name: 'test_control',
-      config: {
-        type: 'TextControl',
-        label: t('Test'),
-        default: 'Hello, world!',
-        renderTrigger: true,
-      },
-    },
-  ],
-];
-
 
 /**
  * Создадим отдельную функцию, чтобы сделать
@@ -345,6 +309,24 @@ function createAdvancedAnalyticsSection(
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
+      label: t('Комментарии'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'show_comments',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Включить комментарии'),
+              default: false,
+              renderTrigger: true,
+              description: t('Показать комментарии и кнопку добавления'),
+            },
+          },
+        ],
+      ],
+    },
+    {
       label: t('Shared query fields'),
       expanded: true,
       controlSetRows: [['x_axis'], ['time_grain_sqla']],
@@ -515,42 +497,6 @@ const config: ControlPanelConfig = {
 
       ],
     },
-
-    // {
-    //   label: t('Comments1'),
-    //   expanded: true,
-    //   controlSetRows: [...commentsSection],
-    // },
-
-    {
-      label: t('Комментарии на график'),
-      expanded: true,
-      controlSetRows: [
-        [
-          {
-            name: 'comment_1',
-            config: {
-              type: 'TextControl',
-              label: t('Комментарий 1'),
-              default: '',
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'comment_2',
-            config: {
-              type: 'TextControl',
-              label: t('Комментарий 2'),
-              default: '',
-              renderTrigger: true,
-            },
-          },
-        ],
-      ],
-    },
-
   ],
   formDataOverrides: formData => {
     const groupby = getStandardizedControls().controls.columns.filter(

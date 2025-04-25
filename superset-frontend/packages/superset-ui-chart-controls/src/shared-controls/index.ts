@@ -20,5 +20,4 @@ export { default as sharedControls } from './sharedControls';
 // React control components
 export { default as sharedControlComponents } from './components';
 export * from './components';
-export * from './customControls';
 export * from './mixins';
