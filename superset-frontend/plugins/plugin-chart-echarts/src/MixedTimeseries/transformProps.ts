@@ -224,7 +224,7 @@ export default function transformProps(
     metrics = [],
     metricsB = [],
     metricsC = [],
-    chartComments,
+    show_comments,
   }: EchartsMixedTimeseriesFormData = { ...DEFAULT_FORM_DATA, ...formData };
 
   const refs: Refs = {};
@@ -749,77 +749,12 @@ export default function transformProps(
       : [],
   };
 
-  // парсинг JSON из chartComments
-  let commentsArray: Array<{ text: string; x: number; y: number }> = [];
-  if (chartComments) {
-    try {
-      commentsArray = JSON.parse(chartComments);
-      if (!Array.isArray(commentsArray)) {
-        // Если пользователь ввёл не массив — игнорируем
-        commentsArray = [];
-      }
-    } catch (err) {
-      // Ошибка парсинга, значит оставляем пустой массив
-      commentsArray = [];
-    }
-  }
-
-  // Формируем массив "graphic" для каждого комментария
-  // Каждый комментарий — это group из прямоугольника + текста
-  const commentGraphics = commentsArray.map((comment, idx) => {
-    const { text, x, y } = comment;
-
-    // Ширину/высоту прямоугольника можно делать динамически,
-    // но для простоты берём фиксированные 200x40
-    return {
-      type: 'group',
-      // Позиция всей группы относительно левого/верхнего угла:
-      left: x,  // px
-      top: y,   // px
-      // Массив элементов внутри
-      children: [
-        {
-          type: 'rect',
-          shape: { x: 0, y: 0, width: 200, height: 40 },
-          style: {
-            fill: '#fff',
-            stroke: '#000',
-            lineWidth: 1,
-          },
-        },
-        {
-          type: 'text',
-          style: {
-            text,
-            x: 10,
-            y: 10,
-            fill: '#000',
-          },
-        },
-      ],
-    };
-  });
-
   const onFocusedSeries = (seriesName: string | null) => {
     focusedSeries = seriesName;
   };
 
-  // 💡 если позиции переданы через перетаскивание — приоритетнее
-  const updatedPositions = Array.isArray(filterState.value)
-    ? filterState.value
-    : [
-      { text: formData.comment1 || '', x: 100, y: -100 },
-      { text: formData.comment2 || '', x: 100, y: -200 },
-    ];
-
-  const commentPositions = updatedPositions;
-
-  echartOptions.graphic = (echartOptions.graphic || []).concat(commentGraphics);
   return {
-    formData: {
-      ...formData,
-      commentPositions,
-    },
+    formData,
     width,
     height,
     echartOptions,

@@ -27,12 +27,30 @@ import {
   getColumnLabel,
   getNumberFormatter,
   getTimeFormatter,
+  styled,
 } from '@superset-ui/core';
 import { EchartsMixedTimeseriesChartTransformedProps } from './types';
 import Echart from '../components/Echart';
 import { EventHandlers } from '../types';
 import { formatSeriesName } from '../utils/series';
-import { ChartCommentItem } from './ChartCommentsTableControl';
+
+const StyledTextArea = styled.textarea`
+  width: 100%;
+  min-height: 40px;
+  resize: none; /* По умолчанию ресайз отключён */
+  border: none;
+  padding: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  display: block;
+  overflow: hidden;
+  background: transparent;
+  outline: none;
+
+  &:hover {
+    resize: vertical; /* При наведении появляется возможность вертикального ресайза */
+  }
+`;
 
 export default function EchartsMixedTimeseries({
   height,
@@ -59,28 +77,29 @@ export default function EchartsMixedTimeseries({
     [seriesBreakdown],
   );
 
-  const [comments, setComments] = useState<ChartCommentItem[]>([]);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    if (Array.isArray(formData.commentPositions)) {
-      setComments(formData.commentPositions);
+    if (formData.showComments) {
+      fetch('/api/comments')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setComments(data);
+          } else {
+            console.warn('⚠️ Комментарии не массив:', data);
+            setComments([]); // fallback
+          }
+        })
+        .catch(err => {
+          console.error('Ошибка загрузки комментариев:', err);
+          setComments([]); // fallback на ошибку
+        });
     }
-    console.log("formData.commentPositions", formData.commentPositions)
-  }, [formData.commentPositions]);
+  }, [formData.showComments]);
 
-  const updateCommentPosition = (index: number, x: number, y: number) => {
-    const updated = [...comments];
-    updated[index] = { ...updated[index], x, y };
-    setComments(updated);
 
-    // 💾 обновляем formData в Superset
-    setDataMask({
-      extraFormData: {},
-      filterState: {
-        value: updated, // значение будет доступно в transformProps
-      },
-    });
-  };
 
 
   const getCrossFilterDataMask = useCallback(
@@ -219,8 +238,40 @@ export default function EchartsMixedTimeseries({
     },
   };
 
+  // Подстройка высоты textarea
+  const autoResize = (textarea) => {
+    textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
+    textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
+  };
+
   return (
     <div style={{ position: 'relative', height, width }}>
+      {formData.showComments && (
+        <div style={{ marginBottom: 8 }}>
+          <button
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              marginLeft: '8px',
+            }}
+            onClick={() => {
+              const newComment = {
+                comm_id: Math.random(),
+                var_id: 0,
+                comm_type: 'note',
+                description: 'Комментарий',
+                x: 0,
+                y: -100,
+              };
+              setComments([...comments, newComment]);
+
+            }}>
+            Добавить комментарий
+          </button>
+        </div>
+      )}
       <Echart
         refs={refs}
         height={height}
@@ -229,25 +280,50 @@ export default function EchartsMixedTimeseries({
         eventHandlers={eventHandlers}
         selectedValues={selectedValues}
       />
-      {comments.map((item, idx) => (
+      {formData.showComments && Array.isArray(comments) && comments.map((c, idx) => (
         <Draggable
-          key={`comment-${idx}`}
-          defaultPosition={{ x: item.x, y: item.y }}
-          onStop={(e, data) => updateCommentPosition(idx, data.x, data.y)}
+          key={c.comm_id}
+          defaultPosition={{ x: c.x, y: c.y }}
+          onStop={(e, data) => {
+            const updated = [...comments];
+            updated[idx] = { ...updated[idx], x: data.x, y: data.y };
+            setComments(updated);
+          }}
         >
           <div
             style={{
               position: 'absolute',
-              zIndex: 999,
-              background: 'rgba(255,255,255,0.9)',
+              background: '#fffbe8',
+              border: '1px solid #ccc',
               padding: 6,
               borderRadius: 4,
-              border: '1px solid #999',
-              cursor: 'move',
-              maxWidth: 200,
+              width: 250,
+              zIndex: 10,
             }}
           >
-            {item.text}
+            <StyledTextArea
+              defaultValue={c.description}
+              onChange={e => {
+                const textarea = e.target as HTMLTextAreaElement;
+                textarea.style.height = 'auto';
+                textarea.style.height = `${textarea.scrollHeight}px`;
+              }}
+              onBlur={e => {
+                const updated = { ...c, description: e.target.value };
+                fetch(`/api/comments/${c.comm_id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updated),
+                })
+                  .then(res => {
+                    if (res.ok) {
+                      alert('✅ Комментарий сохранён');
+                    } else {
+                      alert('❌ Ошибка при сохранении');
+                    }
+                  });
+              }}
+            />
           </div>
         </Draggable>
       ))}

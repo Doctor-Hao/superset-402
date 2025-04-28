@@ -87,6 +87,7 @@ export type EchartsMixedTimeseriesFormData = QueryFormData & {
   yAxisIndexB?: number;
   groupby: QueryFormColumn[];
   groupbyB: QueryFormColumn[];
+  show_comments?: boolean;
 } & LegendFormData &
   TitleFormData;
 
@@ -133,6 +134,7 @@ export const DEFAULT_FORM_DATA: EchartsMixedTimeseriesFormData = {
   zoomable: TIMESERIES_DEFAULTS.zoomable,
   richTooltip: TIMESERIES_DEFAULTS.richTooltip,
   xAxisLabelRotation: TIMESERIES_DEFAULTS.xAxisLabelRotation,
+  show_comments: false,
   ...DEFAULT_TITLE_FORM_DATA,
 };
 
@@ -143,15 +145,15 @@ export interface EchartsMixedTimeseriesProps
 
 export type EchartsMixedTimeseriesChartTransformedProps =
   BaseTransformedProps<EchartsMixedTimeseriesFormData> &
-    ContextMenuTransformedProps &
-    CrossFilterTransformedProps & {
-      groupbyB: QueryFormColumn[];
-      labelMapB: Record<string, string[]>;
-      seriesBreakdown: number;
-      xValueFormatter: TimeFormatter | StringConstructor;
-      xAxis: {
-        label: string;
-        type: AxisType;
-      };
-      onFocusedSeries: (series: string | null) => void;
+  ContextMenuTransformedProps &
+  CrossFilterTransformedProps & {
+    groupbyB: QueryFormColumn[];
+    labelMapB: Record<string, string[]>;
+    seriesBreakdown: number;
+    xValueFormatter: TimeFormatter | StringConstructor;
+    xAxis: {
+      label: string;
+      type: AxisType;
     };
+    onFocusedSeries: (series: string | null) => void;
+  };
