@@ -52,6 +52,15 @@ const StyledTextArea = styled.textarea`
   }
 `;
 
+type CommentItem = {
+  comm_id: number;
+  var_id: number;
+  comm_type: string;
+  description: string;
+  x: number;
+  y: number;
+};
+
 export default function EchartsMixedTimeseries({
   height,
   width,
@@ -78,7 +87,6 @@ export default function EchartsMixedTimeseries({
   );
 
   const [comments, setComments] = useState<CommentItem[]>([]);
-  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (formData.showComments) {
@@ -239,9 +247,9 @@ export default function EchartsMixedTimeseries({
   };
 
   // Подстройка высоты textarea
-  const autoResize = (textarea) => {
-    textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
-    textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
+  const autoResize = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
   };
 
   return (

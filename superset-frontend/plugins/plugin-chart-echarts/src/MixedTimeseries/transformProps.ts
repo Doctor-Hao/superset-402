@@ -133,10 +133,8 @@ export default function transformProps(
     currencyFormats = {},
     columnFormats = {},
   } = datasource;
-  const { label_map: labelMap } =
-    queriesData[0] as TimeseriesChartDataResponseResult;
-  const { label_map: labelMapB } =
-    queriesData[1] as TimeseriesChartDataResponseResult;
+  const { label_map: labelMap = {} } = (queriesData[0] as TimeseriesChartDataResponseResult) || {};
+  const { label_map: labelMapB = {} } = (queriesData[1] as TimeseriesChartDataResponseResult) || {};
 
   const data1 = (queriesData[0].data || []) as TimeseriesDataRecord[];
   const data2 = (queriesData[1].data || []) as TimeseriesDataRecord[];
@@ -210,7 +208,6 @@ export default function transformProps(
     xAxisLabelRotation,
     groupby,
     groupbyB,
-    groupbyC,
     xAxis: xAxisOrig,
     xAxisForceCategorical,
     xAxisTitle,
@@ -224,7 +221,6 @@ export default function transformProps(
     metrics = [],
     metricsB = [],
     metricsC = [],
-    show_comments,
   }: EchartsMixedTimeseriesFormData = { ...DEFAULT_FORM_DATA, ...formData };
 
   const refs: Refs = {};
@@ -507,7 +503,7 @@ export default function transformProps(
       customFormattersSecondary,
       formatterSecondary,
       metricsC,
-      labelMapC?.[seriesName]?.[0],
+      Array.isArray(labelMapC?.[seriesName]) ? labelMapC?.[seriesName]?.[0] : undefined,
       !!contributionMode,
     );
 
@@ -585,8 +581,10 @@ export default function transformProps(
       },
       minorTick: { show: minorTicks },
       minInterval:
-        xAxisType === AxisType.Time && timeGrainSqla
-          ? TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla]
+        xAxisType === AxisType.Time &&
+          timeGrainSqla &&
+          TIMEGRAIN_TO_TIMESTAMP.hasOwnProperty(timeGrainSqla)
+          ? TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla as keyof typeof TIMEGRAIN_TO_TIMESTAMP]
           : 0,
       ...getMinAndMaxFromBounds(
         xAxisType,
