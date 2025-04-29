@@ -1,8 +1,7 @@
-import React, { createRef, useEffect, useRef, useState } from 'react';
+import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
-import { DataTableProps } from './DataTable';
-import { Styles, StyledTextArea, StyledDateInput } from './styles';
+import { Styles, StyledTextArea } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 
 
@@ -22,29 +21,29 @@ const mockApiResponse = {
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D> & {
-    sticky?: DataTableProps<D>['sticky'];
+    sticky?: any;
   },
 ) {
   const { height, width, data: initialData, formData } = props;
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
-  const [editedData, setEditedData] = useState<{}>();
+  const [editedData, setEditedData] = useState<Record<string, any> | undefined>();
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
 
-  const handleLoadExternalMock = async (projId: string) => {
-    setIsLoading(true);
+  // const handleLoadExternalMock = async (projId: string) => {
+  //   setIsLoading(true);
 
-    // Симуляция задержки сети 1.5 сек.
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  //   // Симуляция задержки сети 1.5 сек.
+  //   await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Используем моковые данные вместо реального запроса
-    setEditedData(mockApiResponse);
-    console.log("✅ Данные успешно загружены (мок)");
+  //   // Используем моковые данные вместо реального запроса
+  //   setEditedData(mockApiResponse);
+  //   console.log("✅ Данные успешно загружены (мок)");
 
-    setIsLoading(false);
-  };
+  //   setIsLoading(false);
+  // };
 
   useEffect(() => {
     // mockDATA
@@ -59,8 +58,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (initialData.length > 0) {
       const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
-        setProjId(firstProjId); // Обновляем `projId`
+      if (typeof firstProjId === 'string' && firstProjId !== projId) {
+        setProjId(firstProjId);
       }
     }
   }, [initialData]);
@@ -149,7 +148,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   // ========== Обновление данных при редактировании ==========
-  const handleChange = (field, value: string) => {
+  const handleChange = (field: string, value: string) => {
     setEditedData(prevData => ({
       ...prevData!,
       [field]: value,
@@ -157,7 +156,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   // Подстройка высоты textarea
-  const autoResize = (textarea) => {
+  const autoResize = (textarea: HTMLTextAreaElement) => {
     textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
     textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
   };

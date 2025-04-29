@@ -29,10 +29,10 @@ const config = {
               freeForm: true,
               allowAll: true,
               commaChoosesOption: false,
-              optionRenderer: c => <span>{c.column_name}</span>,
-              valueRenderer: c => <span>{c.column_name}</span>,
+              optionRenderer: (c: any) => <span>{c.column_name}</span>,
+              valueRenderer: (c: any) => <span>{c.column_name}</span>,
               valueKey: 'column_name',
-              mapStateToProps: ({ datasource }) => ({
+              mapStateToProps: ({ datasource }: { datasource: any }) => ({
                 options: datasource?.columns || [],
               }),
               resetOnHide: false,
@@ -48,7 +48,7 @@ const config = {
               description: t(`api до таблицы, в которую отправлять данные. Пример: /variant/proscons (url:${process.env.BACKEND_URL})`),
               default: '',
               freeForm: true, // Разрешает ввод вручную
-              mapStateToProps: ({ datasource }) => {
+              mapStateToProps: () => {
                 return {
                   options: [
                     {
