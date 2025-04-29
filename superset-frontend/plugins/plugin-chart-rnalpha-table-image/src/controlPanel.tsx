@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import { t } from '@superset-ui/core';
 import { sharedControls } from '@superset-ui/chart-controls';
+import React from 'react';
 
 /**
  * Конфигурация панели управления
@@ -29,10 +30,10 @@ const config = {
               freeForm: true,
               allowAll: true,
               commaChoosesOption: false,
-              optionRenderer: c => <span>{c.column_name}</span>,
-              valueRenderer: c => <span>{c.column_name}</span>,
+              optionRenderer: (c: any) => <span>{c.column_name}</span>,
+              valueRenderer: (c: any) => <span>{c.column_name}</span>,
               valueKey: 'column_name',
-              mapStateToProps: ({ datasource }) => ({
+              mapStateToProps: ({ datasource }: { datasource: any }) => ({
                 options: datasource?.columns || [],
               }),
               resetOnHide: false,

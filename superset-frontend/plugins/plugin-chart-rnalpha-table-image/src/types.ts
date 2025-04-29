@@ -58,10 +58,10 @@ export interface DataColumnMeta {
   label: string;
   dataType: GenericDataType;
   formatter?:
-    | TimeFormatter
-    | NumberFormatter
-    | CustomFormatter
-    | CurrencyFormatter;
+  | TimeFormatter
+  | NumberFormatter
+  | CustomFormatter
+  | CurrencyFormatter;
   isMetric?: boolean;
   isPercentMetric?: boolean;
   isNumeric?: boolean;
@@ -103,6 +103,8 @@ export interface TableChartProps extends ChartProps {
 }
 
 export interface TableChartTransformedProps<D extends DataRecord = DataRecord> {
+  formData: any;
+  endpoint?: string;
   timeGrain?: TimeGranularity;
   height: number;
   width: number;

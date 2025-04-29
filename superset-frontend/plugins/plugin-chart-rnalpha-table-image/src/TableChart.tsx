@@ -1,5 +1,5 @@
 
-import React, { useEffect, createRef, useState, useRef, useLayoutEffect } from 'react';
+import React, { useEffect, createRef, useState } from 'react';
 import {
   DataRecord,
 } from '@superset-ui/core';
