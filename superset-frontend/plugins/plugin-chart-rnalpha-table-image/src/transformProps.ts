@@ -239,7 +239,6 @@ const transformProps = (
     conditional_formatting: conditionalFormatting,
     allow_rearrange_columns: allowRearrangeColumns,
     endpoint,
-    hidden_columns
   } = formData;
   const timeGrain = extractTimegrain(formData);
 
