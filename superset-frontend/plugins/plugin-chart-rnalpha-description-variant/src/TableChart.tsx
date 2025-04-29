@@ -2,9 +2,6 @@ import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { Styles, StyledTextArea } from './styles';
-import { ControlButtons } from './components/ControlButtons';
-
-
 
 
 // Моковые данные
@@ -13,10 +10,21 @@ const mockData = [
   { PROJ_ID: '67890', project_name: 'Project Beta' },
 ];
 
-const mockApiResponse = {
-  "oil_description": "Первая строка\nВторая строка\nТретья строка\nЧетвертая строка\nПятая строка\nШестая строка\nСедьмая строка\nВосьмая строка\nДевятая строка\nДесятая строка",
-  "ppd_description": "Описание проекта\nЕще одна строка описания\nДополнительная информация"
-}
+const mockApiResponse = [
+  {
+    var_id: 1,
+    var_name: "Базовый 1",
+    note: `Описание 1 LoremLoremLoremLorem LoremLoremLoremLorem 
+    LoremLoremLoremLorem LoremLoremLoremLorem LoremLoremLoremLorem LoremLoremLoremLorem
+    LoremLoremLoremLorem LoremLoremLoremLorem LoremLoremLoremLorem
+    LoremLoremLoremLorem`
+  },
+  {
+    var_id: 2,
+    var_name: "Альтернативный",
+    note: 'Описание 1'
+  }
+]
 
 
 export default function TableChart<D extends DataRecord = DataRecord>(
@@ -26,7 +34,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 ) {
   const { height, width, data: initialData, formData } = props;
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<Record<string, any> | undefined>();
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
@@ -101,7 +108,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       } catch (error) {
         console.error('Ошибка сети при GET-запросе:', error);
       }
-      attempts++;
+      attempts = +1;
       if (attempts < maxAttempts) {
         console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
         await new Promise(res => setTimeout(res, 2000));
@@ -113,86 +120,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsLoading(false);
   };
 
-  // ========== PATCH-логика ==========
-  const handleSave = async () => {
-    if (!projId) {
-      console.error('❌ Ошибка: PROJ_ID не найден');
-      return;
-    }
-    setIsSaveLoading(true)
-
-    const requestBody = {
-      proj_id: projId,
-      [formData.property_name]: editedData?.[formData.property_name],
-    };
-
-    console.log('📤 Отправка обновленных данных:', requestBody);
-
-    try {
-      const response = await fetch(`${process.env.BACKEND_URL}${url}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.ok) {
-        console.log('✅ Данные успешно обновлены!');
-      } else {
-        console.error('Ошибка при PATCH-запросе, статус:', response.status);
-      }
-    } catch (error) {
-      console.error('Ошибка сети при PATCH-запросе:', error);
-    } finally {
-      setIsSaveLoading(false)
-    }
-  };
-
-  // ========== Обновление данных при редактировании ==========
-  const handleChange = (field: string, value: string) => {
-    setEditedData(prevData => ({
-      ...prevData!,
-      [field]: value,
-    }));
-  };
-
-  // Подстройка высоты textarea
-  const autoResize = (textarea: HTMLTextAreaElement) => {
-    textarea.style.height = 'auto'; // Сбрасываем высоту, чтобы правильно пересчитать
-    textarea.style.height = `${textarea.scrollHeight}px`; // Устанавливаем высоту на основе содержимого
-  };
-
   return (
     <Styles ref={rootElem} height={height} width={width}>
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
-        <>
-          <ControlButtons
-            isSaving={isSaveLoading}
-            onSave={handleSave}
-          />
-          <table>
-            <thead>
-              <tr>
-                <th>{[formData.header_name]}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <StyledTextArea
-                    value={editedData?.[formData.property_name] || ''}
-                    onChange={(e) => {
-                      handleChange(formData.property_name, e.target.value);
-                      autoResize(e.target as HTMLTextAreaElement)
-                    }}
-                    ref={textarea => textarea && autoResize(textarea)}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </>)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {Array.isArray(editedData) && editedData.length > 0 ? (
+            editedData.map((item, index) => (
+              <div key={item.var_id ?? index}>
+                <strong>Вариант {item.var_id} «{item.var_name}»</strong> — {item.note ? item.note : ''}
+              </div>
+            ))
+          ) : (
+            <p>Нет данных для отображения</p>
+          )}
+        </div>
+      )}
     </Styles>
   );
 }
