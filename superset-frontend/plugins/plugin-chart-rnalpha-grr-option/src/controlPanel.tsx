@@ -46,14 +46,14 @@ const config = {
               type: 'SelectControl',
               label: t('Endpoint'),
               description: t(`api до таблицы, в которую отправлять данные. Пример: /variant/proscons (url:${process.env.BACKEND_URL})`),
-              default: '/variant/description',
+              default: '/project/grr/option',
               freeForm: true, // Разрешает ввод вручную
               mapStateToProps: () => {
                 return {
                   options: [
                     {
-                      label: `/variant/description`,
-                      value: `/variant/description`,
+                      label: `/project/grr/option`,
+                      value: `/project/grr/option`,
                     },
                   ],
                 };
