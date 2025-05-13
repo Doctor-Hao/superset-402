@@ -106,10 +106,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     // mockDATA
-    if (mockData.length > 0) {
-      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-      setProjId(firstProjId);
-    }
+    // if (mockData.length > 0) {
+    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    //   setProjId(firstProjId);
+    // }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -127,9 +127,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (projId) {
       // mockDATA
-      handleLoadExternalMock(projId)
+      // handleLoadExternalMock(projId)
 
-      // handleLoadExternal(projId);
+      handleLoadExternal(projId);
     }
   }, [projId]);
 
