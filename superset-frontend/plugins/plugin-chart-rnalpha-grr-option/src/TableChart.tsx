@@ -84,6 +84,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<grrOption[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
+
+  const [showPastePopup, setShowPastePopup] = useState(false);
+  const [clipboardInput, setClipboardInput] = useState('');
+
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
 
@@ -235,24 +239,111 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setEditedData(prev => prev.filter(row => row.id !== id));
   };
 
+  const parseTextAndInsert = (text: string) => {
+    const rows = text.trim().split('\n');
+    const parsed: grrOption[] = rows.map((line, idx) => {
+      const cells = line.split('\t');
+      return {
+        id: Date.now() + idx,
+        opt_name: cells[0] || '',
+        oilfield_name: cells[1] || '',
+        la_name: cells[2] || '',
+        base_B1C1: Number(cells[3] || 0),
+        base_extra_reserves: Number(cells[4] || 0),
+        base_accum_prod: Number(cells[5] || 0),
+        base_VNS_count: Number(cells[6] || 0),
+        max_B1C1: Number(cells[7] || 0),
+        max_extra_reserves: Number(cells[8] || 0),
+        max_accum_prod: Number(cells[9] || 0),
+        max_VNS_count: Number(cells[10] || 0),
+        prb_srr: cells[11] || '',
+        grr_results: cells[12] || '',
+        dependent_mining: cells[13] || '',
+        dependent_drilling: cells[14] || '',
+        commentary: cells[15] || '',
+      };
+    });
+
+    setEditedData(prev => [...prev, ...parsed]);
+    setClipboardInput('');
+    setShowPastePopup(false);
+  };
+
+
   return (
     <Styles ref={rootElem} height={height} width={width}>
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
         <>
-          <button onClick={() => setIsEditing(!isEditing)} className="icon-button edit">
-            ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex' }}>
+              <button
+                style={{ marginRight: 10 }}
+                onClick={() => setIsEditing(!isEditing)}
+                className="icon-button edit"
+              >
+                ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
+              </button>
+              {isEditing && (
+                <>
+                  <button
+                    onClick={() => setShowPastePopup(true)}
+                    className="icon-button edit"
+                  >
+                    📋 Вставить из Excel
+                  </button>
+                </>
+              )}
+            </div>
 
-          {isEditing && (
-            <ControlButtons
-              isSaving={isSaveLoading}
-              onSave={handleSave}
-              onAddRow={handleAdd}
-              addRowLabel="Добавить строку"
-            />
-          )}
+            <div>
+              {isEditing && (
+                <>
+                  {showPastePopup && (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 9999,
+                        backgroundColor: '#fff',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        boxShadow: '0 0 10px rgba(0,0,0,0.25)',
+                        width: '600px',
+                        maxHeight: '400px',
+                      }}
+                    >
+                      <h4>📥 Вставка данных из Excel</h4>
+                      <p style={{ fontSize: '14px', color: '#333', marginBottom: '6px' }}>
+                        Скопируйте таблицу из Excel (без заголовков), нажмите <kbd>Ctrl+V</kbd> в поле ниже, затем нажмите "Добавить".
+                      </p>
+                      <textarea
+                        value={clipboardInput}
+                        onChange={e => setClipboardInput(e.target.value)}
+                        placeholder="Вставьте сюда строки из Excel..."
+                        rows={6}
+                        style={{ width: '100%', marginBottom: '12px' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                        <button onClick={() => setShowPastePopup(false)}>Отмена</button>
+                        <button onClick={() => parseTextAndInsert(clipboardInput)}>Добавить</button>
+                      </div>
+                    </div>
+                  )}
+
+                  <ControlButtons
+                    isSaving={isSaveLoading}
+                    onSave={handleSave}
+                    onAddRow={handleAdd}
+                    addRowLabel="Добавить строку"
+                  />
+                </>
+              )}
+            </div>
+          </div>
 
           <table cellPadding={4} style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
             <thead style={{ backgroundColor: '#f0f0f0' }}>

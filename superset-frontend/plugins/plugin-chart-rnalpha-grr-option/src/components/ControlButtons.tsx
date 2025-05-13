@@ -30,6 +30,23 @@ export const ControlButtons: React.FC<ControlButtonsProps> = ({
             {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                {onAddRow && (
+                    <button
+                        onClick={handleAdd}
+                        disabled={isSaving}
+                        style={{
+                            padding: '4px 8px',
+                            backgroundColor: isSaving ? '#aaa' : '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            cursor: isSaving ? 'not-allowed' : 'pointer',
+                            marginRight: '8px',
+                        }}
+                    >
+                        {addRowLabel}
+                    </button>
+                )}
+
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
@@ -41,24 +58,8 @@ export const ControlButtons: React.FC<ControlButtonsProps> = ({
                         cursor: isSaving ? 'not-allowed' : 'pointer',
                     }}
                 >
-                    {isSaving ? 'Сохранение...' : 'Сохранить'}
+                    {isSaving ? 'Сохранение...' : 'Сохранить таблицу'}
                 </button>
-                {onAddRow && (
-                    <button
-                        onClick={handleAdd}
-                        disabled={isSaving}
-                        style={{
-                            padding: '4px 8px',
-                            backgroundColor: isSaving ? '#aaa' : '#4CAF50',
-                            color: 'white',
-                            border: 'none',
-                            cursor: isSaving ? 'not-allowed' : 'pointer',
-                            marginLeft: '8px',
-                        }}
-                    >
-                        {addRowLabel}
-                    </button>
-                )}
             </div>
         </>
     );

@@ -126,7 +126,7 @@ input:focus, select:focus, textarea:focus {
     font-size: 14px;
     color: black;
     cursor: pointer;
-    padding: 8px 12px;
+    padding: 5px 12px;
     border-radius: 5px;
     transition: background 0.2s ease-in-out, opacity 0.2s ease-in-out;
 }

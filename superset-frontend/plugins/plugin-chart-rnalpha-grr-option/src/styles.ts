@@ -31,6 +31,44 @@ export const Styles = styled.div<{ height: number; width: number }>`
   tr:nth-of-type(odd) {
     background-color: rgb(226, 226, 226);
   }
+
+  /* Убираем фон и границу у кнопки удаления */
+  .icon-button {
+      border: none;
+      background: none;
+      outline: none;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s ease-in-out;
+  }
+
+  .icon-button:hover {
+      opacity: 0.7;
+  }
+
+  /* Кнопка "Редактировать" */
+  .icon-button.edit {
+      margin: 0 0 10px 0;
+      background: #f9bd00;
+      border: none;
+      font-size: 14px;
+      color: black;
+      cursor: pointer;
+      padding: 5px 12px;
+      border-radius: 5px;
+      transition: background 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  }
+
+  /* Hover-эффект */
+  .icon-button.edit:hover {
+      background: gold;
+      opacity: 0.9;
+  }
+
 `;
 
 // Стилизованный input для даты
