@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from "react";
 
 interface AutoResizeTextAreaProps {
-    value: string;
+    value: string | number;
     onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
-    style?: React.CSSProperties; // добавили тип для style
+    style?: React.CSSProperties;
 }
 
 const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange, style }) => {
@@ -19,7 +19,7 @@ const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange
     return (
         <textarea
             ref={textareaRef}
-            value={value}
+            value={value.toString()}
             onChange={onChange}
             style={{
                 width: "100%",

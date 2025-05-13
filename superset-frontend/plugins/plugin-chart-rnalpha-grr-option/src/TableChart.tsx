@@ -1,7 +1,7 @@
 import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
-import { Styles, StyledTextArea } from './styles';
+import { Styles } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
 
@@ -197,6 +197,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         console.error('❌ Ошибка при сохранении');
       }
     } catch (e) {
+      alert(`❌ Ошибка сети: ${e}`)
       console.error('❌ Ошибка сети', e);
     }
 
