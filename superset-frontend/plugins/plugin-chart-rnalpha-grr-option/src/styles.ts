@@ -52,7 +52,6 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   /* Кнопка "Редактировать" */
   .icon-button.edit {
-      margin: 0 0 10px 0;
       background: #f9bd00;
       border: none;
       font-size: 14px;
