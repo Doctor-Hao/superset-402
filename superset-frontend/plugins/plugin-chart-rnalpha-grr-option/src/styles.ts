@@ -68,6 +68,27 @@ export const Styles = styled.div<{ height: number; width: number }>`
       opacity: 0.9;
   }
 
+  textarea {
+    width: 100%;
+    min-height: 40px;
+    resize: none;
+    border: 1px solid transparent;
+    padding: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    display: block;
+    overflow: hidden;
+    background: transparent;
+    outline: none;
+    transition: border 0.2s ease;
+
+    &:hover {
+      border: 1px solid #4CAF50;
+      background-color: #f9f9f9;
+      cursor: text;
+    }
+  }
+
 `;
 
 // Стилизованный input для даты

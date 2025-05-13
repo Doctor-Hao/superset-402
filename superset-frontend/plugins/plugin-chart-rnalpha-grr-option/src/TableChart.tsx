@@ -215,9 +215,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       ...prev,
       {
         id: newId,
-        opt_name: `Новый ${newId}`,
-        oilfield_name: '',
-        la_name: '',
+        opt_name: `-`,
+        oilfield_name: '-',
+        la_name: '-',
         base_B1C1: 0,
         base_extra_reserves: 0,
         base_accum_prod: 0,
@@ -226,11 +226,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         max_extra_reserves: 0,
         max_accum_prod: 0,
         max_VNS_count: 0,
-        prb_srr: '',
-        grr_results: '',
-        dependent_mining: '',
-        dependent_drilling: '',
-        commentary: '',
+        prb_srr: '-',
+        grr_results: '-',
+        dependent_mining: '-',
+        dependent_drilling: '-',
+        commentary: '-',
       },
     ]);
   };
@@ -301,37 +301,53 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               {isEditing && (
                 <>
                   {showPastePopup && (
-                    <div
-                      style={{
-                        position: 'fixed',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 9999,
-                        backgroundColor: '#fff',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        boxShadow: '0 0 10px rgba(0,0,0,0.25)',
-                        width: '600px',
-                        maxHeight: '400px',
-                      }}
-                    >
-                      <h4>📥 Вставка данных из Excel</h4>
-                      <p style={{ fontSize: '14px', color: '#333', marginBottom: '6px' }}>
-                        Скопируйте таблицу из Excel (без заголовков), нажмите <kbd>Ctrl+V</kbd> в поле ниже, затем нажмите "Добавить".
-                      </p>
-                      <textarea
-                        value={clipboardInput}
-                        onChange={e => setClipboardInput(e.target.value)}
-                        placeholder="Вставьте сюда строки из Excel..."
-                        rows={6}
-                        style={{ width: '100%', marginBottom: '12px' }}
+                    <>
+                      {/* Затемнение фона */}
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(0,0,0,0.5)',
+                          zIndex: 9998,
+                        }}
+                        onClick={() => setShowPastePopup(false)} // закрытие при клике вне
                       />
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                        <button onClick={() => setShowPastePopup(false)}>Отмена</button>
-                        <button onClick={() => parseTextAndInsert(clipboardInput)}>Добавить</button>
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          zIndex: 9999,
+                          backgroundColor: '#fff',
+                          padding: '20px',
+                          borderRadius: '8px',
+                          boxShadow: '0 0 10px rgba(0,0,0,0.25)',
+                          width: '600px',
+                          maxHeight: '400px',
+                        }}
+                        onClick={e => e.stopPropagation()} // блокируем всплытие клика
+                      >
+                        <h4>📥 Вставка данных из Excel</h4>
+                        <p style={{ fontSize: '14px', color: '#333', marginBottom: '6px' }}>
+                          Скопируйте таблицу из Excel (без заголовков), нажмите <kbd>Ctrl+V</kbd> в поле ниже, затем нажмите "Добавить".
+                        </p>
+                        <textarea
+                          value={clipboardInput}
+                          onChange={e => setClipboardInput(e.target.value)}
+                          placeholder="Вставьте сюда строки из Excel..."
+                          rows={6}
+                          style={{ width: '100%', marginBottom: '12px' }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                          <button onClick={() => setShowPastePopup(false)}>Отмена</button>
+                          <button onClick={() => parseTextAndInsert(clipboardInput)}>Добавить</button>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
 
                   <ControlButtons
