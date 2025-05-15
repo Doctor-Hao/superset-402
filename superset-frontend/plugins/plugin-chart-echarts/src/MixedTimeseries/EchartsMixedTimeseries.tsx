@@ -17,7 +17,7 @@
  * under the License.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import Draggable from 'react-draggable';
+// import Draggable from 'react-draggable';
 
 import {
   AxisType,
@@ -86,26 +86,26 @@ export default function EchartsMixedTimeseries({
     [seriesBreakdown],
   );
 
-  const [comments, setComments] = useState<CommentItem[]>([]);
+  // const [comments, setComments] = useState<CommentItem[]>([]);
 
-  useEffect(() => {
-    if (formData.showComments) {
-      fetch('/api/comments')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            setComments(data);
-          } else {
-            console.warn('⚠️ Комментарии не массив:', data);
-            setComments([]); // fallback
-          }
-        })
-        .catch(err => {
-          console.error('Ошибка загрузки комментариев:', err);
-          setComments([]); // fallback на ошибку
-        });
-    }
-  }, [formData.showComments]);
+  // useEffect(() => {
+  //   if (formData.showComments) {
+  //     fetch('/api/comments')
+  //       .then(res => res.json())
+  //       .then(data => {
+  //         if (Array.isArray(data)) {
+  //           setComments(data);
+  //         } else {
+  //           console.warn('⚠️ Комментарии не массив:', data);
+  //           setComments([]); // fallback
+  //         }
+  //       })
+  //       .catch(err => {
+  //         console.error('Ошибка загрузки комментариев:', err);
+  //         setComments([]); // fallback на ошибку
+  //       });
+  //   }
+  // }, [formData.showComments]);
 
 
 
@@ -247,14 +247,14 @@ export default function EchartsMixedTimeseries({
   };
 
   // Подстройка высоты textarea
-  const autoResize = (textarea: HTMLTextAreaElement) => {
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  };
+  // const autoResize = (textarea: HTMLTextAreaElement) => {
+  //   textarea.style.height = 'auto';
+  //   textarea.style.height = `${textarea.scrollHeight}px`;
+  // };
 
   return (
     <div style={{ position: 'relative', height, width }}>
-      {formData.showComments && (
+      {/* {formData.showComments && (
         <div style={{ marginBottom: 8 }}>
           <button
             style={{
@@ -279,7 +279,7 @@ export default function EchartsMixedTimeseries({
             Добавить комментарий
           </button>
         </div>
-      )}
+      )} */}
       <Echart
         refs={refs}
         height={height}
@@ -288,7 +288,7 @@ export default function EchartsMixedTimeseries({
         eventHandlers={eventHandlers}
         selectedValues={selectedValues}
       />
-      {formData.showComments && Array.isArray(comments) && comments.map((c, idx) => (
+      {/* {formData.showComments && Array.isArray(comments) && comments.map((c, idx) => (
         <Draggable
           key={c.comm_id}
           defaultPosition={{ x: c.x, y: c.y }}
@@ -334,7 +334,7 @@ export default function EchartsMixedTimeseries({
             />
           </div>
         </Draggable>
-      ))}
+      ))} */}
     </div>
   );
 }
