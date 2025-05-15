@@ -5,24 +5,13 @@ import { Styles } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
 
-interface grrOption {
-  id: number;
-  opt_name: string;
-  oilfield_name: string;
-  la_name: string;
-  base_B1C1: number;
-  base_extra_reserves: number;
-  base_accum_prod: number;
-  base_VNS_count: number;
-  max_B1C1: number;
-  max_extra_reserves: number;
-  max_accum_prod: number;
-  max_VNS_count: number;
-  prb_srr: string;
-  grr_results: string;
-  dependent_mining: string;
-  dependent_drilling: string;
-  commentary: string;
+interface ProjectVariant {
+  var_id: number;
+  var_name: string;
+  descriptions: {
+    id: number;
+    comm_descrp: string;
+  }[];
 }
 
 // Моковые данные
@@ -31,47 +20,35 @@ const mockData = [
   { PROJ_ID: '67890', project_name: 'Project Beta' },
 ];
 
-const mockApiResponse: grrOption[] = [
+const mockApiResponse: ProjectVariant[] = [
   {
-    id: 3,
-    opt_name: 'string2',
-    oilfield_name: 'string2',
-    la_name: 'string2',
-    base_B1C1: 0,
-    base_extra_reserves: 0,
-    base_accum_prod: 0,
-    base_VNS_count: 0,
-    max_B1C1: 0,
-    max_extra_reserves: 0,
-    max_accum_prod: 0,
-    max_VNS_count: 0,
-    prb_srr: 'string',
-    grr_results: 'string',
-    dependent_mining: 'string',
-    dependent_drilling: 'string',
-    commentary: 'string',
+    var_id: 21,
+    var_name: "Вариант 1",
+    descriptions: [
+      { id: 1, comm_descrp: "sцвцв фцвфвц string" },
+      { id: 2, comm_descrp: "string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333" },
+      { id: 5, comm_descrp: "string13333331233" },
+    ],
   },
   {
-    id: 4,
-    opt_name: 'string1',
-    oilfield_name: 'string1',
-    la_name: 'string1',
-    base_B1C1: 1,
-    base_extra_reserves: 1,
-    base_accum_prod: 1,
-    base_VNS_count: 1,
-    max_B1C1: 1,
-    max_extra_reserves: 1,
-    max_accum_prod: 1,
-    max_VNS_count: 1,
-    prb_srr: 'string1',
-    grr_results: 'string1',
-    dependent_mining: 'string10',
-    dependent_drilling: 'string10',
-    commentary: 'string10',
+    var_id: 22,
+    var_name: "Вариант Альтернативный 1",
+    descriptions: [
+      { id: 3, comm_descrp: "string2" },
+      { id: 4, comm_descrp: "string2" },
+    ],
+  },
+  {
+    var_id: 23,
+    var_name: "Вариант Базовый 1",
+    descriptions: [
+      { id: 3, comm_descrp: "string2" },
+      { id: 4, comm_descrp: "string2 string2 string2 string2" },
+      { id: 6, comm_descrp: "string2" },
+      { id: 7, comm_descrp: "string2" },
+    ],
   },
 ];
-
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D> & {
@@ -82,11 +59,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
-  const [editedData, setEditedData] = useState<grrOption[]>([]);
+  const [editedData, setEditedData] = useState<ProjectVariant[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
-
-  const [showPastePopup, setShowPastePopup] = useState(false);
-  const [clipboardInput, setClipboardInput] = useState('');
 
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
@@ -106,10 +80,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     // mockDATA
-    // if (mockData.length > 0) {
-    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-    //   setProjId(firstProjId);
-    // }
+    if (mockData.length > 0) {
+      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+      setProjId(firstProjId);
+    }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -127,9 +101,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (projId) {
       // mockDATA
-      // handleLoadExternalMock(projId)
+      handleLoadExternalMock(projId)
 
-      handleLoadExternal(projId);
+      // handleLoadExternal(projId);
     }
   }, [projId]);
 
@@ -204,72 +178,16 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsSaveLoading(false);
   };
 
-  const handleChange = (id: number, field: keyof grrOption, value: any) => {
+  const handleChange = (id: number, field: keyof ProjectVariant, value: any) => {
     setEditedData(prev =>
       prev.map(row => (row.id === id ? { ...row, [field]: value } : row)),
     );
   };
 
-  const handleAdd = () => {
-    const newId = Date.now();
-    setEditedData(prev => [
-      ...prev,
-      {
-        id: newId,
-        opt_name: `-`,
-        oilfield_name: '-',
-        la_name: '-',
-        base_B1C1: 0,
-        base_extra_reserves: 0,
-        base_accum_prod: 0,
-        base_VNS_count: 0,
-        max_B1C1: 0,
-        max_extra_reserves: 0,
-        max_accum_prod: 0,
-        max_VNS_count: 0,
-        prb_srr: '-',
-        grr_results: '-',
-        dependent_mining: '-',
-        dependent_drilling: '-',
-        commentary: '-',
-      },
-    ]);
-  };
 
   const handleDelete = (id: number) => {
     setEditedData(prev => prev.filter(row => row.id !== id));
   };
-
-  const parseTextAndInsert = (text: string) => {
-    const rows = text.trim().split('\n');
-    const parsed: grrOption[] = rows.map((line, idx) => {
-      const cells = line.split('\t');
-      return {
-        id: Date.now() + idx,
-        opt_name: cells[0] || '',
-        oilfield_name: cells[1] || '',
-        la_name: cells[2] || '',
-        base_B1C1: Number(cells[3] || 0),
-        base_extra_reserves: Number(cells[4] || 0),
-        base_accum_prod: Number(cells[5] || 0),
-        base_VNS_count: Number(cells[6] || 0),
-        max_B1C1: Number(cells[7] || 0),
-        max_extra_reserves: Number(cells[8] || 0),
-        max_accum_prod: Number(cells[9] || 0),
-        max_VNS_count: Number(cells[10] || 0),
-        prb_srr: cells[11] || '',
-        grr_results: cells[12] || '',
-        dependent_mining: cells[13] || '',
-        dependent_drilling: cells[14] || '',
-        commentary: cells[15] || '',
-      };
-    });
-
-    setEditedData(prev => [...prev, ...parsed]);
-    setClipboardInput('');
-    setShowPastePopup(false);
-  };
-
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
@@ -286,75 +204,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               >
                 ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
               </button>
-              {isEditing && (
-                <>
-                  <button
-                    onClick={() => setShowPastePopup(true)}
-                    className="icon-button edit"
-                  >
-                    📋 Вставить из Excel
-                  </button>
-                </>
-              )}
             </div>
 
             <div>
               {isEditing && (
                 <>
-                  {showPastePopup && (
-                    <>
-                      {/* Затемнение фона */}
-                      <div
-                        style={{
-                          position: 'fixed',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundColor: 'rgba(0,0,0,0.5)',
-                          zIndex: 9998,
-                        }}
-                        onClick={() => setShowPastePopup(false)} // закрытие при клике вне
-                      />
-                      <div
-                        style={{
-                          position: 'fixed',
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          zIndex: 9999,
-                          backgroundColor: '#fff',
-                          padding: '20px',
-                          borderRadius: '8px',
-                          boxShadow: '0 0 10px rgba(0,0,0,0.25)',
-                          width: '600px',
-                          maxHeight: '400px',
-                        }}
-                        onClick={e => e.stopPropagation()} // блокируем всплытие клика
-                      >
-                        <h4>📥 Вставка данных из Excel</h4>
-                        <p style={{ fontSize: '14px', color: '#333', marginBottom: '6px' }}>
-                          Скопируйте таблицу из Excel (без заголовков), нажмите <kbd>Ctrl+V</kbd> в поле ниже, затем нажмите "Добавить".
-                        </p>
-                        <textarea
-                          value={clipboardInput}
-                          onChange={e => setClipboardInput(e.target.value)}
-                          placeholder="Вставьте сюда строки из Excel..."
-                          rows={6}
-                          style={{ width: '100%', marginBottom: '12px' }}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                          <button onClick={() => setShowPastePopup(false)}>Отмена</button>
-                          <button onClick={() => parseTextAndInsert(clipboardInput)}>Добавить</button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
                   <ControlButtons
                     isSaving={isSaveLoading}
                     onSave={handleSave}
-                    onAddRow={handleAdd}
+                    // onAddRow={handleAdd}
                     addRowLabel="Добавить строку"
                   />
                 </>
@@ -362,143 +220,60 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             </div>
           </div>
 
-          <table cellPadding={4} style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
-            <thead style={{ backgroundColor: '#f0f0f0' }}>
+          <table style={{ width: '100%', border: '1px solid #ccc' }}>
+            <thead>
               <tr>
-                <th rowSpan={2}>Опция ГРР</th>
-                <th rowSpan={2}>Месторождение</th>
-                <th rowSpan={2}>ЛУ</th>
-
-                <th colSpan={4} style={{ maxWidth: '200px' }}>Базовый (на полную выработку)</th>
-                <th colSpan={4}>Максимальный (на полную выработку)</th>
-
-                <th rowSpan={2}>Год ПРБ/СРР</th>
-                <th rowSpan={2}>Год получения результатов ГРР</th>
-                <th rowSpan={2}>Год начала зависимой добычи</th>
-                <th rowSpan={2}>Кусты зависимого бурения в ИПРР2024</th>
-                <th rowSpan={2}>Примечание</th>
-                {isEditing && <th rowSpan={2} style={{ width: '60px' }}>Удалить</th>}
-              </tr>
-              <tr>
-                <th>Прирост запасов нефти кат.B1C1 от опции ГРР млн.тонн</th>
-                <th>Извл. /br запасы по опции ГРР (дренируемые запасы от зависимого ЭБ), млн.тонн</th>
-                <th>Нак. добыча от зависимого ЭБ млн.тонн</th>
-                <th>Кол-во ВНС</th>
-
-                <th>Прирост запасов нефти кат.B1C1 от опции ГРР, млн.тонн</th>
-                <th>Извл. запасы по опции ГРР (дренируемые запасы от зависимого ЭБ), млн.т</th>
-                <th>Нак. добыча от зависимого ЭБ, млн.тонн</th>
-                <th>Кол-во ВНС</th>
+                {editedData.map(variant => (
+                  <th key={variant.var_id}>{variant.var_name}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {editedData.map(row => (
-                <tr key={row.id}>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.opt_name}
-                      onChange={e => handleChange(row.id, 'opt_name', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.oilfield_name}
-                      onChange={e => handleChange(row.id, 'oilfield_name', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.la_name}
-                      onChange={e => handleChange(row.id, 'la_name', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.base_B1C1}
-                      onChange={e => handleChange(row.id, 'base_B1C1', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.base_extra_reserves}
-                      onChange={e => handleChange(row.id, 'base_extra_reserves', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.base_accum_prod}
-                      onChange={e => handleChange(row.id, 'base_accum_prod', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.base_VNS_count}
-                      onChange={e => handleChange(row.id, 'base_VNS_count', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.max_B1C1}
-                      onChange={e => handleChange(row.id, 'max_B1C1', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.max_extra_reserves}
-                      onChange={e => handleChange(row.id, 'max_extra_reserves', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.max_accum_prod}
-                      onChange={e => handleChange(row.id, 'max_accum_prod', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.max_VNS_count}
-                      onChange={e => handleChange(row.id, 'max_VNS_count', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.prb_srr}
-                      onChange={e => handleChange(row.id, 'prb_srr', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.grr_results}
-                      onChange={e => handleChange(row.id, 'grr_results', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.dependent_mining}
-                      onChange={e => handleChange(row.id, 'dependent_mining', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.dependent_drilling}
-                      onChange={e => handleChange(row.id, 'dependent_drilling', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row.commentary}
-                      onChange={e => handleChange(row.id, 'commentary', e.target.value)}
-                    />
-                  </td>
-                  {isEditing && (
-                    <td>
-                      <button className="icon-button delete" onClick={() => handleDelete(row.id)}>❌</button>
-                    </td>
-                  )}
+              {/* Максимум описаний в вариантах — определим для строк */}
+              {Array.from({ length: Math.max(...editedData.map(v => v.descriptions.length)) }).map((_, rowIndex) => (
+                <tr key={rowIndex}>
+                  {editedData.map((variant, colIndex) => {
+                    const description = variant.descriptions[rowIndex];
+                    return (
+                      <td key={colIndex}>
+                        {description ? (
+                          <AutoResizeTextArea
+                            value={description.comm_descrp}
+                            onChange={e => {
+                              const newVariants = [...editedData];
+                              newVariants[colIndex].descriptions[rowIndex].comm_descrp = e.target.value;
+                              setEditedData(newVariants);
+                            }}
+                          />
+                        ) : null}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
+              {isEditing && (
+                <tr>
+                  {editedData.map((_, colIndex) => (
+                    <td key={colIndex}>
+                      <button
+                        onClick={() => {
+                          const newVariants = [...editedData];
+                          newVariants[colIndex].descriptions.push({
+                            id: Date.now(),
+                            comm_descrp: '',
+                          });
+                          setEditedData(newVariants);
+                        }}
+                      >
+                        ➕ Добавить описание
+                      </button>
+                    </td>
+                  ))}
+                </tr>
+              )}
             </tbody>
           </table>
+
         </>
       )}
     </Styles>
