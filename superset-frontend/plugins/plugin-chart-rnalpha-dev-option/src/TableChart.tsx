@@ -1,7 +1,7 @@
 import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
-import { Styles } from './styles';
+import { AddDescriptionButton, Styles, VariantCell } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
 
@@ -46,6 +46,16 @@ const mockApiResponse: ProjectVariant[] = [
       { id: 4, comm_descrp: "string2 string2 string2 string2" },
       { id: 6, comm_descrp: "string2" },
       { id: 7, comm_descrp: "string2" },
+    ],
+  },
+  {
+    var_id: 24,
+    var_name: "Вариант Базовый 2",
+    descriptions: [
+      { id: 10, comm_descrp: "string2" },
+      { id: 11, comm_descrp: "string2 string2 string2 string2" },
+      { id: 12, comm_descrp: "string2" },
+      { id: 13, comm_descrp: "string2" },
     ],
   },
 ];
@@ -224,7 +234,17 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             <thead>
               <tr>
                 {editedData.map(variant => (
-                  <th key={variant.var_id}>{variant.var_name}</th>
+                  <th
+                    key={variant.var_id}
+                    className='grey-line'
+                  >
+                    <span className='grey-line-left'></span>
+                    {variant.var_name}
+                    <span className='grey-line-right'></span>
+                    <span className='yellow-line-bottom'></span>
+                    <span className='yellow-line-left'></span>
+                    <span className='yellow-line-right'></span>
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -237,14 +257,40 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     return (
                       <td key={colIndex}>
                         {description ? (
-                          <AutoResizeTextArea
-                            value={description.comm_descrp}
-                            onChange={e => {
-                              const newVariants = [...editedData];
-                              newVariants[colIndex].descriptions[rowIndex].comm_descrp = e.target.value;
-                              setEditedData(newVariants);
-                            }}
-                          />
+                          <div style={{ position: 'relative', paddingRight: '10px', paddingLeft: '10px' }}>
+                            <AutoResizeTextArea
+                              value={description.comm_descrp}
+                              onChange={e => {
+                                const newVariants = [...editedData];
+                                newVariants[colIndex].descriptions[rowIndex].comm_descrp = e.target.value;
+                                setEditedData(newVariants);
+                              }}
+                            />
+                            {isEditing && (
+                              <button
+                                className="icon-button delete"
+                                style={{
+                                  position: 'absolute',
+                                  top: '4px',
+                                  right: '4px',
+                                  background: 'transparent',
+                                  color: '#f44336',
+                                  border: 'none',
+                                  fontSize: '14px',
+                                  cursor: 'pointer',
+                                }}
+                                onClick={() => {
+                                  const newVariants = [...editedData];
+                                  newVariants[colIndex].descriptions = newVariants[colIndex].descriptions.filter(
+                                    d => d.id !== description.id,
+                                  );
+                                  setEditedData(newVariants);
+                                }}
+                              >
+                                ❌
+                              </button>
+                            )}
+                          </div>
                         ) : null}
                       </td>
                     );

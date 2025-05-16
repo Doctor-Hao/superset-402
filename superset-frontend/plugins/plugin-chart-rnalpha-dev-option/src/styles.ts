@@ -14,22 +14,97 @@ export const Styles = styled.div<{ height: number; width: number }>`
     border: 1px solid black;
 
     th, td {
-      border: 1px solid white;
+      border: 1px solid transparent;
       padding: 8px;
       text-align: center;
       vertical-align: middle;
       word-wrap: break-word;
       white-space: normal;
     }
-
+    
     th {
-      background-color: #f9bd00;
       font-weight: bold;
     }
   }
 
+  .grey-line {
+    position: relative;
+    padding: 10px 10px 30px 10px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 20px;
+      left: 5px;
+      width: calc(100% - 10px);
+      height: 6px;
+      background-color: #999; /* серая линия */
+      z-index: 0;
+    }  
+
+    * {
+      position: relative;
+      z-index: 2;
+    }
+  }
+
+  .grey-line-left {
+    position: absolute;
+    bottom: 23px;
+    left: 5px;
+    width: 6px;
+    height: 30px;
+    background-color: #999;
+    z-index: 0;
+  }
+
+  .grey-line-right {
+    position: absolute;
+    bottom: 23px;
+    right: 5px;
+    width: 6px;
+    height: 30px;
+    background-color: #999;
+    z-index: 0;
+  }
+
+  .yellow-line-bottom {
+    position: absolute;
+    bottom: 0px;
+    left: 5px;
+    height: 6px;
+    width: calc(100% - 10px);
+    background-color: #f5c400; 
+    z-index: 1;
+  }
+
+  .yellow-line-left {
+    position: absolute;
+    bottom: -30px;
+    left: 5px;
+    height: 30px;
+    width: 6px;
+    background-color: #f5c400; 
+    z-index: 1;
+  }
+
+  .yellow-line-right {
+    position: absolute;
+    bottom: -30px;
+    right: 5px;
+    height: 30px;
+    width: 6px;
+    background-color: #f5c400; 
+    z-index: 1;
+  }
+
   tr:nth-of-type(odd) {
-    background-color: rgb(226, 226, 226);
+  }
+
+  .icon-button.delete {
+    color: #f44336;
+    background: transparent;
+    font-weight: bold;
   }
 
   /* Убираем фон и границу у кнопки удаления */
@@ -73,21 +148,25 @@ export const Styles = styled.div<{ height: number; width: number }>`
     min-height: 40px;
     resize: none;
     border: 1px solid transparent;
-    padding: 4px;
+    padding: 10px; /* увеличено для центрирования */
     font-size: 14px;
+    font-weight: bold; /* жирный текст */
+    text-align: center; /* по центру */
+    line-height: 1.5;
     box-sizing: border-box;
     display: block;
     overflow: hidden;
     background: transparent;
     outline: none;
     transition: border 0.2s ease;
+    box-shadow: 1px 1px 15px rgba(0, 0, 0, 0.25);
 
     &:hover {
       border: 1px solid #4CAF50;
       background-color: #f9f9f9;
       cursor: text;
     }
-  }
+}
 
 `;
 
