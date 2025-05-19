@@ -205,29 +205,25 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex' }}>
-              <button
-                style={{ marginRight: 10 }}
-                onClick={() => setIsEditing(!isEditing)}
-                className="icon-button edit"
-              >
-                ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
-              </button>
-            </div>
+          <div>
+            <button
+              style={{ marginRight: 10 }}
+              onClick={() => setIsEditing(!isEditing)}
+              className="icon-button edit"
+            >
+              ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
+            </button>
 
-            <div>
-              {isEditing && (
-                <>
-                  <ControlButtons
-                    isSaving={isSaveLoading}
-                    onSave={handleSave}
-                    // onAddRow={handleAdd}
-                    addRowLabel="Добавить строку"
-                  />
-                </>
-              )}
-            </div>
+            {isEditing && (
+              <>
+                <ControlButtons
+                  isSaving={isSaveLoading}
+                  onSave={handleSave}
+                  // onAddRow={handleAdd}
+                  addRowLabel="Добавить строку"
+                />
+              </>
+            )}
           </div>
 
           <table style={{ width: '100%', border: '1px solid #ccc' }}>
@@ -255,7 +251,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                   {editedData.map((variant, colIndex) => {
                     const description = variant.descriptions[rowIndex];
                     return (
-                      <td key={colIndex}>
+                      <td className='vertical-line' key={colIndex}>
                         {description ? (
                           <div style={{ position: 'relative', paddingRight: '10px', paddingLeft: '10px' }}>
                             <AutoResizeTextArea

@@ -29,7 +29,7 @@ export const ControlButtons: React.FC<ControlButtonsProps> = ({
         <>
             {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', marginTop: '10px' }}>
                 {onAddRow && (
                     <button
                         onClick={handleAdd}

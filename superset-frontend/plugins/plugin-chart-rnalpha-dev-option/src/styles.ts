@@ -29,12 +29,12 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .grey-line {
     position: relative;
-    padding: 10px 10px 30px 10px;
+    padding: 10px 10px 40px 10px;
 
     &::before {
       content: '';
       position: absolute;
-      bottom: 20px;
+      bottom: 28px;
       left: 5px;
       width: calc(100% - 10px);
       height: 6px;
@@ -50,7 +50,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .grey-line-left {
     position: absolute;
-    bottom: 23px;
+    bottom: 31px;
     left: 5px;
     width: 6px;
     height: 30px;
@@ -60,7 +60,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .grey-line-right {
     position: absolute;
-    bottom: 23px;
+    bottom: 31px;
     right: 5px;
     width: 6px;
     height: 30px;
@@ -70,7 +70,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .yellow-line-bottom {
     position: absolute;
-    bottom: 0px;
+    bottom: 8px;
     left: 5px;
     height: 6px;
     width: calc(100% - 10px);
@@ -80,7 +80,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .yellow-line-left {
     position: absolute;
-    bottom: -30px;
+    bottom: -22px;
     left: 5px;
     height: 30px;
     width: 6px;
@@ -90,13 +90,30 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   .yellow-line-right {
     position: absolute;
-    bottom: -30px;
+    bottom: -22px;
     right: 5px;
     height: 30px;
     width: 6px;
     background-color: #f5c400; 
     z-index: 1;
   }
+
+  .vertical-line {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0px;
+      bottom: 0px
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 101%;
+      border-left: 4px dashed #f5c400;
+      z-index: 0;
+    }
+}
 
   tr:nth-of-type(odd) {
   }
@@ -127,7 +144,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
 
   /* Кнопка "Редактировать" */
   .icon-button.edit {
-      background: #f9bd00;
+      background: transparent;
       border: none;
       font-size: 14px;
       color: black;
@@ -156,7 +173,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
     box-sizing: border-box;
     display: block;
     overflow: hidden;
-    background: transparent;
+    background: white;
     outline: none;
     transition: border 0.2s ease;
     box-shadow: 1px 1px 15px rgba(0, 0, 0, 0.25);
