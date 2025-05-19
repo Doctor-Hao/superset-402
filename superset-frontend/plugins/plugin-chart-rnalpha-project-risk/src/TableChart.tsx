@@ -11,12 +11,29 @@ import RiskDesignations from './components/RiskDesignations';
 import Risk5Table from './components/Risk5Table';
 
 
-const impactMap: Record<string, string> = {
-  "1": "extremely_low",
-  "2": "low",
-  "3": "medium",
-  "4": "high",
-  "5": "extremely_high"
+type ImpactEnum =
+  | 'extremely_low'
+  | 'low'
+  | 'medium'
+  | 'hight'
+  | 'extremely_high';
+
+const impactMap: Record<string, ImpactEnum> = {
+  '1': 'extremely_low',
+  '2': 'low',
+  '3': 'medium',
+  '4': 'hight',
+  '5': 'extremely_high',
+  extremely_low: 'extremely_low',
+  low: 'low',
+  medium: 'medium',
+  hight: 'hight',
+  extremely_high: 'extremely_high',
+};
+
+const mapImpact = (raw?: string): ImpactEnum => {
+  if (!raw) return 'extremely_low';
+  return impactMap[raw] ?? 'extremely_low';
 };
 
 // Моковые данные
@@ -104,7 +121,7 @@ const mockApiResponse = {
       },
       "probability_percentage": 75,
       "impacts": {
-        "value": "middle",
+        "value": "low",
         "value_translate": "string"
       },
       "manageability": {
@@ -291,11 +308,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         responsible_empl: item.responsible_empl ? item.responsible_empl : 'low',
         npv: item.npv ? item.npv : 0,
         deadline_days: item.deadline_days ? item.deadline_days : 0,
-        deadline: item.deadline ? item.deadline : 0,
+        deadline: item.deadline ? item.deadline : '-',
         red_flag: item.red_flag ? item.red_flag : false,
 
         probability: item.probability?.value ? item.probability?.value : 'low',
-        impacts: impactMap[item.impacts?.value] ? impactMap[item.impacts?.value] : 'empty',
+        impacts: mapImpact(item.impacts?.value),
         manageability: item.manageability?.value ? item.manageability?.value : 'low',
         changes_in_risk: item.changes_in_risk?.value ? item.changes_in_risk?.value : 'empty',
         risk_score: item.risk_score?.value ? item.risk_score?.value : 'extremely_low',
