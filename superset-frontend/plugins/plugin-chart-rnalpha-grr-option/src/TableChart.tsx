@@ -115,9 +115,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
   useEffect(() => {
+    console.log('init', { initialData });
     if (initialData.length > 0) {
       const firstProjId = initialData[0]?.PROJ_ID;
-      if (typeof firstProjId === 'string' && firstProjId !== projId) {
+      if (firstProjId && firstProjId !== projId) {
         setProjId(firstProjId);
       }
     }
