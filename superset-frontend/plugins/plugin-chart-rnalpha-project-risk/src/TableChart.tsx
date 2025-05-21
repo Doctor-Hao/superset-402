@@ -15,19 +15,19 @@ type ImpactEnum =
   | 'extremely_low'
   | 'low'
   | 'medium'
-  | 'hight'
+  | 'high'
   | 'extremely_high';
 
 const impactMap: Record<string, ImpactEnum> = {
   '1': 'extremely_low',
   '2': 'low',
   '3': 'medium',
-  '4': 'hight',
+  '4': 'high',
   '5': 'extremely_high',
   extremely_low: 'extremely_low',
   low: 'low',
   medium: 'medium',
-  hight: 'hight',
+  high: 'high',
   extremely_high: 'extremely_high',
 };
 

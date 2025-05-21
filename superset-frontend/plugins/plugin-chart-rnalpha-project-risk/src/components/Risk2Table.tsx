@@ -25,6 +25,19 @@ interface Risk2TableProps {
     isSaving: boolean;
 }
 
+const impactStr2Num: Record<string, number> = {
+    extremely_low: 1,
+    low: 2,
+    medium: 3,
+    high: 4,
+    extremely_high: 5,
+};
+
+const impactNum2Str = Object.fromEntries(
+    Object.entries(impactStr2Num).map(([k, v]) => [v, k]),
+) as Record<number, keyof typeof impactStr2Num>;
+
+
 const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSaving }) => {
     const [isEditing, setIsEditing] = useState(false); // Режим редактирования
 
@@ -212,8 +225,22 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                         ) : (
                                             <>
                                                 <td style={{ width: '120px' }}>
-                                                    <select value={row.impacts?.value || ''} onChange={e => handleChange(null, row.id, 'impacts', e.target.value)}>
-                                                        {[1, 2, 3, 4, 5].map(num => <option key={num} value={num}>{num}</option>)}
+                                                    <select
+                                                        value={
+                                                            impactStr2Num[row.impacts?.value ?? '']
+                                                        }
+                                                        onChange={e =>
+                                                            handleChange(
+                                                                null,
+                                                                row.id,
+                                                                'impacts',
+                                                                impactNum2Str[Number(e.target.value)],  // ← 3 → «medium»
+                                                            )
+                                                        }
+                                                    >
+                                                        {[1, 2, 3, 4, 5].map(num => (
+                                                            <option key={num} value={num}>{num}</option>
+                                                        ))}
                                                     </select>
                                                 </td>
                                                 <td style={{ width: '120px' }}>
