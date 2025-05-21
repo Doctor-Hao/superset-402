@@ -368,7 +368,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               <tr>
                 <th rowSpan={2}>Опция ГРР</th>
                 <th rowSpan={2}>Месторождение</th>
-                <th rowSpan={2}>ЛУ</th>
+                <th rowSpan={2} style={{ width: '60px' }}>ЛУ</th>
 
                 <th colSpan={4} style={{ maxWidth: '200px' }}>Базовый (на полную выработку)</th>
                 <th colSpan={4}>Максимальный (на полную выработку)</th>

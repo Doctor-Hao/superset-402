@@ -101,7 +101,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (initialData.length > 0) {
       const firstProjId = initialData[0]?.PROJ_ID;
-      if (typeof firstProjId === 'string' && firstProjId !== projId) {
+      if (typeof firstProjId && firstProjId !== projId) {
         setProjId(firstProjId);
       }
     }
