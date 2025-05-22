@@ -4,7 +4,7 @@ const colorMap = {
     extremely_low: "#92cf4e",
     low: "#00b34f",
     medium: "#febf00",
-    high: "#e26b03",
+    hight: "#e26b03",
     extremely_high: "#fb0200",
 };
 
@@ -12,12 +12,12 @@ const riskLabels = {
     extremely_low: "Крайне низкие",
     low: "Низкая",
     medium: "Средняя",
-    high: "Высокая",
+    hight: "Высокая",
     extremely_high: "Крайне высокий",
 };
 
 interface RiskCellProps {
-    value: string;
+    value: string
     onChange: (newValue: string) => void;
 }
 
