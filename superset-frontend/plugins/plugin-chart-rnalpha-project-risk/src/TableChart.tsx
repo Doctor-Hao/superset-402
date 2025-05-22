@@ -15,19 +15,19 @@ type ImpactEnum =
   | 'extremely_low'
   | 'low'
   | 'medium'
-  | 'high'
+  | 'hight'
   | 'extremely_high';
 
 const impactMap: Record<string, ImpactEnum> = {
   '1': 'extremely_low',
   '2': 'low',
   '3': 'medium',
-  '4': 'high',
+  '4': 'hight',
   '5': 'extremely_high',
   extremely_low: 'extremely_low',
   low: 'low',
   medium: 'medium',
-  high: 'high',
+  hight: 'hight',
   extremely_high: 'extremely_high',
 };
 
@@ -57,7 +57,7 @@ const mockApiResponse = {
         "value_translate": "string"
       },
       "manageability": {
-        "value": "high",
+        "value": "hight",
         "value_translate": "string"
       },
       "risk_num": "1.1",
@@ -125,7 +125,7 @@ const mockApiResponse = {
         "value_translate": "string"
       },
       "manageability": {
-        "value": "high",
+        "value": "hight",
         "value_translate": "string"
       },
       "risk_num": "1.2",

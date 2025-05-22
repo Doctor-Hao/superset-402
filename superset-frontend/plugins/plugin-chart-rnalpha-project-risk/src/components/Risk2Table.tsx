@@ -13,7 +13,7 @@ interface Risk {
     probability?: { value: string };
     probability_percentage?: number;
     impacts?: { value: string };
-    nvp?: string;
+    npv?: string;
     deadline_days?: string;
     red_flag?: boolean;
 }
@@ -29,7 +29,7 @@ const impactStr2Num: Record<string, number> = {
     extremely_low: 1,
     low: 2,
     medium: 3,
-    high: 4,
+    hight: 4,
     extremely_high: 5,
 };
 
@@ -106,7 +106,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             changes_in_risk: { value: '' },
             probability: { value: '' },
             impacts: { value: '' },
-            nvp: '',
+            npv: '',
             deadline_days: '',
             red_flag: false,
         };
@@ -125,7 +125,7 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
             changes_in_risk: { value: '' },
             probability: { value: '' },
             impacts: { value: '' },
-            nvp: '',
+            npv: '',
             deadline_days: '',
             red_flag: false,
         };
@@ -244,12 +244,12 @@ const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSavin
                                                     </select>
                                                 </td>
                                                 <td style={{ width: '120px' }}>
-                                                    <select value={row.probability_percentage?.value || ''} onChange={e => handleChange(null, row.id, 'probability_percentage', e.target.value)}>
+                                                    <select value={row.probability_percentage || ''} onChange={e => handleChange(null, row.id, 'probability_percentage', e.target.value)}>
                                                         {[...Array(101)].map((_, i) => <option key={i} value={i}>{i}%</option>)}
                                                     </select>
                                                 </td>
                                                 <td style={{ width: '120px' }}>
-                                                    <input value={row.nvp || ''} onChange={e => handleChange(null, row.id, 'nvp', e.target.value)} />
+                                                    <input value={row.npv || ''} onChange={e => handleChange(null, row.id, 'npv', e.target.value)} />
                                                 </td>
                                                 <td style={{ width: '120px' }}>
                                                     <input value={row.deadline_days || ''} onChange={e => handleChange(null, row.id, 'deadline_days', e.target.value)} />

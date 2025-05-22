@@ -7,6 +7,7 @@ import AutoResizeTextArea from './components/AutoResizeTextArea';
 
 interface grrOption {
   id: number;
+  isNew?: boolean,
   opt_name: string;
   oilfield_name: string;
   la_name: string;
@@ -179,31 +180,52 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (!projId) return;
     setIsSaveLoading(true);
 
-    const body = {
-      proj_id: projId,
-      data: editedData,
-    };
-    console.log("handleSave", body)
+    // a) новые строки → POST
+    const newRows = editedData.filter(r => (r as any).isNew);
+    // b) отредактированные → PATCH
+    const updatedRows = editedData.filter(r => !(r as any).isNew);
 
     try {
-      const response = await fetch(`${process.env.BACKEND_URL}${url}`, {
+      // --- POST для добавленных --------------------------------------
+      if (newRows.length) {
+        const postResp = await fetch(`${process.env.BACKEND_URL}${url}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            proj_id: projId,
+            data: newRows.map(({ isNew, ...row }) => row), // убираем служебный флаг
+          }),
+        });
+        if (postResp.ok) {
+          setEditedData(prev =>
+            prev.map(r => (r as any).isNew ? { ...r, isNew: undefined } : r),
+          );
+        }
+        if (!postResp.ok) throw new Error('POST failed');
+      }
+
+      // --- PATCH для остальных --------------------------------------
+      const patchResp = await fetch(`${process.env.BACKEND_URL}${url}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          proj_id: projId,
+          data: updatedRows,
+        }),
       });
+      if (!patchResp.ok) throw new Error('PATCH failed');
 
-      if (response.ok) {
-        console.log('✅ Сохранено');
-      } else {
-        console.error('❌ Ошибка при сохранении');
-      }
+      console.log('✅ Всё сохранено');
+      // после удачного POST/PATCH перезагружаем свежие данные,
+      // чтобы получить окончательные id из бэка
+      handleLoadExternal(projId);
     } catch (e) {
-      alert(`❌ Ошибка сети: ${e}`)
-      console.error('❌ Ошибка сети', e);
+      console.error('❌ Ошибка при сохранении:', e);
+    } finally {
+      setIsSaveLoading(false);
     }
-
-    setIsSaveLoading(false);
   };
+
 
   const handleChange = (id: number, field: keyof grrOption, value: any) => {
     setEditedData(prev =>
@@ -217,6 +239,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       ...prev,
       {
         id: newId,
+        isNew: true,
         opt_name: `-`,
         oilfield_name: '-',
         la_name: '-',
@@ -368,7 +391,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               <tr>
                 <th rowSpan={2}>Опция ГРР</th>
                 <th rowSpan={2}>Месторождение</th>
-                <th rowSpan={2} style={{ width: '60px' }}>ЛУ</th>
+                <th rowSpan={2} style={{ minWidth: '60px' }}>ЛУ</th>
 
                 <th colSpan={4} style={{ maxWidth: '200px' }}>Базовый (на полную выработку)</th>
                 <th colSpan={4}>Максимальный (на полную выработку)</th>
