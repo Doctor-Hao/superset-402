@@ -270,6 +270,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       const cells = line.split('\t');
       return {
         id: Date.now() + idx,
+        isNew: true,
         opt_name: cells[0] || '',
         oilfield_name: cells[1] || '',
         la_name: cells[2] || '',
@@ -399,7 +400,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                 <th rowSpan={2}>Год ПРБ/СРР</th>
                 <th rowSpan={2}>Год получения результатов ГРР</th>
                 <th rowSpan={2}>Год начала зависимой добычи</th>
-                <th rowSpan={2}>Кусты зависимого бурения в ИПРР2024</th>
+                <th rowSpan={2}>Кусты зависимого бурения</th>
                 <th rowSpan={2}>Примечание</th>
                 {isEditing && <th rowSpan={2} style={{ width: '60px' }}>Удалить</th>}
               </tr>
