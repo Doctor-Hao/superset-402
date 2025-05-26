@@ -141,7 +141,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               {editedData.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   <td>
-                    {row.row_num}
+                    {rowIndex + 1}
                   </td>
                   <td>
                     {row.risks_by_direction}
