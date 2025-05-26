@@ -28,7 +28,7 @@ const impactMap: Record<string, number> = {
     "extremely_low": 1,
     "low": 2,
     "medium": 3,
-    "high": 4,
+    "hight": 4,
     "extremely_high": 5
 };
 
