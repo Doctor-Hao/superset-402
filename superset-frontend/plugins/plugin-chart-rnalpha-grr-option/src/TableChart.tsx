@@ -421,97 +421,97 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                 <tr key={row.id}>
                   <td>
                     <AutoResizeTextArea
-                      value={row.opt_name}
+                      value={row.opt_name ?? ''}
                       onChange={e => handleChange(row.id, 'opt_name', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.oilfield_name}
+                      value={row.oilfield_name ?? ''}
                       onChange={e => handleChange(row.id, 'oilfield_name', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.la_name}
+                      value={row.la_name ?? ''}
                       onChange={e => handleChange(row.id, 'la_name', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.base_B1C1}
+                      value={row.base_B1C1 ?? 0}
                       onChange={e => handleChange(row.id, 'base_B1C1', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.base_extra_reserves}
+                      value={row.base_extra_reserves ?? 0}
                       onChange={e => handleChange(row.id, 'base_extra_reserves', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.base_accum_prod}
+                      value={row.base_accum_prod ?? 0}
                       onChange={e => handleChange(row.id, 'base_accum_prod', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.base_VNS_count}
+                      value={row.base_VNS_count ?? 0}
                       onChange={e => handleChange(row.id, 'base_VNS_count', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.max_B1C1}
+                      value={row.max_B1C1 ?? 0}
                       onChange={e => handleChange(row.id, 'max_B1C1', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.max_extra_reserves}
+                      value={row.max_extra_reserves ?? 0}
                       onChange={e => handleChange(row.id, 'max_extra_reserves', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.max_accum_prod}
+                      value={row.max_accum_prod ?? 0}
                       onChange={e => handleChange(row.id, 'max_accum_prod', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.max_VNS_count}
+                      value={row.max_VNS_count ?? 0}
                       onChange={e => handleChange(row.id, 'max_VNS_count', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.prb_srr}
+                      value={row.prb_srr ?? ''}
                       onChange={e => handleChange(row.id, 'prb_srr', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.grr_results}
+                      value={row.grr_results ?? ''}
                       onChange={e => handleChange(row.id, 'grr_results', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.dependent_mining}
+                      value={row.dependent_mining ?? ''}
                       onChange={e => handleChange(row.id, 'dependent_mining', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.dependent_drilling}
+                      value={row.dependent_drilling ?? ''}
                       onChange={e => handleChange(row.id, 'dependent_drilling', e.target.value)}
                     />
                   </td>
                   <td>
                     <AutoResizeTextArea
-                      value={row.commentary}
+                      value={row.commentary ?? ''}
                       onChange={e => handleChange(row.id, 'commentary', e.target.value)}
                     />
                   </td>
