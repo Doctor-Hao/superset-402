@@ -10,6 +10,16 @@ interface Risk1TableProps {
     isSaving: boolean;
 }
 
+// 1️⃣  Справочник «вероятность → проценты»
+const PROBABILITY_MAP: Record<string, number> = {
+    extremely_low: 0,
+    low: 20,
+    medium: 45,
+    hight: 70,
+    extremely_high: 90,
+};
+
+
 const Risk1Table: React.FC<Risk1TableProps> = ({ data, onChange, onSave, isSaving }) => {
 
     // ========== Добавление новой строки ==========
@@ -32,13 +42,27 @@ const Risk1Table: React.FC<Risk1TableProps> = ({ data, onChange, onSave, isSavin
     };
     // ========== Обновление данных при редактировании ==========
     const handleChange = (rowIndex: number, field: string, value: string) => {
-        onChange((prevData: any) =>
-            prevData.map((row, index) =>
-                index === rowIndex
-                    ? { ...row, [field]: typeof row[field] === 'object' ? { value } : value }
-                    : row
-            )
-        );
+        // создаём копию с нужными изменениями
+        const newData = data.map((row, i) => {
+            if (i !== rowIndex) return row;                 // другие строки без изменений
+
+            if (field === 'probability') {
+                return {
+                    ...row,
+                    probability: { value },
+                    probability_percentage: PROBABILITY_MAP[value] ?? row.probability_percentage,
+                };
+            }
+
+            // обновление любых других полей
+            return {
+                ...row,
+                [field]: typeof row[field] === 'object' ? { value } : value,
+            };
+        });
+
+        // передаём **массив**, а не функцию
+        onChange(newData);
     };
 
 

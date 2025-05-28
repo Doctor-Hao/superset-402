@@ -73,6 +73,14 @@ const mockApiResponse: grrOption[] = [
   },
 ];
 
+// Количество столбцов
+const NUM_FIELDS = 16;
+
+// парсер числа
+const toNumber = (v: string) => {
+  const n = Number(v.replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D> & {
@@ -180,6 +188,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (!projId) return;
     setIsSaveLoading(true);
 
+    // DELETE 
+    try {
+
+      if (deletedIds.length) {
+        for (const id of deletedIds) {
+          await fetch(`${process.env.BACKEND_URL}${url}/${id}`, {
+            method: 'DELETE',
+          });
+        }
+      }
+    } catch (e) {
+      console.error('❌ Ошибка при удалении:', e);
+    } finally {
+      setDeletedIds([]);
+    }
+
     // a) новые строки → POST
     const newRows = editedData.filter(r => (r as any).isNew);
     // b) отредактированные → PATCH
@@ -261,27 +285,44 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   const handleDelete = (id: number) => {
+    // запоминаем id для DELETE
+    setDeletedIds(prev => [...prev, id]);
+
     setEditedData(prev => prev.filter(row => row.id !== id));
   };
 
   const parseTextAndInsert = (text: string) => {
-    const rows = text.trim().split('\n');
-    const parsed: grrOption[] = rows.map((line, idx) => {
+    const rows = text
+      .trim()
+      .split(/\r?\n/)         // строки
+      .filter(Boolean);       // убираем пустые строки
+
+    const parsed: grrOption[] = rows.map((line, rowIdx) => {
       const cells = line.split('\t');
+
+      // приводим к ровно 16 полям
+      if (cells.length < NUM_FIELDS) {
+        cells.push(...Array(NUM_FIELDS - cells.length).fill(''));
+      }
+
       return {
-        id: Date.now() + idx,
+        id: Date.now() + rowIdx,
         isNew: true,
+
         opt_name: cells[0] || '',
         oilfield_name: cells[1] || '',
         la_name: cells[2] || '',
-        base_B1C1: Number(cells[3] || 0),
-        base_extra_reserves: Number(cells[4] || 0),
-        base_accum_prod: Number(cells[5] || 0),
-        base_VNS_count: Number(cells[6] || 0),
-        max_B1C1: Number(cells[7] || 0),
-        max_extra_reserves: Number(cells[8] || 0),
-        max_accum_prod: Number(cells[9] || 0),
-        max_VNS_count: Number(cells[10] || 0),
+
+        base_B1C1: toNumber(cells[3]),
+        base_extra_reserves: toNumber(cells[4]),
+        base_accum_prod: toNumber(cells[5]),
+        base_VNS_count: toNumber(cells[6]),
+
+        max_B1C1: toNumber(cells[7]),
+        max_extra_reserves: toNumber(cells[8]),
+        max_accum_prod: toNumber(cells[9]),
+        max_VNS_count: toNumber(cells[10]),
+
         prb_srr: cells[11] || '',
         grr_results: cells[12] || '',
         dependent_mining: cells[13] || '',
@@ -293,7 +334,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setEditedData(prev => [...prev, ...parsed]);
     setClipboardInput('');
     setShowPastePopup(false);
-  };
+  }
 
 
   return (

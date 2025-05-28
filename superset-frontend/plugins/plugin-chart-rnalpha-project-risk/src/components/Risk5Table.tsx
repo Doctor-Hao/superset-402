@@ -28,6 +28,9 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
 
 
     useEffect(() => {
+        // если и data, и editedData уже пустые — делать нечего
+        if (data.length === 0 && editedData.length === 0) return;
+
         const initializedData = data.map((risk, index) => {
             const existingRiskId = risk.id || uuidv4();
             const existingGroupId = typeof risk.groupId !== 'undefined' ? risk.groupId : index + 1;
@@ -45,11 +48,7 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
             };
         });
 
-        setEditedData(prev => {
-            const alreadyInitialized = prev.length > 0;
-            // Только если данных нет — инициализируем
-            return alreadyInitialized ? prev : initializedData;
-        });
+        setEditedData(initializedData);
     }, [data]);
 
 

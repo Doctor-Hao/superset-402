@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ControlButtons } from './ControlButtons';
 import { StyledTextArea } from '../styles';
 import AutoResizeTextArea from './AutoResizeTextArea';
@@ -37,29 +37,45 @@ const impactNum2Str = Object.fromEntries(
     Object.entries(impactStr2Num).map(([k, v]) => [v, k]),
 ) as Record<number, keyof typeof impactStr2Num>;
 
+const compareRiskNum = (a: Risk, b: Risk) => {
+    // risk_num вида "1.3" → [1, 3]. Если поле пустое, ставим большие числа,
+    // чтобы «непронумерованные» элементы упали в конец списка.
+    const parse = (r: Risk) =>
+        r.risk_num
+            ? r.risk_num.split('.').map(Number).concat([0]) // «1.3» → [1,3,0]
+            : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 0];
+
+    const [gA, iA] = parse(a);
+    const [gB, iB] = parse(b);
+    return gA - gB || iA - iB;
+};
 
 const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSaving }) => {
     const [isEditing, setIsEditing] = useState(false); // Режим редактирования
+
+    const sortedData = useMemo(() => [...data].sort(compareRiskNum), [data]);
 
     // 🛠 Генерация `groupId` для `risk_direction`
     const generateGroupId = (() => {
         const map = new Map<string, number>();
         let counter = 1;
-        return (risk_direction: string) => {
-            if (!map.has(risk_direction)) {
-                map.set(risk_direction, counter++);
-            }
-            return map.get(risk_direction)!;
+        return (direction: string) => {
+            if (!map.has(direction)) map.set(direction, counter++);
+            return map.get(direction)!;
         };
     })();
 
     // 🛠 Обогащаем данные (добавляем `groupId` и `id`, если их нет)
-    const processedData = data.map((risk, index) => ({
-        ...risk,
-        groupId: risk.groupId ?? generateGroupId(risk.risk_direction),
-        id: risk.id ?? `risk_${index}_${Date.now()}`,
-        changes_in_risk: risk.changes_in_risk ?? { value: '' },
-    }));
+    const processedData = useMemo(
+        () =>
+            sortedData.map((risk, index) => ({
+                ...risk,
+                groupId: risk.groupId ?? generateGroupId(risk.risk_direction),
+                id: risk.id ?? `risk_${index}_${Date.now()}`,
+                changes_in_risk: risk.changes_in_risk ?? { value: '' },
+            })),
+        [sortedData]
+    );
 
     // 🔄 Группировка данных
     const groupedData = processedData.reduce<Record<number, Risk[]>>((acc, risk) => {
