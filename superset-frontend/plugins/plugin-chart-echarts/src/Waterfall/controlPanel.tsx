@@ -36,6 +36,20 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         [
           {
+            name: 'hideTotalColumn',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Скрыть последнюю колонку Total'),
+              description: t(
+                'Если отмечено, финальная суммарная колонка не будет отображаться на графике.',
+              ),
+              default: false,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
             name: 'useCustomTemplate',
             config: {
               type: 'CheckboxControl',
@@ -67,6 +81,31 @@ const config: ControlPanelConfig = {
               renderTrigger: true,
               default: '0',
               description: t('Введите индекс столбца, который будет отображаться последним.'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'deltaDecimals',
+            config: {
+              type: 'TextControl',        // вводим число знаков
+              isInt: true,
+              default: '2',
+              label: t('Δ: знаков после запятой'),
+              description: t('Сколько цифр оставлять после запятой в значении Δ и процентах'),
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'deltaUnit',
+            config: {
+              type: 'TextControl',
+              default: 'руб.',
+              label: t('Δ: единица измерения'),
+              description: t('Например «млн руб.» — будет добавлено сразу после числа'),
+              renderTrigger: true,
             },
           },
         ],

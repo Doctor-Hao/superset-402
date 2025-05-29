@@ -146,7 +146,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       } catch (error) {
         console.error('Ошибка сети при GET-запросе:', error);
       }
-      attempts = +1;
+      attempts += 1;
       if (attempts < maxAttempts) {
         console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
         await new Promise(res => setTimeout(res, 2000));

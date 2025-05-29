@@ -424,6 +424,22 @@ export default function transformProps(
     },
   ];
 
+  // скрыть последний Total-бар
+  if (formData.hideTotalColumn) {
+    // Находим индекс последнего ненулевого значения в totalData
+    const lastTotalIndex = totalData
+      .map(d => d.value !== TOKEN)
+      .lastIndexOf(true);
+
+    if (lastTotalIndex !== -1) {
+      xAxisData.splice(lastTotalIndex, 1);
+      assistData.splice(lastTotalIndex, 1);
+      increaseData.splice(lastTotalIndex, 1);
+      decreaseData.splice(lastTotalIndex, 1);
+      totalData.splice(lastTotalIndex, 1);
+    }
+  }
+
   let echartOptions: EChartsOption = {
     grid: {
       ...defaultGrid,
@@ -474,13 +490,14 @@ export default function transformProps(
     series: barSeries,
   };
 
-  const { useCustomTemplate } = formData;
   // Если галочка включена, объединяем с предопределенным шаблоном
   if (formData.useCustomTemplate) {
     // Получаем индексы для сравнения из формы (приводим к числу)
     const compareStart = Number(formData.comparisonColumn1);
     const compareEnd = Number(formData.comparisonColumn2);
     const totalColumns = Array.isArray(xAxisData) ? xAxisData.length : 0;
+
+
 
     // Проверяем корректность введённых индексов:
     if (
@@ -537,7 +554,7 @@ export default function transformProps(
               ...dataPoint,
               itemStyle: {
                 ...(dataPoint.itemStyle || {}),
-                opacity: 0.1, // Полупрозрачность для промежуточных столбцов
+                opacity: 0.7, // Полупрозрачность для промежуточных столбцов
               },
             };
           }
@@ -550,6 +567,14 @@ export default function transformProps(
       const firstValue = Number(transformedData[compareStart][metricLabel]);
       const lastValue = Number(transformedData[compareEnd][metricLabel]);
       const difference = lastValue - firstValue;
+      const pct =
+        firstValue !== 0 ? (difference / Math.abs(firstValue)) * 100 : 0; // % от первого
+
+      const dec = Math.max(0, Number(formData.deltaDecimals) || 0);
+      const unitLabel = formData.deltaUnit.trim() ? ` ${formData.deltaUnit.trim()}` : '';
+
+      const diffLabel = `${difference.toFixed(dec)}${unitLabel} (${pct.toFixed(dec)}%)`;
+
       const midValue = (firstValue + lastValue) / 2;
       const newLastIndex = newXAxisData.length - 1;
 
@@ -561,7 +586,10 @@ export default function transformProps(
             label: {
               show: true,
               position: 'middle',
-              formatter: `Δ = ${difference}`,
+              formatter: `Δ = ${diffLabel}`,
+              fontSize: 18,                  // размер шрифта (px)
+              fontWeight: 'bold',            // жирность шрифта
+              color: '#000',                 // цвет
             },
             lineStyle: {
               color: '#000',

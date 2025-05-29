@@ -3,6 +3,11 @@ import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { Styles, StyledTextArea } from './styles';
 
+interface Variant {
+  var_id: number;
+  var_name: string;
+  note: string | null;
+}
 
 // Моковые данные
 const mockData = [
@@ -34,7 +39,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 ) {
   const { height, width, data: initialData, formData } = props;
   const [isLoading, setIsLoading] = useState(false);
-  const [editedData, setEditedData] = useState<Record<string, any> | undefined>();
+  const [editedData, setEditedData] = useState<Variant[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
@@ -98,8 +103,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           headers: { 'Content-Type': 'application/json' },
         });
         if (response.ok) {
-          const dataFromGet = await response.json();
-          setEditedData(dataFromGet);
+          const { data } = await response.json();
+          setEditedData(data);
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
@@ -108,7 +113,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       } catch (error) {
         console.error('Ошибка сети при GET-запросе:', error);
       }
-      attempts = +1;
+      attempts += 1;
       if (attempts < maxAttempts) {
         console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
         await new Promise(res => setTimeout(res, 2000));
@@ -126,10 +131,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {Array.isArray(editedData) && editedData.length > 0 ? (
+          {editedData.length > 0 ? (
             editedData.map((item, index) => (
               <div key={item.var_id ?? index}>
-                <strong>Вариант {item.var_id} «{item.var_name}»</strong> — {item.note ? item.note : ''}
+                <strong>Вариант «{item.var_name}»</strong> — {item.note ? item.note : ''}
               </div>
             ))
           ) : (
