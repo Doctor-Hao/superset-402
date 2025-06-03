@@ -82,6 +82,39 @@ const toNumber = (v: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+function preprocessLines(text: string): string[][] {
+  const rawLines = text.trim().split(/\r?\n/).filter(Boolean);
+  const merged: string[][] = [];
+
+  rawLines.forEach(raw => {
+    const cells = raw.split('\t');
+
+    const isTail =
+      (!cells[0] || !cells[0].trim())      // opt_name
+
+    if (isTail && merged.length) {
+      // ✂️ хвост: дописываем данные в предыдущую запись
+      const prev = merged[merged.length - 1];
+      cells.forEach((val, idx) => {
+        if (val && val.trim()) {
+          // если это комментарий или текст → склеиваем через перенос строки,
+          // иначе просто подменяем пустое
+          if (prev[idx] && prev[idx].trim()) {
+            prev[idx] += idx >= 11 ? '\n' + val : '; ' + val;
+          } else {
+            prev[idx] = val;
+          }
+        }
+      });
+    } else {
+      // 🆕 новая полноценная строка
+      merged.push(cells);
+    }
+  });
+
+  return merged;
+}
+
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D> & {
     sticky?: any;
@@ -93,6 +126,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<grrOption[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
+
+  const [deletedIds, setDeletedIds] = useState<number[]>([]);
 
   const [showPastePopup, setShowPastePopup] = useState(false);
   const [clipboardInput, setClipboardInput] = useState('');
@@ -172,7 +207,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       } catch (error) {
         console.error('Ошибка сети при GET-запросе:', error);
       }
-      attempts = +1;
+      attempts += 1;
       if (attempts < maxAttempts) {
         console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
         await new Promise(res => setTimeout(res, 2000));
@@ -292,15 +327,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   const parseTextAndInsert = (text: string) => {
-    const rows = text
-      .trim()
-      .split(/\r?\n/)         // строки
-      .filter(Boolean);       // убираем пустые строки
+    const mergedLines = preprocessLines(text);
 
-    const parsed: grrOption[] = rows.map((line, rowIdx) => {
-      const cells = line.split('\t');
-
-      // приводим к ровно 16 полям
+    const parsed: grrOption[] = mergedLines.map((cells, rowIdx) => {
+      // дополняем/обрезаем до строго 16 полей
       if (cells.length < NUM_FIELDS) {
         cells.push(...Array(NUM_FIELDS - cells.length).fill(''));
       }

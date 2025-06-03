@@ -490,6 +490,187 @@ export default function transformProps(
     series: barSeries,
   };
 
+
+  /*─────────────────────────────────────────────────────────────
+   Режим «2 варианта + тоталы по краям»
+ ─────────────────────────────────────────────────────────────*/
+  if (formData.compareTwoVariants) {
+    // ─────────── 1. Получаем два выбранных значения фильтра `genre` ───────────
+    let variants = [];
+    if (Array.isArray(formData.adhocFilters)) {
+      formData.adhocFilters.forEach(flt => {
+        const colName = flt.col || flt.subject;
+        if (colName === 'genre') {
+          if (Array.isArray(flt.val)) {
+            variants = flt.val.map(String);
+          } else if (Array.isArray(flt.comparator)) {
+            variants = flt.comparator.map(String);
+          }
+        }
+      });
+    }
+    console.log('variants из adhocFilters:', variants);
+    if (variants.length !== 2) {
+      console.warn('Нужно выбрать ровно 2 значения genre, а найдено:', variants);
+      // Если не два, продолжаем обычный waterfall ниже.
+    } else {
+      const [leftName, rightName] = variants;
+
+      // ─────────── 2. Группируем данные по (account1_name, genre) ───────────
+      // breakdownName = 'account1_name', metricLabel = 'profit', data = queriesData[0].data
+      const sumsByFactor = {}; // { factorValue: { left: number, right: number } }
+      // Чтобы сохранить порядок появления факторов, пройдёмся по data и заведём массив uniqueFactors.
+      const uniqueFactors = [];
+      data.forEach(row => {
+        const factorValue = String(row[breakdownName] ?? '');
+        const nameVal = String(row.genre);
+        const val = Number(row[metricLabel]) || 0;
+
+        // Сохраняем фактор в порядке первого появления (для обоих вариантов)
+        if ((nameVal === leftName || nameVal === rightName) && !uniqueFactors.includes(factorValue)) {
+          uniqueFactors.push(factorValue);
+        }
+
+        if (!sumsByFactor[factorValue]) {
+          sumsByFactor[factorValue] = { left: 0, right: 0 };
+        }
+        if (nameVal === leftName) {
+          sumsByFactor[factorValue].left += val;
+        } else if (nameVal === rightName) {
+          sumsByFactor[factorValue].right += val;
+        }
+      });
+
+      // ─────────── 3. Факторы = uniqueFactors (в порядке появления) ───────────
+      const factors = uniqueFactors;
+
+      // ─────────── 4. Формируем новую ось X: [левыйName, …факторы…, rightName] ───────────
+      const newXAxisData = [leftName, ...factors, rightName];
+
+      // ─────────── 5. Считаем общий тотал левого и правого вариантов ───────────
+      let leftTotal = 0, rightTotal = 0;
+      Object.values(sumsByFactor).forEach(obj => {
+        leftTotal += obj.left;
+        rightTotal += obj.right;
+      });
+
+      // ─────────── 6. Готовим новые массивы серий для waterfall ───────────
+      const EMPTY = { value: TOKEN };
+      const newAssist = [];
+      const newIncrease = [];
+      const newDecrease = [];
+      const newTotalArr = [];
+
+      // 6.a) Первый столбец – «тотал» для leftName, база = 0
+      newAssist.push(0);
+      newIncrease.push(EMPTY);
+      newDecrease.push(EMPTY);
+      newTotalArr.push({
+        value: leftTotal,
+        originalValue: leftTotal,
+        totalSum: leftTotal,
+      });
+
+      // 6.b) Между – факторы, смещённые waterfall-логикой
+      let cumulative = leftTotal;
+      factors.forEach(factor => {
+        const { left, right } = sumsByFactor[factor];
+        const delta = right - left;
+
+        if (delta >= 0) {
+          // Положительный рост: база = старое cumulative
+          newAssist.push({ value: cumulative });
+          newIncrease.push({ value: delta, originalValue: delta, totalSum: delta });
+          newDecrease.push({ value: TOKEN });
+          cumulative += delta;
+        } else {
+          // Отрицательная дельта: база = cumulative + delta (чтобы столбец шёл вниз)
+          newAssist.push({ value: cumulative + delta });
+          newIncrease.push({ value: TOKEN });
+          newDecrease.push({
+            value: -delta,
+            originalValue: delta,
+            totalSum: delta,
+          });
+          cumulative += delta;
+        }
+
+        // Для waterfall – totalData = TOKEN
+        newTotalArr.push({ value: TOKEN });
+      });
+
+      // 6.c) Последний столбец – «тотал» для rightName, база = 0
+      newAssist.push(0);
+      newIncrease.push(EMPTY);
+      newDecrease.push(EMPTY);
+      newTotalArr.push({
+        value: rightTotal,
+        originalValue: rightTotal,
+        totalSum: rightTotal,
+      });
+
+      // ─────────── 7. Подменяем старые массивы на новые ───────────
+      xAxisData.splice(0, xAxisData.length, ...newXAxisData);
+      assistData.splice(0, assistData.length, ...newAssist);
+      increaseData.splice(0, increaseData.length, ...newIncrease);
+      decreaseData.splice(0, decreaseData.length, ...newDecrease);
+      totalData.splice(0, totalData.length, ...newTotalArr);
+
+      // ─────────── 8. Синхронизируем barSeries с новыми данными ───────────
+      barSeries.forEach(s => {
+        if (s.name === ASSIST_MARK) {
+          s.data = newAssist;
+          s.itemStyle = { color: 'transparent' }; // «база» невидима
+          s.label = { show: false };
+        }
+        if (s.name === LEGEND.INCREASE) {
+          s.data = newIncrease;
+          s.itemStyle = { color: rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b) };
+          s.label = { show: showValue, position: 'top', formatter: seriesformatter };
+        }
+        if (s.name === LEGEND.DECREASE) {
+          s.data = newDecrease;
+          s.itemStyle = { color: rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b) };
+          s.label = { show: showValue, position: 'bottom', formatter: seriesformatter };
+        }
+        if (s.name === LEGEND.TOTAL) {
+          s.data = newTotalArr;
+          s.itemStyle = { color: rgbToHex(totalColor.r, totalColor.g, totalColor.b) };
+          s.label = { show: showValue, position: 'top', formatter: seriesformatter };
+        }
+      });
+
+      // ─────────── 9. Рисуем Δ-стрелку между крайними total ───────────
+      const diff = rightTotal - leftTotal;
+      const pct = leftTotal !== 0 ? (diff / Math.abs(leftTotal)) * 100 : 0;
+      const dec = Math.max(0, Number(formData.deltaDecimals) || 0);
+      const unit = (formData.deltaUnit || '').trim();
+      const diffLabel = `${diff.toFixed(dec)}${unit ? ' ' + unit : ''} (${pct.toFixed(dec)}%)`;
+
+      const midValue = (leftTotal + rightTotal) / 2;
+      const lastIdx = newXAxisData.length - 1;
+
+      barSeries.forEach(s => {
+        if (s.name === LEGEND.TOTAL) {
+          s.markLine = {
+            symbol: ['arrow', 'arrow'],
+            label: {
+              show: true,
+              position: 'middle',
+              formatter: `Δ = ${diffLabel}`,
+              fontSize: 16,
+              fontWeight: 'bold',
+            },
+            lineStyle: { color: '#000', width: 2 },
+            data: [[{ coord: [0, midValue] }, { coord: [lastIdx, midValue] }]],
+            zlevel: 10,
+          };
+        }
+      });
+    }
+  }
+
+
   // Если галочка включена, объединяем с предопределенным шаблоном
   if (formData.useCustomTemplate) {
     // Получаем индексы для сравнения из формы (приводим к числу)

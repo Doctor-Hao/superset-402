@@ -31,64 +31,35 @@ import { showValueControl } from '../controls';
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
-      label: t('Customize'),
-      expanded: true,
+      label: t('Настройки для сравнения 2х вариантов'),
+      expanded: false,
       controlSetRows: [
         [
           {
-            name: 'hideTotalColumn',
+            name: 'compareTwoVariants',
             config: {
               type: 'CheckboxControl',
-              label: t('Скрыть последнюю колонку Total'),
+              label: t('Режим сравнения 2-х вариантов'),
               description: t(
-                'Если отмечено, финальная суммарная колонка не будет отображаться на графике.',
+                'Если включено, первый и последний выбранные вариант ' +
+                'будут стоять по краям, а факторы — между ними',
               ),
               default: false,
               renderTrigger: true,
             },
           },
-        ],
-        [
-          {
-            name: 'useCustomTemplate',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Использовать шаблон для сравнения двух вариантов'),
-              description: t(
-                'Если отмечено, будет применен предопределенный шаблон для ECharts'
-              ),
-              default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'comparisonColumn1',
-            config: {
-              type: 'TextControl', // Можно заменить на NumberControl, если он у вас доступен
-              label: t('Индекс первого столбца'),
-              renderTrigger: true,
-              default: '0',
-              description: t('Введите индекс столбца, который будет отображаться первым.'),
-            },
-          },
-          {
-            name: 'comparisonColumn2',
-            config: {
-              type: 'TextControl', // Аналогично, можно использовать NumberControl
-              label: t('Индекс второго столбца'),
-              renderTrigger: true,
-              default: '0',
-              description: t('Введите индекс столбца, который будет отображаться последним.'),
-            },
-          },
-        ],
+        ]
+      ],
+    },
+    {
+      label: t('Настройки для Δ'),
+      expanded: false,
+      controlSetRows: [
         [
           {
             name: 'deltaDecimals',
             config: {
-              type: 'TextControl',        // вводим число знаков
+              type: 'TextControl', // вводим число знаков
               isInt: true,
               default: '2',
               label: t('Δ: знаков после запятой'),
@@ -109,6 +80,68 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+      ],
+    },
+    // {
+    //   label: t('Настройки'),
+    //   expanded: false,
+    //   controlSetRows: [
+    //     [
+    //       {
+    //         name: 'hideTotalColumn',
+    //         config: {
+    //           type: 'CheckboxControl',
+    //           label: t('Скрыть последнюю колонку Total'),
+    //           description: t(
+    //             'Если отмечено, финальная суммарная колонка не будет отображаться на графике.',
+    //           ),
+    //           default: false,
+    //           renderTrigger: true,
+    //         },
+    //       },
+    //     ],
+    //     [
+    //       {
+    //         name: 'useCustomTemplate',
+    //         config: {
+    //           type: 'CheckboxControl',
+    //           label: t('Использовать шаблон для сравнения двух вариантов'),
+    //           description: t(
+    //             'Если отмечено, будет применен предопределенный шаблон для ECharts'
+    //           ),
+    //           default: false,
+    //           renderTrigger: true,
+    //         },
+    //       },
+    //     ],
+    //     [
+    //       {
+    //         name: 'comparisonColumn1',
+    //         config: {
+    //           type: 'TextControl', // Можно заменить на NumberControl, если он у вас доступен
+    //           label: t('Индекс первого столбца'),
+    //           renderTrigger: true,
+    //           default: '0',
+    //           description: t('Введите индекс столбца, который будет отображаться первым.'),
+    //         },
+    //       },
+    //       {
+    //         name: 'comparisonColumn2',
+    //         config: {
+    //           type: 'TextControl', // Аналогично, можно использовать NumberControl
+    //           label: t('Индекс второго столбца'),
+    //           renderTrigger: true,
+    //           default: '0',
+    //           description: t('Введите индекс столбца, который будет отображаться последним.'),
+    //         },
+    //       },
+    //     ],
+    //   ],
+    // },
+    {
+      label: t('Customize'),
+      expanded: true,
+      controlSetRows: [
       ],
     },
     {
