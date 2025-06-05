@@ -495,12 +495,20 @@ export default function transformProps(
    Режим «2 варианта + тоталы по краям»
  ─────────────────────────────────────────────────────────────*/
   if (formData.compareTwoVariants) {
-    // ─────────── 1. Получаем два выбранных значения фильтра `genre` ───────────
-    let variants = [];
+    // 1) Читаем имя поля X-AXIS, из которого будем брать “левый/правый” варианты
+    const xAxisField = isAdhocColumn(xAxis)
+      ? (xAxis as any).label!
+      : (xAxis || granularitySqla);
+
+    // 2) Читаем поле фильтра, введённое пользователем
+    const filterColUser = String(formData.compareFilterColumn || '').trim();
+    let variants: string[] = [];
+
+    // 2.a) Пробуем достать из formData.adhocFilters
     if (Array.isArray(formData.adhocFilters)) {
       formData.adhocFilters.forEach(flt => {
         const colName = flt.col || flt.subject;
-        if (colName === 'genre') {
+        if (colName === filterColUser) {
           if (Array.isArray(flt.val)) {
             variants = flt.val.map(String);
           } else if (Array.isArray(flt.comparator)) {
@@ -509,59 +517,93 @@ export default function transformProps(
         }
       });
     }
-    console.log('variants из adhocFilters:', variants);
-    if (variants.length !== 2) {
-      console.warn('Нужно выбрать ровно 2 значения genre, а найдено:', variants);
-      // Если не два, продолжаем обычный waterfall ниже.
-    } else {
+
+    // 2.b) Если не нашли в adhocFilters, пробуем formData.native_filters
+    if (variants.length === 0 && formData.native_filters) {
+      Object.values<any>(formData.native_filters).forEach(nf => {
+        const col =
+          typeof nf.target === 'string'
+            ? nf.target
+            : nf.target?.column || '';
+        const valArr: any[] =
+          Array.isArray(nf.value)
+            ? nf.value
+            : Array.isArray(nf.currentValue)
+              ? nf.currentValue
+              : [];
+        if (col === filterColUser && valArr.length) {
+          variants = valArr.map(String);
+        }
+      });
+    }
+
+    // 2.c) Если ещё пусто, пробуем formData.extraFormData.filters (Dashboard)
+    if (variants.length === 0 && formData.extraFormData?.filters) {
+      formData.extraFormData.filters.forEach((flt: any) => {
+        const col =
+          flt.col || flt.subject || flt.field || '';
+        if (col === filterColUser && Array.isArray(flt.val)) {
+          variants = flt.val.map(String);
+        }
+      });
+    }
+
+    console.log('compareFilterColumn =', filterColUser, 'variants =', variants);
+
+    // 3) Если ровно два варианта и есть breakdownName + metricLabel, запускаем сравнение
+    if (variants.length === 2 && breakdownName && metricLabel) {
       const [leftName, rightName] = variants;
 
-      // ─────────── 2. Группируем данные по (account1_name, genre) ───────────
-      // breakdownName = 'account1_name', metricLabel = 'profit', data = queriesData[0].data
-      const sumsByFactor = {}; // { factorValue: { left: number, right: number } }
-      // Чтобы сохранить порядок появления факторов, пройдёмся по data и заведём массив uniqueFactors.
-      const uniqueFactors = [];
+      // 4) Группируем суммы по (breakdownName, X-AXIS)
+      const sumsByFactor: Record<string, { left: number; right: number }> = {};
+      const uniqueFactors: string[] = [];
+
       data.forEach(row => {
         const factorValue = String(row[breakdownName] ?? '');
-        const nameVal = String(row.genre);
+        const filterVal = String(row[xAxisField] || '');
         const val = Number(row[metricLabel]) || 0;
 
-        // Сохраняем фактор в порядке первого появления (для обоих вариантов)
-        if ((nameVal === leftName || nameVal === rightName) && !uniqueFactors.includes(factorValue)) {
+        if (
+          (filterVal === leftName || filterVal === rightName) &&
+          !uniqueFactors.includes(factorValue)
+        ) {
           uniqueFactors.push(factorValue);
         }
 
         if (!sumsByFactor[factorValue]) {
           sumsByFactor[factorValue] = { left: 0, right: 0 };
         }
-        if (nameVal === leftName) {
+        if (filterVal === leftName) {
           sumsByFactor[factorValue].left += val;
-        } else if (nameVal === rightName) {
+        } else if (filterVal === rightName) {
           sumsByFactor[factorValue].right += val;
         }
       });
 
-      // ─────────── 3. Факторы = uniqueFactors (в порядке появления) ───────────
-      const factors = uniqueFactors;
+      console.log('uniqueFactors:', uniqueFactors);
+      console.log('sumsByFactor:', sumsByFactor);
 
-      // ─────────── 4. Формируем новую ось X: [левыйName, …факторы…, rightName] ───────────
+      // 5) Новая ось X: [leftName, ...факторы..., rightName]
+      const factors = uniqueFactors;
       const newXAxisData = [leftName, ...factors, rightName];
 
-      // ─────────── 5. Считаем общий тотал левого и правого вариантов ───────────
-      let leftTotal = 0, rightTotal = 0;
+      // 6) Считаем общий тотал для каждого варианта
+      let leftTotal = 0,
+        rightTotal = 0;
       Object.values(sumsByFactor).forEach(obj => {
         leftTotal += obj.left;
         rightTotal += obj.right;
       });
+      console.log(`leftTotal = ${leftTotal}, rightTotal = ${rightTotal}`);
 
-      // ─────────── 6. Готовим новые массивы серий для waterfall ───────────
+      // 7) Собираем массивы для waterfall
       const EMPTY = { value: TOKEN };
-      const newAssist = [];
-      const newIncrease = [];
-      const newDecrease = [];
-      const newTotalArr = [];
+      const newAssist: any[] = [];
+      const newIncrease: any[] = [];
+      const newDecrease: any[] = [];
+      const newTotalArr: any[] = [];
 
-      // 6.a) Первый столбец – «тотал» для leftName, база = 0
+      // 7.a) Левый тотал (база = 0)
       newAssist.push(0);
       newIncrease.push(EMPTY);
       newDecrease.push(EMPTY);
@@ -571,20 +613,18 @@ export default function transformProps(
         totalSum: leftTotal,
       });
 
-      // 6.b) Между – факторы, смещённые waterfall-логикой
+      // 7.b) Факторные дельты
       let cumulative = leftTotal;
       factors.forEach(factor => {
         const { left, right } = sumsByFactor[factor];
         const delta = right - left;
 
         if (delta >= 0) {
-          // Положительный рост: база = старое cumulative
           newAssist.push({ value: cumulative });
           newIncrease.push({ value: delta, originalValue: delta, totalSum: delta });
           newDecrease.push({ value: TOKEN });
           cumulative += delta;
         } else {
-          // Отрицательная дельта: база = cumulative + delta (чтобы столбец шёл вниз)
           newAssist.push({ value: cumulative + delta });
           newIncrease.push({ value: TOKEN });
           newDecrease.push({
@@ -594,12 +634,10 @@ export default function transformProps(
           });
           cumulative += delta;
         }
-
-        // Для waterfall – totalData = TOKEN
         newTotalArr.push({ value: TOKEN });
       });
 
-      // 6.c) Последний столбец – «тотал» для rightName, база = 0
+      // 7.c) Правый тотал (база = 0)
       newAssist.push(0);
       newIncrease.push(EMPTY);
       newDecrease.push(EMPTY);
@@ -609,38 +647,50 @@ export default function transformProps(
         totalSum: rightTotal,
       });
 
-      // ─────────── 7. Подменяем старые массивы на новые ───────────
+      console.log('newXAxisData:', newXAxisData);
+      console.log('newAssist:', newAssist);
+      console.log('newIncrease:', newIncrease);
+      console.log('newDecrease:', newDecrease);
+      console.log('newTotalArr:', newTotalArr);
+
+      // 8) Подмена исходных массивов
       xAxisData.splice(0, xAxisData.length, ...newXAxisData);
       assistData.splice(0, assistData.length, ...newAssist);
       increaseData.splice(0, increaseData.length, ...newIncrease);
       decreaseData.splice(0, decreaseData.length, ...newDecrease);
       totalData.splice(0, totalData.length, ...newTotalArr);
 
-      // ─────────── 8. Синхронизируем barSeries с новыми данными ───────────
+      // 9) Синхронизируем barSeries
       barSeries.forEach(s => {
         if (s.name === ASSIST_MARK) {
           s.data = newAssist;
-          s.itemStyle = { color: 'transparent' }; // «база» невидима
+          s.itemStyle = { color: 'transparent' };
           s.label = { show: false };
         }
         if (s.name === LEGEND.INCREASE) {
           s.data = newIncrease;
-          s.itemStyle = { color: rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b) };
+          s.itemStyle = {
+            color: rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b),
+          };
           s.label = { show: showValue, position: 'top', formatter: seriesformatter };
         }
         if (s.name === LEGEND.DECREASE) {
           s.data = newDecrease;
-          s.itemStyle = { color: rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b) };
+          s.itemStyle = {
+            color: rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b),
+          };
           s.label = { show: showValue, position: 'bottom', formatter: seriesformatter };
         }
         if (s.name === LEGEND.TOTAL) {
           s.data = newTotalArr;
-          s.itemStyle = { color: rgbToHex(totalColor.r, totalColor.g, totalColor.b) };
+          s.itemStyle = {
+            color: rgbToHex(totalColor.r, totalColor.g, totalColor.b),
+          };
           s.label = { show: showValue, position: 'top', formatter: seriesformatter };
         }
       });
 
-      // ─────────── 9. Рисуем Δ-стрелку между крайними total ───────────
+      // 10) Рисуем Δ-стрелку между крайними total
       const diff = rightTotal - leftTotal;
       const pct = leftTotal !== 0 ? (diff / Math.abs(leftTotal)) * 100 : 0;
       const dec = Math.max(0, Number(formData.deltaDecimals) || 0);
@@ -669,6 +719,7 @@ export default function transformProps(
       });
     }
   }
+
 
 
   // Если галочка включена, объединяем с предопределенным шаблоном

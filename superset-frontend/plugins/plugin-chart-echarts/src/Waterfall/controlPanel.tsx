@@ -48,7 +48,21 @@ const config: ControlPanelConfig = {
               renderTrigger: true,
             },
           },
-        ]
+        ],
+        [
+          {
+            name: 'compareFilterColumn',
+            config: {
+              type: 'TextControl',
+              label: t('Имя столбца для сравнения'),
+              default: 'genre',
+              description: t(
+                'Укажите имя колонки (например, genre или name), по которой брать два варианта из фильтра',
+              ),
+              renderTrigger: true,
+            },
+          },
+        ],
       ],
     },
     {
