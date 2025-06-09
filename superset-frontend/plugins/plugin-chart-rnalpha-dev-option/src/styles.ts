@@ -192,6 +192,17 @@ export const Styles = styled.div<{ height: number; width: number }>`
       opacity: 0.9;
   }
 
+  .description-footer {
+    background: rgb(249, 189, 0);
+    padding: 5px 10px;
+    display: inline-block;
+    margin-top: 10px;
+    max-width: 300px;
+    width: 100%;
+    text-align: center;
+    font-weight: bold;
+  }
+
   textarea {
     width: 100%;
     min-height: 40px;

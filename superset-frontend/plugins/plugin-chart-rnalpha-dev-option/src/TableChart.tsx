@@ -12,6 +12,7 @@ interface ProjectVariant {
   descriptions: {
     id: number;
     comm_descrp: string;
+    __isNew?: boolean;
   }[];
 }
 
@@ -167,9 +168,46 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (!projId) return;
     setIsSaveLoading(true);
 
+    const newDescriptions = editedData.flatMap(variant =>
+      variant.descriptions
+        .filter(desc => (desc as any).__isNew)
+        .map(desc => ({
+          var_id: variant.var_id,
+          comm_descrp: desc.comm_descrp,
+        })),
+    );
+
+    console.log("POST", newDescriptions)
+
+    // 1. POST для новых описаний
+    if (newDescriptions.length > 0) {
+      try {
+        const resPost = await fetch(`${process.env.BACKEND_URL}${url}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proj_id: projId, data: newDescriptions }),
+        });
+
+        if (!resPost.ok) throw new Error('POST failed');
+        console.log('✅ Новые ячейки успешно отправлены (POST)');
+      } catch (err) {
+        console.error('❌ Ошибка POST:', err);
+        alert('Ошибка при добавлении новых записей');
+      }
+    }
+
+    // Удаляем __isNew
+    const patchData = editedData.map(variant => ({
+      ...variant,
+      descriptions: variant.descriptions
+        .filter(desc => !desc.__isNew)
+        .map(({ id, comm_descrp }) => ({ id, comm_descrp })),
+    }));
+
+    // 2. PATCH для обновления существующих
     const body = {
       proj_id: projId,
-      data: editedData,
+      data: patchData,
     };
     console.log("handleSave", body)
 
@@ -189,6 +227,16 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       alert(`❌ Ошибка сети: ${e}`)
       console.error('❌ Ошибка сети', e);
     }
+
+    // ========== Очистка всех __isNew в состоянии ==========
+    const cleaned = editedData.map(variant => ({
+      ...variant,
+      descriptions: variant.descriptions.map(({ id, comm_descrp }) => ({
+        id,
+        comm_descrp,
+      })),
+    }));
+    setEditedData(cleaned);
 
     setIsSaveLoading(false);
   };
@@ -242,6 +290,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     <span className='grey-line-left'></span>
                     <p>
                       {variant.var_name}
+                      <br />
+                      {variant.is_recomended === 'Y' && (
+                        <span> (Рекомендуемый)</span>
+                      )}
                     </p>
                     <span className='grey-line-right'></span>
                     <span className='yellow-line-bottom'></span>
@@ -262,6 +314,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                           newVariants[colIndex].descriptions.push({
                             id: Date.now(),
                             comm_descrp: '',
+                            __isNew: true, // добавляем флаг
                           });
                           setEditedData(newVariants);
                         }}
@@ -291,6 +344,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                                 newVariants[colIndex].descriptions[rowIndex].comm_descrp = e.target.value;
                                 setEditedData(newVariants);
                               }}
+                              disabled={!isEditing}
                             />
                             {isEditing && (
                               <button
@@ -325,7 +379,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               ))}
             </tbody>
           </table>
-
+          <div className='description-footer'>
+            Рекомендуемый вариант
+          </div>
         </>
       )}
     </Styles>
