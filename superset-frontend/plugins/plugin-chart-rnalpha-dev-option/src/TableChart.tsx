@@ -8,6 +8,7 @@ import AutoResizeTextArea from './components/AutoResizeTextArea';
 interface ProjectVariant {
   var_id: number;
   var_name: string;
+  is_recomended: string | null;
   descriptions: {
     id: number;
     comm_descrp: string;
@@ -24,6 +25,7 @@ const mockApiResponse: ProjectVariant[] = [
   {
     var_id: 21,
     var_name: "Вариант 1",
+    is_recomended: 'Y',
     descriptions: [
       { id: 1, comm_descrp: "sцвцв фцвфвц string" },
       { id: 2, comm_descrp: "string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333 string133333333" },
@@ -33,6 +35,7 @@ const mockApiResponse: ProjectVariant[] = [
   {
     var_id: 22,
     var_name: "Вариант Альтернативный 1",
+    is_recomended: 'N',
     descriptions: [
       { id: 3, comm_descrp: "string2" },
       { id: 4, comm_descrp: "string2" },
@@ -41,6 +44,7 @@ const mockApiResponse: ProjectVariant[] = [
   {
     var_id: 23,
     var_name: "Вариант Базовый 1",
+    is_recomended: null,
     descriptions: [
       { id: 3, comm_descrp: "string2" },
       { id: 4, comm_descrp: "string2 string2 string2 string2" },
@@ -51,6 +55,7 @@ const mockApiResponse: ProjectVariant[] = [
   {
     var_id: 24,
     var_name: "Вариант Базовый 2",
+    is_recomended: 'N',
     descriptions: [
       { id: 10, comm_descrp: "string2" },
       { id: 11, comm_descrp: "string2 string2 string2 string2" },
@@ -101,7 +106,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (initialData.length > 0) {
       const firstProjId = initialData[0]?.PROJ_ID;
-      if (typeof firstProjId && firstProjId !== projId) {
+      if (firstProjId && firstProjId !== projId) {
         setProjId(firstProjId);
       }
     }
