@@ -700,23 +700,345 @@ export default function transformProps(
       const midValue = (leftTotal + rightTotal) / 2;
       const lastIdx = newXAxisData.length - 1;
 
-      barSeries.forEach(s => {
-        if (s.name === LEGEND.TOTAL) {
-          s.markLine = {
-            symbol: ['arrow', 'arrow'],
-            label: {
-              show: true,
-              position: 'middle',
-              formatter: `Δ = ${diffLabel}`,
-              fontSize: 16,
-              fontWeight: 'bold',
-            },
-            lineStyle: { color: '#000', width: 2 },
-            data: [[{ coord: [0, midValue] }, { coord: [lastIdx, midValue] }]],
-            zlevel: 10,
-          };
+      if (formData.showDeltaArrow) {
+        barSeries.forEach(s => {
+          if (s.name === LEGEND.TOTAL) {
+            s.markLine = {
+              symbol: ['arrow', 'arrow'],
+              label: {
+                show: true,
+                position: 'middle',
+                formatter: `Δ = ${diffLabel}`,
+                fontSize: 16,
+                fontWeight: 'bold',
+                backgroundColor: 'rgba(249, 189, 0, 0.9)', // полупрозрачный жёлтый
+                padding: [4, 8],       // отступы [вертикальный, горизонтальный]
+                borderRadius: 4,       // скругление углов
+              },
+              lineStyle: { color: '#000', width: 2 },
+              data: [[{ coord: [0, midValue] }, { coord: [lastIdx, midValue] }]],
+              zlevel: 10,
+            };
+          }
+        });
+      }
+    }
+  }
+
+
+  /*─────────────────────────────────────────────────────────────
+  Режим «Сравнение 3х вариантов»
+─────────────────────────────────────────────────────────────*/
+  if (formData.compareThreeVariants && breakdownName && metricLabel) {
+    // 1) Читаем имя поля X-AXIS, из которого будем брать три варианта
+    const xAxisField = isAdhocColumn(xAxis)
+      ? (xAxis as any).label!
+      : (xAxis || granularitySqla);
+
+    // 2) Поле фильтра, введённое пользователем (compareFilterColumn)
+    const filterColUser = String(formData.compareFilterColumn || '').trim();
+    let variants: string[] = [];
+
+    // 2.a) Пробуем достать из formData.adhocFilters
+    if (Array.isArray(formData.adhocFilters)) {
+      formData.adhocFilters.forEach(flt => {
+        const colName = flt.col || flt.subject;
+        if (colName === filterColUser) {
+          if (Array.isArray(flt.val)) {
+            variants = flt.val.map(String);
+          } else if (Array.isArray(flt.comparator)) {
+            variants = flt.comparator.map(String);
+          }
         }
       });
+    }
+
+    // 2.b) Если не нашли в adhocFilters, пробуем formData.native_filters
+    if (variants.length === 0 && formData.native_filters) {
+      Object.values<any>(formData.native_filters).forEach(nf => {
+        const col =
+          typeof nf.target === 'string'
+            ? nf.target
+            : nf.target?.column || '';
+        const valArr: any[] =
+          Array.isArray(nf.value)
+            ? nf.value
+            : Array.isArray(nf.currentValue)
+              ? nf.currentValue
+              : [];
+        if (col === filterColUser && valArr.length) {
+          variants = valArr.map(String);
+        }
+      });
+    }
+
+    // 2.c) Если ещё пусто, пробуем formData.extraFormData.filters
+    if (variants.length === 0 && formData.extraFormData?.filters) {
+      formData.extraFormData.filters.forEach((flt: any) => {
+        const col = flt.col || flt.subject || flt.field || '';
+        if (col === filterColUser && Array.isArray(flt.val)) {
+          variants = flt.val.map(String);
+        }
+      });
+    }
+
+    console.log('compareFilterColumn =', filterColUser, 'variants =', variants);
+
+    // 3) Убедимся, что получили ровно три значения
+    if (variants.length === 3) {
+      const [firstName, secondName, thirdName] = variants;
+
+      // 4) Группируем суммы по (breakdownName, X-AXIS) для трёх вариантов
+      const sumsByFactor: Record<string, { a: number; b: number; c: number }> = {};
+      const uniqueFactors: string[] = [];
+
+      data.forEach(row => {
+        const factorValue = String(row[breakdownName] ?? '');
+        const filterVal = String(row[xAxisField] || '');
+        const val = Number(row[metricLabel]) || 0;
+
+        if (
+          (filterVal === firstName ||
+            filterVal === secondName ||
+            filterVal === thirdName) &&
+          !uniqueFactors.includes(factorValue)
+        ) {
+          uniqueFactors.push(factorValue);
+        }
+
+        if (!sumsByFactor[factorValue]) {
+          sumsByFactor[factorValue] = { a: 0, b: 0, c: 0 };
+        }
+        if (filterVal === firstName) {
+          sumsByFactor[factorValue].a += val;
+        } else if (filterVal === secondName) {
+          sumsByFactor[factorValue].b += val;
+        } else if (filterVal === thirdName) {
+          sumsByFactor[factorValue].c += val;
+        }
+      });
+
+      console.log('uniqueFactors (3var):', uniqueFactors);
+      console.log('sumsByFactor (3var):', sumsByFactor);
+
+      // 5) Новая ось X: [firstName, ...факторы..., secondName, ...факторы..., thirdName]
+      const factors = uniqueFactors;
+      const newXAxisData = [
+        firstName,
+        ...factors,
+        secondName,
+        ...factors,
+        thirdName,
+      ];
+
+      // 6) Считаем общие тоталы для каждого варианта
+      let totalA = 0,
+        totalB = 0,
+        totalC = 0;
+      Object.values(sumsByFactor).forEach(obj => {
+        totalA += obj.a;
+        totalB += obj.b;
+        totalC += obj.c;
+      });
+      console.log(
+        `totalA = ${totalA}, totalB = ${totalB}, totalC = ${totalC}`
+      );
+
+      // 7) Готовим массивы для waterfall
+      const EMPTY = { value: TOKEN };
+      const newAssist: any[] = [];
+      const newIncrease: any[] = [];
+      const newDecrease: any[] = [];
+      const newTotalArr: any[] = [];
+
+      // 7.a) Первичный тотал (вариант A, база = 0)
+      newAssist.push(0);
+      newIncrease.push(EMPTY);
+      newDecrease.push(EMPTY);
+      newTotalArr.push({
+        value: totalA,
+        originalValue: totalA,
+        totalSum: totalA,
+      });
+
+      // 7.b) Дельты между A и B
+      let cumAB = totalA;
+      factors.forEach(factor => {
+        const { a, b } = sumsByFactor[factor];
+        const deltaAB = b - a;
+        if (deltaAB >= 0) {
+          newAssist.push({ value: cumAB });
+          newIncrease.push({
+            value: deltaAB,
+            originalValue: deltaAB,
+            totalSum: deltaAB,
+          });
+          newDecrease.push({ value: TOKEN });
+          cumAB += deltaAB;
+        } else {
+          newAssist.push({ value: cumAB + deltaAB });
+          newIncrease.push({ value: TOKEN });
+          newDecrease.push({
+            value: -deltaAB,
+            originalValue: deltaAB,
+            totalSum: deltaAB,
+          });
+          cumAB += deltaAB;
+        }
+        newTotalArr.push({ value: TOKEN });
+      });
+
+      // 7.c) Вторичный тотал (вариант B, база = 0)
+      newAssist.push(0);
+      newIncrease.push(EMPTY);
+      newDecrease.push(EMPTY);
+      newTotalArr.push({
+        value: totalB,
+        originalValue: totalB,
+        totalSum: totalB,
+      });
+
+      // 7.d) Дельты между B и C
+      let cumBC = totalB;
+      factors.forEach(factor => {
+        const { b, c } = sumsByFactor[factor];
+        const deltaBC = c - b;
+        if (deltaBC >= 0) {
+          newAssist.push({ value: cumBC });
+          newIncrease.push({
+            value: deltaBC,
+            originalValue: deltaBC,
+            totalSum: deltaBC,
+          });
+          newDecrease.push({ value: TOKEN });
+          cumBC += deltaBC;
+        } else {
+          newAssist.push({ value: cumBC + deltaBC });
+          newIncrease.push({ value: TOKEN });
+          newDecrease.push({
+            value: -deltaBC,
+            originalValue: deltaBC,
+            totalSum: deltaBC,
+          });
+          cumBC += deltaBC;
+        }
+        newTotalArr.push({ value: TOKEN });
+      });
+
+      // 7.e) Третичный тотал (вариант C, база = 0)
+      newAssist.push(0);
+      newIncrease.push(EMPTY);
+      newDecrease.push(EMPTY);
+      newTotalArr.push({
+        value: totalC,
+        originalValue: totalC,
+        totalSum: totalC,
+      });
+
+      console.log('newXAxisData (3var):', newXAxisData);
+      console.log('newAssist (3var):', newAssist);
+      console.log('newIncrease (3var):', newIncrease);
+      console.log('newDecrease (3var):', newDecrease);
+      console.log('newTotalArr (3var):', newTotalArr);
+
+      // 8) Подмена исходных массивов
+      xAxisData.splice(0, xAxisData.length, ...newXAxisData);
+      assistData.splice(0, assistData.length, ...newAssist);
+      increaseData.splice(0, increaseData.length, ...newIncrease);
+      decreaseData.splice(0, decreaseData.length, ...newDecrease);
+      totalData.splice(0, totalData.length, ...newTotalArr);
+
+      // 9) Синхронизируем barSeries
+      barSeries.forEach(s => {
+        if (s.name === ASSIST_MARK) {
+          s.data = newAssist;
+          s.itemStyle = { color: 'transparent' };
+          s.label = { show: false };
+        }
+        if (s.name === LEGEND.INCREASE) {
+          s.data = newIncrease;
+          s.itemStyle = {
+            color: rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b),
+          };
+          s.label = { show: showValue, position: 'top', formatter: seriesformatter };
+        }
+        if (s.name === LEGEND.DECREASE) {
+          s.data = newDecrease;
+          s.itemStyle = {
+            color: rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b),
+          };
+          s.label = { show: showValue, position: 'bottom', formatter: seriesformatter };
+        }
+        if (s.name === LEGEND.TOTAL) {
+          s.data = newTotalArr;
+          s.itemStyle = {
+            color: rgbToHex(totalColor.r, totalColor.g, totalColor.b),
+          };
+          s.label = { show: showValue, position: 'top', formatter: seriesformatter };
+        }
+      });
+
+      // 10) Рисуем Δ-стрелки между A→B и B→C
+      const diffAB = totalB - totalA;
+      const pctAB = totalA !== 0 ? (diffAB / Math.abs(totalA)) * 100 : 0;
+      const diffLabelAB = `${diffAB.toFixed(
+        Math.max(0, Number(formData.deltaDecimals) || 0)
+      )}${formData.deltaUnit ? ' ' + formData.deltaUnit : ''} (${pctAB.toFixed(
+        Math.max(0, Number(formData.deltaDecimals) || 0)
+      )}%)`;
+
+      const diffBC = totalC - totalB;
+      const pctBC = totalB !== 0 ? (diffBC / Math.abs(totalB)) * 100 : 0;
+      const diffLabelBC = `${diffBC.toFixed(
+        Math.max(0, Number(formData.deltaDecimals) || 0)
+      )}${formData.deltaUnit ? ' ' + formData.deltaUnit : ''} (${pctBC.toFixed(
+        Math.max(0, Number(formData.deltaDecimals) || 0)
+      )}%)`;
+
+      const midValueAB = (totalA + totalB) / 2;
+      const midValueBC = (totalB + totalC) / 2;
+      const idxB = 1 + factors.length; // позиция второго total в newXAxisData
+      const idxC = idxB + 1 + factors.length; // позиция третьего total
+
+      if (formData.showDeltaArrow) {
+        barSeries.forEach(s => {
+          if (s.name === LEGEND.TOTAL) {
+            s.markLine = {
+              symbol: ['arrow', 'arrow'],
+              lineStyle: { color: '#000', width: 2 },
+              zlevel: 10,
+              data: [
+                // 1-я стрелка: A → B
+                [
+                  { coord: [0, midValueAB] },
+                  { coord: [idxB, midValueAB] },
+                ],
+                // 2-я стрелка: B → C
+                [
+                  { coord: [idxB, midValueBC] },
+                  { coord: [idxC, midValueBC] },
+                ],
+              ],
+              label: {
+                show: true,
+                position: 'middle',
+                fontSize: 16,
+                fontWeight: 'bold',
+                // по dataIndex выбираем, какую подпись рисовать
+                formatter: (params: any) =>
+                  params.dataIndex === 0
+                    ? `Δ₁ = ${diffLabelAB}`
+                    : `Δ₂ = ${diffLabelBC}`,
+                backgroundColor: 'rgba(249, 189, 0, 0.9)', // полупрозрачный жёлтый
+                padding: [4, 8],       // отступы [вертикальный, горизонтальный]
+                borderRadius: 4,       // скругление углов
+              },
+            };
+          }
+        });
+      }
+
+
     }
   }
 
@@ -811,32 +1133,34 @@ export default function transformProps(
       const newLastIndex = newXAxisData.length - 1;
 
       // 5. Добавляем стрелку (markLine) для серии "Total"
-      barSeries.forEach(series => {
-        if (series.name === LEGEND.TOTAL) {
-          series.markLine = {
-            symbol: ['arrow', 'arrow'], // Стрелка появляется на конце линии
-            label: {
-              show: true,
-              position: 'middle',
-              formatter: `Δ = ${diffLabel}`,
-              fontSize: 18,                  // размер шрифта (px)
-              fontWeight: 'bold',            // жирность шрифта
-              color: '#000',                 // цвет
-            },
-            lineStyle: {
-              color: '#000',
-              width: 2,
-            },
-            data: [
-              [
-                { coord: [0, midValue] },
-                { coord: [newLastIndex, midValue] },
+      if (formData.showDeltaArrow) {
+        barSeries.forEach(series => {
+          if (series.name === LEGEND.TOTAL) {
+            series.markLine = {
+              symbol: ['arrow', 'arrow'], // Стрелка появляется на конце линии
+              label: {
+                show: true,
+                position: 'middle',
+                formatter: `Δ = ${diffLabel}`,
+                fontSize: 18,                  // размер шрифта (px)
+                fontWeight: 'bold',            // жирность шрифта
+                color: '#000',                 // цвет
+              },
+              lineStyle: {
+                color: '#000',
+                width: 2,
+              },
+              data: [
+                [
+                  { coord: [0, midValue] },
+                  { coord: [newLastIndex, midValue] },
+                ],
               ],
-            ],
-            zlevel: 10, // Отрисовка поверх остальных элементов
-          };
-        }
-      });
+              zlevel: 10, // Отрисовка поверх остальных элементов
+            };
+          }
+        });
+      }
     }
   }
 

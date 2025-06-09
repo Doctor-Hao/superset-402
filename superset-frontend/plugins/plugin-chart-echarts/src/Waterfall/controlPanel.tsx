@@ -31,7 +31,7 @@ import { showValueControl } from '../controls';
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
-      label: t('Настройки для сравнения 2х вариантов'),
+      label: t('Настройки для сравнения вариантов'),
       expanded: false,
       controlSetRows: [
         [
@@ -51,13 +51,27 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'compareThreeVariants',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Режим сравнения 3-х вариантов'),
+              description: t(
+                'Если включено, будут сравниваться три варианта: первый, последний и средний',
+              ),
+              default: false,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
             name: 'compareFilterColumn',
             config: {
               type: 'TextControl',
               label: t('Имя столбца для сравнения'),
               default: 'genre',
               description: t(
-                'Укажите имя колонки (например, genre или name), по которой брать два варианта из фильтра',
+                'Укажите имя колонки (например, genre или name), по которой брать два варианта из фильтра (название из Filters)',
               ),
               renderTrigger: true,
             },
@@ -69,6 +83,20 @@ const config: ControlPanelConfig = {
       label: t('Настройки для Δ'),
       expanded: false,
       controlSetRows: [
+        [
+          {
+            name: 'showDeltaArrow',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Показывать стрелку суммирующую дельту'),
+              description: t(
+                'Если включено, будут стрелки суммирующую дельту',
+              ),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
         [
           {
             name: 'deltaDecimals',
