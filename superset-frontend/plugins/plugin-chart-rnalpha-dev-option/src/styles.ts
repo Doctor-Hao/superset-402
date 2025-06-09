@@ -27,6 +27,17 @@ export const Styles = styled.div<{ height: number; width: number }>`
     }
   }
 
+  th, td { 
+    max-width: 200px
+  }
+
+  th p { 
+    background-color: white;
+    padding: 10px 5px;
+    margin: 0 10px;
+    box-shadow: 1px 1px 15px rgba(0, 0, 0, 0.25);
+  }
+
   .grey-line {
     position: relative;
     padding: 10px 10px 40px 10px;
@@ -113,7 +124,28 @@ export const Styles = styled.div<{ height: number; width: number }>`
       border-left: 4px dashed #f5c400;
       z-index: 0;
     }
-}
+  }
+
+  .recommended-column.grey-line{
+    background-color: rgb(249, 189, 0); /* жёлтый фон */
+    border: 1px solid rgb(249, 189, 0);
+
+  }
+
+  .recommended-column.vertical-line{
+    background-color: rgb(249, 189, 0); /* жёлтый фон */
+    border: 1px solid rgb(249, 189, 0);
+
+    &::before {
+      border-left: 4px dashed #999;
+    }  
+  }
+
+  .recommended-column .yellow-line-bottom,
+  .recommended-column .yellow-line-left,
+  .recommended-column  .yellow-line-right{ 
+    background-color: #999; 
+  }
 
   tr:nth-of-type(odd) {
   }

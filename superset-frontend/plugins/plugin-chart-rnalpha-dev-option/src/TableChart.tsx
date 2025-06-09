@@ -43,7 +43,7 @@ const mockApiResponse: ProjectVariant[] = [
   },
   {
     var_id: 23,
-    var_name: "Вариант Базовый 1",
+    var_name: "Вариант Базовый 1 (Копия Базовый)",
     is_recomended: null,
     descriptions: [
       { id: 3, comm_descrp: "string2" },
@@ -231,16 +231,18 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             )}
           </div>
 
-          <table style={{ width: '100%', border: '1px solid #ccc' }}>
+          <table style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }}>
             <thead>
               <tr>
                 {editedData.map(variant => (
                   <th
                     key={variant.var_id}
-                    className='grey-line'
+                    className={`grey-line ${variant.is_recomended === 'Y' ? 'recommended-column' : ''}`}
                   >
                     <span className='grey-line-left'></span>
-                    {variant.var_name}
+                    <p>
+                      {variant.var_name}
+                    </p>
                     <span className='grey-line-right'></span>
                     <span className='yellow-line-bottom'></span>
                     <span className='yellow-line-left'></span>
@@ -250,13 +252,36 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               </tr>
             </thead>
             <tbody>
+              {isEditing && (
+                <tr>
+                  {editedData.map((_, colIndex) => (
+                    <td key={colIndex}>
+                      <button
+                        onClick={() => {
+                          const newVariants = [...editedData];
+                          newVariants[colIndex].descriptions.push({
+                            id: Date.now(),
+                            comm_descrp: '',
+                          });
+                          setEditedData(newVariants);
+                        }}
+                      >
+                        ➕ Добавить описание
+                      </button>
+                    </td>
+                  ))}
+                </tr>
+              )}
               {/* Максимум описаний в вариантах — определим для строк */}
               {Array.from({ length: Math.max(...editedData.map(v => v.descriptions.length)) }).map((_, rowIndex) => (
                 <tr key={rowIndex}>
                   {editedData.map((variant, colIndex) => {
                     const description = variant.descriptions[rowIndex];
                     return (
-                      <td className='vertical-line' key={colIndex}>
+                      <td
+                        className={`vertical-line ${variant.is_recomended === 'Y' ? 'recommended-column' : ''}`}
+                        key={colIndex}
+                      >
                         {description ? (
                           <div style={{ position: 'relative', paddingRight: '10px', paddingLeft: '10px' }}>
                             <AutoResizeTextArea
@@ -272,8 +297,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                                 className="icon-button delete"
                                 style={{
                                   position: 'absolute',
-                                  top: '4px',
-                                  right: '4px',
+                                  top: '0px',
+                                  right: '10px',
                                   background: 'transparent',
                                   color: '#f44336',
                                   border: 'none',
@@ -298,26 +323,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                   })}
                 </tr>
               ))}
-              {isEditing && (
-                <tr>
-                  {editedData.map((_, colIndex) => (
-                    <td key={colIndex}>
-                      <button
-                        onClick={() => {
-                          const newVariants = [...editedData];
-                          newVariants[colIndex].descriptions.push({
-                            id: Date.now(),
-                            comm_descrp: '',
-                          });
-                          setEditedData(newVariants);
-                        }}
-                      >
-                        ➕ Добавить описание
-                      </button>
-                    </td>
-                  ))}
-                </tr>
-              )}
             </tbody>
           </table>
 
