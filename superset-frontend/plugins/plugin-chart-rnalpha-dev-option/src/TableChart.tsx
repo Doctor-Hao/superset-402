@@ -143,7 +143,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         });
         if (response.ok) {
           const dataFromGet = await response.json();
-          setEditedData(dataFromGet.data);
+          const sorted: ProjectVariant[] = dataFromGet.data.map((variant: ProjectVariant) => ({
+            ...variant,
+            descriptions: [...variant.descriptions].sort((a, b) => a.id - b.id),
+          }));
+          setEditedData(sorted);
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
@@ -239,6 +243,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setEditedData(cleaned);
 
     setIsSaveLoading(false);
+    setIsEditing(false);
   };
 
   const handleChange = (id: number, field: keyof ProjectVariant, value: any) => {
