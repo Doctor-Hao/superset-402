@@ -96,10 +96,10 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     // mockDATA
-    if (mockData.length > 0) {
-      const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
-      setProjId(firstProjId);
-    }
+    // if (mockData.length > 0) {
+    //   const firstProjId = mockData[0].PROJ_ID; // Берем первый PROJ_ID
+    //   setProjId(firstProjId);
+    // }
 
   }, [initialData]); // Вызываем только при изменении initialData
 
@@ -117,9 +117,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   useEffect(() => {
     if (projId) {
       // mockDATA
-      handleLoadExternalMock(projId)
+      // handleLoadExternalMock(projId)
 
-      // handleLoadExternal(projId);
+      handleLoadExternal(projId);
     }
   }, [projId]);
 
@@ -168,24 +168,26 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (!projId) return;
     setIsSaveLoading(true);
 
-    const newDescriptions = editedData.flatMap(variant =>
-      variant.descriptions
-        .filter(desc => (desc as any).__isNew)
-        .map(desc => ({
+    const postPayload = editedData
+      .map(variant => {
+        const newDescs = variant.descriptions.filter(d => d.__isNew);
+        if (newDescs.length === 0) return null;
+        return {
           var_id: variant.var_id,
-          comm_descrp: desc.comm_descrp,
-        })),
-    );
-
-    console.log("POST", newDescriptions)
+          var_name: variant.var_name,
+          description: newDescs.map(({ comm_descrp }) => ({ comm_descrp })),
+        };
+      })
+      .filter(Boolean); // убираем null
+    console.log("POST", postPayload)
 
     // 1. POST для новых описаний
-    if (newDescriptions.length > 0) {
+    if (postPayload.length > 0) {
       try {
         const resPost = await fetch(`${process.env.BACKEND_URL}${url}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ proj_id: projId, data: newDescriptions }),
+          body: JSON.stringify({ proj_id: projId, data: postPayload }),
         });
 
         if (!resPost.ok) throw new Error('POST failed');
@@ -196,36 +198,34 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       }
     }
 
-    // Удаляем __isNew
-    const patchData = editedData.map(variant => ({
-      ...variant,
-      descriptions: variant.descriptions
-        .filter(desc => !desc.__isNew)
-        .map(({ id, comm_descrp }) => ({ id, comm_descrp })),
-    }));
+    // ======= PATCH =======
+    const patchPayload = editedData
+      .map(variant => {
+        const existingDescs = variant.descriptions.filter(d => !d.__isNew);
+        if (existingDescs.length === 0) return null;
+        return {
+          var_id: variant.var_id,
+          var_name: variant.var_name,
+          description: existingDescs.map(({ id, comm_descrp }) => ({ id, comm_descrp })),
+        };
+      })
+      .filter(Boolean);
+    console.log("PATCH", patchPayload)
 
-    // 2. PATCH для обновления существующих
-    const body = {
-      proj_id: projId,
-      data: patchData,
-    };
-    console.log("handleSave", body)
+    for (const patchItem of patchPayload) {
+      try {
+        const resPatch = await fetch(`${process.env.BACKEND_URL}${url}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patchItem),
+        });
 
-    try {
-      const response = await fetch(`${process.env.BACKEND_URL}${url}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        console.log('✅ Сохранено');
-      } else {
-        console.error('❌ Ошибка при сохранении');
+        if (!resPatch.ok) throw new Error('PATCH failed');
+        console.log('✅ PATCH отправлен:', patchItem);
+      } catch (err) {
+        console.error('❌ PATCH error:', err);
+        alert('Ошибка при обновлении записей');
       }
-    } catch (e) {
-      alert(`❌ Ошибка сети: ${e}`)
-      console.error('❌ Ошибка сети', e);
     }
 
     // ========== Очистка всех __isNew в состоянии ==========
