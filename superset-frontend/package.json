@@ -120,6 +120,7 @@
     "@superset-ui/plugin-chart-rnalpha-project-infrastructure-description": "file:plugins/plugin-chart-rnalpha-project-infrastructure-description",
     "@superset-ui/plugin-chart-rnalpha-project-milestones": "file:plugins/plugin-chart-rnalpha-project-milestones",
     "@superset-ui/plugin-chart-rnalpha-project-risk": "file:plugins/plugin-chart-rnalpha-project-risk",
+    "@superset-ui/plugin-chart-rnalpha-protocol-tts": "file:plugins/plugin-chart-rnalpha-protocol-tts",
     "@superset-ui/plugin-chart-rnalpha-standart": "file:plugins/plugin-chart-rnalpha-standart",
     "@superset-ui/plugin-chart-rnalpha-table-custom-v1": "file:plugins/plugin-chart-rnalpha-table-custom-v1",
     "@superset-ui/plugin-chart-rnalpha-table-image": "file:plugins/plugin-chart-rnalpha-table-image",
