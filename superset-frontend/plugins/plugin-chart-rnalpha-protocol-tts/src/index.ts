@@ -18,8 +18,8 @@
  */
 import { Behavior, ChartMetadata, ChartPlugin, t } from '@superset-ui/core';
 import transformProps from './transformProps';
-import thumbnail from './images/thumbnail.png';
-import example1 from './images/Table.jpg';
+import thumbnail from './images/tts.jpg';
+import example1 from './images/tts.jpg';
 import controlPanel from './controlPanel';
 import buildQuery from './buildQuery';
 import { TableChartFormData, TableChartProps } from './types';
@@ -37,10 +37,10 @@ const metadata = new ChartMetadata({
   category: t('Table слайды'),
   canBeAnnotationTypes: ['EVENT', 'INTERVAL'],
   description: t(
-    'Таблица для заполнения по опции ГРР.',
+    'Таблица для заполнения по протоколу ТТЭС.',
   ),
   exampleGallery: [{ url: example1 }],
-  name: t('Зависимая добыча от опции ГРР'),
+  name: t('Протокол ТТЭС'),
   tags: [
   ],
   thumbnail,

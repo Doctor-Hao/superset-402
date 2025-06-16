@@ -88,6 +88,7 @@ import ChartRnalphaProgectFirstAndSecondLevelRisksPlugin from '@superset-ui/plug
 import ChartRnalphaProgectDescriptionVariantPlugin from '@superset-ui/plugin-chart-rnalpha-description-variant';
 import ChartRnalphaProgectGrrOptionPlugin from '@superset-ui/plugin-chart-rnalpha-grr-option';
 import ChartRnalphaProgectDevOptionPlugin from '@superset-ui/plugin-chart-rnalpha-dev-option';
+import ChartRnalphaProtocolTts from '@superset-ui/plugin-chart-rnalpha-protocol-tts';
 
 
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
@@ -197,6 +198,7 @@ export default class MainPreset extends Preset {
         new ChartRnalphaProgectDescriptionVariantPlugin().configure({ key: 'plugin-chart-rnalpha-description-variant', }),
         new ChartRnalphaProgectGrrOptionPlugin().configure({ key: 'plugin-chart-rnalpha-grr-option', }),
         new ChartRnalphaProgectDevOptionPlugin().configure({ key: 'plugin-chart-rnalpha-dev-option', }),
+        new ChartRnalphaProtocolTts().configure({ key: 'plugin-chart-rnalpha-protocol-tts', }),
 
         ...experimentalPlugins,
       ],
