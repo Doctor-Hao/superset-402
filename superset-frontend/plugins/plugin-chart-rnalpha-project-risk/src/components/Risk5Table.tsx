@@ -52,17 +52,13 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
     }, [data]);
 
 
-    useEffect(() => {
-        onChange(editedData);
-    }, [editedData]);
-
-
     // Функция для обновления состояния при изменении ячеек
     const handleChange = (riskId, field, value) => {
         const updatedData = editedData.map(risk =>
             risk.id === riskId ? { ...risk, [field]: value } : risk
         );
         setEditedData(updatedData);
+        onChange(updatedData);
     };
 
     // Функция для обновления additional_data
@@ -78,6 +74,7 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
                 : risk
         );
         setEditedData(updatedData);
+        onChange(updatedData);
     };
 
     // Функция для добавления нового раздела
@@ -196,7 +193,6 @@ const Risk5Table = ({ data, onChange, onSave, isSaving }) => {
             acc[risk.groupId] = [];
         }
         acc[risk.groupId].push(risk);
-        console.log("groupedData", acc)
         return acc;
     }, {});
 

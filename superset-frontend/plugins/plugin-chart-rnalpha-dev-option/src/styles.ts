@@ -196,7 +196,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
     background: rgb(249, 189, 0);
     padding: 5px 10px;
     display: inline-block;
-    margin-top: 10px;
+    margin-top: 20px;
     max-width: 300px;
     width: 100%;
     text-align: center;
