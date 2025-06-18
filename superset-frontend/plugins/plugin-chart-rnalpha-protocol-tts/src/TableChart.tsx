@@ -111,6 +111,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     try {
       // DELETE
       if (deletedIds.length) {
+        console.log('Удаление:', deletedIds);
         for (const id of deletedIds) {
           try {
             await fetch(`${process.env.BACKEND_URL}${url}/${id}`, { method: 'DELETE' });
@@ -122,26 +123,42 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       setDeletedIds([]);
 
       // POST новые строки
-      const newRows = editedData.filter(r => r.isNew);
-      if (newRows.length) {
-        try {
-          await fetch(`${process.env.BACKEND_URL}${url}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              proj_id: projId,
-              data: newRows.map(({ isNew, ...row }) => row),
-            }),
-          });
-          setEditedData(prev =>
-            prev.map(row =>
-              row.isNew ? { ...row, isNew: false } : row
-            )
-          );
-        } catch (err) {
-          console.error('Ошибка создания протокола (POST):', err);
+      for (const row of editedData) {
+        const newParagraphs = row.paragraphs.filter(p => p.isNew);
+        if (newParagraphs.length) {
+          const postBody = {
+            proj_id: projId,
+            protocol_id: row.id,
+            paragraphs: newParagraphs.map(({ decision_desc, deadline, responsible_empl, decision_status, comment_protocol }) => ({
+              decision_desc,
+              deadline,
+              responsible_empl,
+              decision_status,
+              comment_protocol,
+            })),
+          };
+          console.log('POST paragraphs:', postBody);
+          try {
+            await fetch(`${process.env.BACKEND_URL}${url}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(postBody),
+            });
+          } catch (err) {
+            console.error('Ошибка создания параграфов (POST):', err);
+          }
         }
       }
+
+      // После успешного POST убираем isNew у добавленных параграфов
+      setEditedData(prev =>
+        prev.map(row => ({
+          ...row,
+          paragraphs: row.paragraphs.map(p =>
+            p.isNew ? { ...p, isNew: false } : p
+          ),
+        }))
+      );
 
       // PATCH — отправляем каждый протокол отдельно
       const updatedRows = editedData.map(row => ({
@@ -184,7 +201,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   // Удалить параграф
   const handleDeleteParagraph = (rowId: number, paragraphId: number) => {
-    console.log('Удаление параграфа:', { rowId, paragraphId });
     setEditedData(prev =>
       prev.map(row =>
         row.id === rowId
@@ -216,12 +232,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           : row,
       ),
     );
-  };
-
-  // Вставка из Excel
-  const handlePaste = () => {
-    setShowPastePopup(true);
-    setClipboardInput('');
   };
 
   const handlePasteApply = () => {
@@ -374,11 +384,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     }}>
                       <div style={{ background: '#fff', padding: 20, borderRadius: 8, minWidth: 400 }}>
                         <h4>Вставьте данные из Excel</h4>
+                        <p style={{ fontSize: '14px', color: '#333', marginBottom: '6px' }}>
+                          Скопируйте таблицу из Excel (без заголовков), нажмите <kbd>Ctrl+V</kbd> в поле ниже, затем нажмите "Добавить".
+                        </p>
                         <textarea
                           style={{ width: '100%', minHeight: 120 }}
                           value={clipboardInput}
                           onChange={e => setClipboardInput(e.target.value)}
-                          placeholder={'Описание решения\tДедлайн\tОтветственный\tСтатус\tКомментарий'}
+                          placeholder="Вставьте сюда строки из Excel..."
                         />
                         <div style={{ marginTop: 10, textAlign: 'right' }}>
                           <button onClick={() => setShowPastePopup(false)} style={{ marginRight: 10 }}>Отмена</button>
@@ -398,6 +411,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                                 responsible_empl: arr[2] || '-',
                                 decision_status: arr[3] || '-',
                                 comment_protocol: arr[4] || '-',
+                                isNew: true,
                               };
                             });
 
@@ -425,8 +439,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     </th>
                   </tr>
                   <tr>
-                    <th>Описание решения</th>
-                    <th>Дедлайн</th>
+                    <th>Наименование</th>
+                    <th>Срок</th>
                     <th>Ответственный</th>
                     <th>Статус</th>
                     {isEditing && <th>Удалить</th>}
