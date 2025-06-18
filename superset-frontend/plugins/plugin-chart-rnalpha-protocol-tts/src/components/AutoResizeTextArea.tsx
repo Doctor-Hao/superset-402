@@ -4,9 +4,10 @@ interface AutoResizeTextAreaProps {
     value: string | number;
     onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
     style?: React.CSSProperties;
+    disabled?: boolean;
 }
 
-const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange, style }) => {
+const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange, style, disabled = false }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -21,6 +22,7 @@ const AutoResizeTextArea: React.FC<AutoResizeTextAreaProps> = ({ value, onChange
             ref={textareaRef}
             value={value.toString()}
             onChange={onChange}
+            disabled={disabled}
             style={{
                 width: "100%",
                 minHeight: "30px",
