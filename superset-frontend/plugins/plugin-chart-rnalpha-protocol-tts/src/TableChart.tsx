@@ -174,7 +174,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           paragraphs: row.paragraphs,
         };
         try {
-          await fetch(`${process.env.BACKEND_URL}${url}/${row.id}`, {
+          await fetch(`${process.env.BACKEND_URL}${url}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(patchBody),
@@ -269,22 +269,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   // useEffect для загрузки данных
   useEffect(() => {
-    if (initialData.length > 0 && typeof initialData[0]?.proj_id === 'number') {
-      setProjId(initialData[0].proj_id);
-      setEditedData(
-        Array.isArray(initialData[0].data)
-          ? initialData[0].data
-          : mockData.data,
-      );
-    } else {
-      setProjId(mockData.proj_id);
-      setEditedData(mockData.data);
+    if (initialData.length > 0 && typeof initialData[0]?.PROJ_ID === 'number') {
+      setProjId(initialData[0].PROJ_ID);
+      //   setEditedData(
+      //     Array.isArray(initialData[0].data)
+      //       ? initialData[0].data
+      //       : mockData.data,
+      //   );
+      // } else {
+      //   setProjId(mockData.proj_id);
+      //   setEditedData(mockData.data);
     }
   }, [initialData]);
 
   useEffect(() => {
     if (projId !== null) {
-      // handleLoadExternal(projId); // Раскомментируйте если нужно подгружать с сервера
+      handleLoadExternal(projId); // подгружать с сервера
     }
   }, [projId]);
 
