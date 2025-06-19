@@ -57,7 +57,7 @@ const config = {
                     },
                     {
                       label: `/project/energy/description`,
-                      value: `/proscons_api/project/energy/description`,
+                      value: `/project/energy/description`,
                     },
                     {
                       label: `/project/tasks_and_goals`,
