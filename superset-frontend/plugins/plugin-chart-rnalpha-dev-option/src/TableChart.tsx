@@ -77,9 +77,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<ProjectVariant[]>([]);
   const [projId, setProjId] = useState<string | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<string[] | undefined>(undefined);
+  const [idsToDelete, setIdsToDelete] = useState<number[]>([]);
 
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
+
+  useEffect(() => {
+    if (initialData.length > 0) {
+      const allNames = initialData.map(row => row.VAR_NAME).filter(Boolean);
+      setSelectedVariants(allNames);
+    }
+  }, [initialData]);
+
 
   const handleLoadExternalMock = async (projId: string) => {
     setIsLoading(true);
@@ -172,6 +182,27 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (!projId) return;
     setIsSaveLoading(true);
 
+    // 0. DELETE — если есть idsToDelete
+    if (idsToDelete.length > 0) {
+      try {
+        for (const id of idsToDelete) {
+          const delRes = await fetch(`${process.env.BACKEND_URL}${url}/del_comm/${id}`, {
+            method: 'DELETE',
+          });
+
+          if (!delRes.ok) {
+            console.error(`❌ Ошибка удаления комментария id=${id}`);
+          } else {
+            console.log(`🗑 Удалён комментарий id=${id}`);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Ошибка удаления:', err);
+        alert('Ошибка при удалении записей');
+      }
+    }
+
+
     const postPayload = editedData
       .map(variant => {
         const newDescs = variant.descriptions.filter(d => d.__isNew);
@@ -241,6 +272,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       })),
     }));
     setEditedData(cleaned);
+    setIdsToDelete([]);
 
     setIsSaveLoading(false);
     setIsEditing(false);
@@ -256,6 +288,11 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleDelete = (id: number) => {
     setEditedData(prev => prev.filter(row => row.id !== id));
   };
+
+
+  const filteredVariants = !selectedVariants || selectedVariants.length === 0
+    ? editedData
+    : editedData.filter(v => selectedVariants.includes(v.var_name));
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
@@ -287,7 +324,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           <table style={{ width: '100%', border: '1px solid #ccc', marginTop: '10px' }}>
             <thead>
               <tr>
-                {editedData.map(variant => (
+                {filteredVariants.map(variant => (
                   <th
                     key={variant.var_id}
                     className={`grey-line ${variant.is_recomended === 'Y' ? 'recommended-column' : ''}`}
@@ -311,17 +348,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             <tbody>
               {isEditing && (
                 <tr>
-                  {editedData.map((_, colIndex) => (
+                  {filteredVariants.map((_, colIndex) => (
                     <td key={colIndex}>
                       <button
                         onClick={() => {
-                          const newVariants = [...editedData];
-                          newVariants[colIndex].descriptions.push({
-                            id: Date.now(),
-                            comm_descrp: '',
-                            __isNew: true, // добавляем флаг
+                          const targetId = filteredVariants[colIndex].var_id;
+                          const updated = editedData.map(variant => {
+                            if (variant.var_id !== targetId) return variant;
+                            return {
+                              ...variant,
+                              descriptions: [
+                                ...variant.descriptions,
+                                { id: Date.now(), comm_descrp: '', __isNew: true },
+                              ],
+                            };
                           });
-                          setEditedData(newVariants);
+                          setEditedData(updated);
                         }}
                       >
                         ➕ Добавить описание
@@ -331,9 +373,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                 </tr>
               )}
               {/* Максимум описаний в вариантах — определим для строк */}
-              {Array.from({ length: Math.max(...editedData.map(v => v.descriptions.length)) }).map((_, rowIndex) => (
+              {Array.from({ length: Math.max(...filteredVariants.map(v => v.descriptions.length)) }).map((_, rowIndex) => (
                 <tr key={rowIndex}>
-                  {editedData.map((variant, colIndex) => {
+                  {filteredVariants.map((variant, colIndex) => {
                     const description = variant.descriptions[rowIndex];
                     return (
                       <td
@@ -345,9 +387,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                             <AutoResizeTextArea
                               value={description.comm_descrp}
                               onChange={e => {
-                                const newVariants = [...editedData];
-                                newVariants[colIndex].descriptions[rowIndex].comm_descrp = e.target.value;
-                                setEditedData(newVariants);
+                                const targetId = filteredVariants[colIndex].var_id;
+                                const updated = editedData.map(variant => {
+                                  if (variant.var_id !== targetId) return variant;
+                                  const newDescriptions = [...variant.descriptions];
+                                  newDescriptions[rowIndex].comm_descrp = e.target.value;
+                                  return { ...variant, descriptions: newDescriptions };
+                                });
+                                setEditedData(updated);
                               }}
                               disabled={!isEditing}
                             />
@@ -365,11 +412,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                                   cursor: 'pointer',
                                 }}
                                 onClick={() => {
-                                  const newVariants = [...editedData];
-                                  newVariants[colIndex].descriptions = newVariants[colIndex].descriptions.filter(
-                                    d => d.id !== description.id,
-                                  );
-                                  setEditedData(newVariants);
+                                  const targetId = filteredVariants[colIndex].var_id;
+                                  const descId = description.id;
+
+                                  const updated = editedData.map(variant => {
+                                    if (variant.var_id !== targetId) return variant;
+                                    return {
+                                      ...variant,
+                                      descriptions: variant.descriptions.filter(d => d.id !== descId),
+                                    };
+                                  });
+
+                                  setEditedData(updated);
+
+                                  // Запоминаем id для удаления (если не isNew)
+                                  if (!description.__isNew && typeof descId === 'number') {
+                                    setIdsToDelete(prev => [...prev, descId]);
+                                  }
                                 }}
                               >
                                 ❌
