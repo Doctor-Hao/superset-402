@@ -52,12 +52,36 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `/project/grr/option`,
-                      value: `/project/grr/option`,
+                      label: `/variant/factor/analisys/slide_27/`,
+                      value: `/variant/factor/analisys/slide_27/`,
+                    },
+                    {
+                      label: `/variant/factor/analisys/slide_49/`,
+                      value: `/variant/factor/analisys/slide_49/`,
+                    },
+                    {
+                      label: `/variant/factor/analisys/slide_87/`,
+                      value: `/variant/factor/analisys/slide_87/`,
+                    },
+                    {
+                      label: `/variant/factor/analisys/slide_89/`,
+                      value: `/variant/factor/analisys/slide_89/`,
                     },
                   ],
                 };
               },
+            },
+          },
+        ],
+        [
+          {
+            name: 'variant_filter_name',
+            config: {
+              type: 'SelectControl',
+              label: t('Название фильтра варианта'),
+              description: t(`Табличное название варианта`),
+              default: 'cmp_case_name',
+              freeForm: true, // Разрешает ввод вручную
             },
           },
         ],
