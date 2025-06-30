@@ -114,7 +114,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         console.log('Удаление:', deletedIds);
         for (const id of deletedIds) {
           try {
-            await fetch(`${process.env.BACKEND_URL}${url}/${id}`, { method: 'DELETE' });
+            await fetch(`${process.env.BACKEND_URL}${url}/${id}/paragraph`, { method: 'DELETE' });
           } catch (err) {
             console.error('Ошибка удаления протокола:', id, err);
           }
@@ -201,16 +201,27 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   // Удалить параграф
   const handleDeleteParagraph = (rowId: number, paragraphId: number) => {
-    setEditedData(prev =>
-      prev.map(row =>
-        row.id === rowId
-          ? {
-            ...row,
-            paragraphs: row.paragraphs.filter(p => p.id !== paragraphId),
-          }
-          : row,
-      ),
-    );
+    setEditedData(prev => {
+      // найдём параграф, чтобы понять, был ли он уже в БД
+      const row = prev.find(r => r.id === rowId);
+      const paragraph = row?.paragraphs.find(p => p.id === paragraphId);
+
+      // удаляем параграф из состояния
+      const next = prev.map(r =>
+        r.id === rowId
+          ? { ...r, paragraphs: r.paragraphs.filter(p => p.id !== paragraphId) }
+          : r,
+      );
+
+      // если параграф не новый -- кладём его id в deletedIds
+      if (paragraph && !paragraph.isNew) {
+        setDeletedIds(ids =>
+          ids.includes(paragraphId) ? ids : [...ids, paragraphId],
+        );
+      }
+
+      return next;
+    });
   };
 
   // Изменение параграфа
