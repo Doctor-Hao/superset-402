@@ -42,23 +42,37 @@ const config = {
         ],
         [
           {
-            name: 'var_id',
+            name: 'variant_filter_name',
             config: {
-              type: 'TextControl',
-              label: t('id VAR_ID'),
-              description: t('Введите VAR_ID, чтобы фильтровать изображения'),
-              default: '',
+              type: 'SelectControl',
+              label: t('Название фильтра варианта'),
+              description: t(`Табличное название варианта`),
+              default: 'cmp_case_name',
+              freeForm: true, // Разрешает ввод вручную
             },
           },
         ],
         [
           {
-            name: 'dash_id',
+            name: 'variant_name',
             config: {
-              type: 'TextControl',
-              label: t('id DASH_ID'),
-              description: t('Введите dash_id, чтобы фильтровать изображения'),
-              default: '',
+              type: 'SelectControl',
+              label: t('Название поля варианта'),
+              description: t(`Табличное название поля варианта`),
+              default: 'cmp_case_name',
+              freeForm: true, // Разрешает ввод вручную
+            },
+          },
+        ],
+        [
+          {
+            name: 'variant_id',
+            config: {
+              type: 'SelectControl',
+              label: t('Название поля id варианта'),
+              description: t(`Табличное название id варианта`),
+              default: 'cmp_sort_order',
+              freeForm: true, // Разрешает ввод вручную
             },
           },
         ],

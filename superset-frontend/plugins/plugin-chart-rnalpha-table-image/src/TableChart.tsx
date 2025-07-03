@@ -1,14 +1,10 @@
-
 import React, { useEffect, createRef, useState } from 'react';
-import {
-  DataRecord,
-} from '@superset-ui/core';
+import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { styled } from '@superset-ui/core';
 
-
 interface DataRow {
-  [key: string]: string | number | null;
+  image: string | null;
 }
 
 const Styles = styled.div<{ height: number; width: number }>`
@@ -16,109 +12,156 @@ const Styles = styled.div<{ height: number; width: number }>`
   border-radius: ${({ theme }) => theme.gridUnit * 2}px;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
-  overflow: auto; /* Добавляем скроллинг при переполнении */
+  overflow: auto;
 
   table {
     width: 100%;
     border-collapse: collapse;
-    border: 0px solid black;
-
   }
-
 `;
-
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
 ) {
-  const { data, height, width, formData } = props;
+  const { data: chartData, height, width, formData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
   const [isLoading, setIsLoading] = useState(false);
   const [tableData, setTableData] = useState<DataRow[]>([]);
-  const variant_id = formData.var_id
-  const dashboard_id = formData.dash_id
 
-  useEffect(() => {
-    if (data) {
-      fetchImages();
+  const CASE_NAME_FILTER_KEY = formData.variant_filter_name;
+  const CASE_NAME_VARIANT = formData.variant_name;
+  const CASE_NAME_ID = formData.variant_id;
+
+  // 🧠 Извлечение variant_name из фильтров
+  const selectedVariantName: string | null = React.useMemo(() => {
+    let variant: string | null = null;
+
+    if (formData.adhoc_filters?.length) {
+      for (const flt of formData.adhoc_filters) {
+        const col = flt.col || flt.subject;
+        if (col === CASE_NAME_FILTER_KEY) {
+          if (Array.isArray(flt.val)) {
+            variant = flt.val[0];
+          } else if (Array.isArray(flt.comparator)) {
+            variant = flt.comparator[0];
+          }
+        }
+      }
     }
 
-    // Тестовая mini-картинка (dataURL в base64):
-    // const testBase64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAUAAAASCAYAAABa3+D9AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAACZ0RVh0Q3JlYXRpb24gVGltZQAwOS8xOS8yM9ccVHoAAAExSURBVDiNlZNLTsUwEEaTr3/bQGgQwpHaXAwdvzwog2C2B4cIXHrDn1Knx63toTqboNf4FwMn2eBHHGKT5H1lz4qaw2w5/IScLwC3wn3w9oWQj/3AUxWWkWZhkXqQBMKqECQUtAJkDhhCAlKEbLyOsOReHo6+ezabnqgbwfSFSJ5Sz2XuJVk6D2daAZAHXYzl88Iu5HLZL74CRqAWJAbQPxGuhby0h1Ea0QZ0B94lU9X6NlzX0H4FG94JdjrUn7Ep5zpWkS1+lQC0LlxUNew4bImODmSJ5hZEkRfOw+V3hy+S1HJ1h/Skef5moctRdCbRn3zaOvtY3y9zqkTkv9id5X+I8zOuE6eHIZeQAAAABJRU5ErkJggg==';
+    if (!variant && formData.native_filters) {
+      Object.values<any>(formData.native_filters).forEach(nf => {
+        const col = nf.target?.column || nf.target;
+        const valArr = Array.isArray(nf.value)
+          ? nf.value
+          : Array.isArray(nf.currentValue)
+            ? nf.currentValue
+            : [];
+        if (col === CASE_NAME_FILTER_KEY && valArr.length) {
+          variant = valArr[0];
+        }
+      });
+    }
 
-    // Эмулируем «результат запроса» – т.е. кладём в массив единственный элемент,
-    // setTableData([{ image: testBase64Image }]);
-  }, [data]);
+    if (!variant && formData.extra_form_data?.filters?.length) {
+      for (const flt of formData.extra_form_data.filters) {
+        const col = flt.col || flt.subject || flt.field;
+        if (col === CASE_NAME_FILTER_KEY && Array.isArray(flt.val)) {
+          variant = flt.val[0];
+        }
+      }
+    }
 
-  // Загружаем изображения из BLOB
+    return variant || null;
+  }, [formData]);
+  console.log("selectedVariantName", selectedVariantName);
+
+
+  // 🧠 Поиск ID варианта
+  const variantId = React.useMemo(() => {
+    if (!selectedVariantName) return null;
+    const found = chartData.find(d => d[CASE_NAME_VARIANT] === selectedVariantName);
+    return found ? found[CASE_NAME_ID as keyof typeof found] : null;
+  }, [selectedVariantName, chartData]);
+
+  // 🧠 Получение ID дашборда
+  const dashboardId = React.useMemo(() => {
+    return (
+      formData.dashboardId ||
+      formData.dashboards?.[0] ||
+      formData.url_params?.dashboard_page_id ||
+      null
+    );
+  }, [formData]);
+  console.log("dashboardId", dashboardId);
+
+  // 🔃 Загрузка изображения
+  useEffect(() => {
+    if (variantId && dashboardId) {
+      fetchImages();
+    }
+  }, [variantId, dashboardId]);
+
   const fetchImages = async () => {
     setIsLoading(true);
 
-    // Пример retry в 5 попыток
     const maxAttempts = 5;
     let attempts = 0;
 
     while (attempts < maxAttempts) {
       try {
-        const response = await fetch(`http://10.205.110.59:443/picture/foto/download/${variant_id}/${dashboard_id}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (response.ok) {
-          const json = await response.json();
+        const res = await fetch(
+          `http://10.205.110.59:443/picture/foto/download/${variantId}/${dashboardId}`,
+        );
 
+        if (res.ok) {
+          const json = await res.json();
           setTableData([{ image: json.image }]);
-          console.log("tableData", tableData)
-          console.log('✅ Внешние данные получены');
-          break; // прерываем цикл при успехе
+          break;
         } else {
-          console.error('Ошибка при GET-запросе, статус:', response.status);
+          console.warn('Fetch error status:', res.status);
         }
-      } catch (error) {
-        console.error('Ошибка сети при GET-запросе:', error);
+      } catch (err) {
+        console.error('Fetch error:', err);
       }
+
       attempts++;
-      if (attempts < maxAttempts) {
-        console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
-        await new Promise(res => setTimeout(res, 2000));
-      } else {
-        console.error('❌ GET-запрос завершился неудачно после 5 попыток');
-        setTableData([{ image: null }]);
-      }
+      await new Promise(res => setTimeout(res, 2000));
+    }
+
+    if (attempts === maxAttempts) {
+      setTableData([{ image: null }]);
     }
 
     setIsLoading(false);
   };
 
-  const renderDataRows = () => {
-    return tableData.map((row, index) => (
-      <tr key={index}>
-        <td>
-          {row.image ? (
-            <img
-              src={`data:image/png;base64,${row.image}`}
-              alt="SomeImage"
-              style={{ maxWidth: '100%', height: 'auto' }}
-            />
-          ) : (
-            'Нет изображения'
-          )}
-        </td>
-      </tr>
-    ));
-  };
-
   return (
     <Styles ref={rootElem} height={height} width={width}>
-      {isLoading && <div>Загрузка изображения...</div>}
-
-      <table>
-        <tbody>{renderDataRows()}</tbody>
-      </table>
+      {isLoading ? (
+        <div>Загрузка изображения...</div>
+      ) : (
+        <table>
+          <tbody>
+            {tableData.map((row, index) => (
+              <tr key={index}>
+                <td>
+                  {row.image ? (
+                    <img
+                      src={`data:image/png;base64,${row.image}`}
+                      alt="Изображение"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                  ) : (
+                    'Нет изображения'
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </Styles>
   );
 }
-
-
-
