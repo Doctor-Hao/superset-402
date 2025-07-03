@@ -52,24 +52,30 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `/variant/factor/analisys/slide_24`,
-                      value: `/variant/factor/analisys/slide_24`,
-                    },
-                    {
-                      label: `/variant/factor/analisys/slide_49`,
-                      value: `/variant/factor/analisys/slide_49`,
-                    },
-                    {
-                      label: `/variant/factor/analisys/slide_87`,
-                      value: `/variant/factor/analisys/slide_87`,
-                    },
-                    {
-                      label: `/variant/factor/analisys/slide_89`,
-                      value: `/variant/factor/analisys/slide_89`,
+                      label: `/project/node/slide`,
+                      value: `/project/node/slide`,
                     },
                   ],
                 };
               },
+            },
+          },
+        ],
+        [
+          {
+            name: 'slide_number',
+            config: {
+              type: 'SelectControl',
+              label: t('Номер слайда'),
+              description: t('Выберите номер слайда'),
+              default: 'slide_28',
+              choices: [
+                ['slide_28', 'slide_28'],
+                ['slide_29', 'slide_29'],
+                ['slide_75', 'slide_75'],
+                ['slide_77', 'slide_77'],
+                ['slide_107', 'slide_107'],
+              ],
             },
           },
         ],

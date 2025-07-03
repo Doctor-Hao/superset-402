@@ -1,38 +1,22 @@
-import React, { createRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { Styles } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
 
-interface FactorRow {
-  id: number;
-  value_translate: string;
-  description: string;
-  commentary: string;
-}
-
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
 ) {
   const { height, width, formData, data: chartData } = props;
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [data, setData] = useState<Record<string, FactorRow>>({});
-  const [hasError, setHasError] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(false);
 
   const CASE_NAME_FILTER_KEY = formData.variant_filter_name;
   const CASE_NAME_VARIANT = formData.variant_name;
   const CASE_NAME_ID = formData.variant_id;
+  const slideNumber = formData.slide_number || 'slide_28';
 
-  const endpoint = formData.endpoint;
-
-  const [leftVarId, rightVarId] = React.useMemo(() => {
+  const [projId] = React.useMemo(() => {
     let variants: string[] = [];
-
-    // 1. из adhoc_filters
     if (Array.isArray(formData.adhoc_filters)) {
       formData.adhoc_filters.forEach(flt => {
         const colName = flt.col || flt.subject;
@@ -45,9 +29,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         }
       });
     }
-
-
-    // 2. из native_filters
     if (variants.length === 0 && formData.native_filters) {
       Object.values<any>(formData.native_filters).forEach(nf => {
         const col = typeof nf.target === 'string' ? nf.target : nf.target?.column || '';
@@ -61,8 +42,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         }
       });
     }
-
-    // 3. из extra_form_data.filters
     if (variants.length === 0 && formData.extra_form_data?.filters) {
       formData.extra_form_data.filters.forEach((flt: any) => {
         const col = flt.col || flt.subject || flt.field || '';
@@ -72,50 +51,39 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       });
     }
 
-
-    console.log('variants', variants);
-    if (variants.length < 2) return [null, null];
-
-
-    const ids = variants.slice(0, 2).map(name => {
-      const match = chartData.find(d => d[CASE_NAME_VARIANT] === name);
-      return match ? match[CASE_NAME_ID as keyof typeof match] ?? null : null;
-    });
-    console.log('ids', ids);
-
-    return ids;
+    if (variants.length === 0) return [null];
+    const name = variants[0];
+    const match = chartData.find(d => d[CASE_NAME_VARIANT] === name);
+    return [match ? match[CASE_NAME_ID as keyof typeof match] ?? null : null];
   }, [formData, chartData]);
 
-
+  const [data, setData] = useState<{ commentary: string }>({ commentary: '' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
 
   useEffect(() => {
-    if (endpoint && leftVarId && rightVarId) fetchData();
-  }, [endpoint, leftVarId, rightVarId]);
+    if (projId && slideNumber) fetchData();
+  }, [projId, slideNumber]);
 
   async function fetchData() {
     setIsLoading(true);
     setHasError(false);
     setIsEmpty(false);
-
     try {
-      const res = await fetch(
-        `${process.env.BACKEND_URL}${endpoint}/${leftVarId}/${rightVarId}`,
-      );
-
+      const res = await fetch(`${process.env.BACKEND_URL}/project/node/slide/${projId}/${slideNumber}`);
       if (res.status === 404) {
         setIsEmpty(true);
         return;
       }
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
-      if (!json || Object.keys(json).length === 0) {
+      if (!json || typeof json.data !== 'string') {
         setIsEmpty(true);
       } else {
-        setData(json);
+        setData({ commentary: json.data });
       }
     } catch (err) {
       console.error('GET error:', err);
@@ -126,26 +94,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }
 
   async function handleSave() {
-    if (!leftVarId || !rightVarId) return;
+    if (!projId) return;
     setIsSaving(true);
     try {
       const payload = {
-        left_var_id: leftVarId,
-        right_var_id: rightVarId,
-        data: Object.fromEntries(
-          Object.entries(data).map(([key, row]) => [key, {
-            description: row.description,
-            commentary: row.commentary,
-          }])
-        ),
+        proj_id: projId,
+        slide_number: slideNumber,
+        commentary: data.commentary,
       };
-
-      const res = await fetch(`${process.env.BACKEND_URL}${endpoint}`, {
+      const res = await fetch(`${process.env.BACKEND_URL}/project/node/slide`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       if (!res.ok) throw new Error('PATCH error');
     } catch (err) {
       console.error(err);
@@ -154,17 +115,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsSaving(false);
     setIsEditing(false);
   }
-
-
-  const handleChange = (key: string, field: keyof FactorRow, value: string) => {
-    setData(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        [field]: value,
-      },
-    }));
-  };
 
   return (
     <Styles height={height} width={width}>
@@ -184,7 +134,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             >
               ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
             </button>
-
             {isEditing && (
               <ControlButtons
                 isSaving={isSaving}
@@ -193,52 +142,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               />
             )}
           </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-            <thead>
-              <tr>
-                <th>Значение</th>
-                <th>Описание</th>
-                <th>Комментарий</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(data).map(([key, row]) => (
-                <tr key={key}>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row?.value_translate || ''}
-                      disabled={true}
-                      onChange={e =>
-                        handleChange(key, 'value_translate', e?.target?.value || '')
-                      }
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row?.description || ''}
-                      disabled={!isEditing}
-                      onChange={e =>
-                        handleChange(key, 'description', e?.target?.value || '')
-                      }
-                    />
-                  </td>
-                  <td>
-                    <AutoResizeTextArea
-                      value={row?.commentary || ''}
-                      disabled={!isEditing}
-                      onChange={e =>
-                        handleChange(key, 'commentary', e?.target?.value || '')
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ marginTop: 12 }}>
+            <AutoResizeTextArea
+              value={data.commentary}
+              disabled={!isEditing}
+              onChange={e => setData({ commentary: e.target.value })}
+            />
+          </div>
         </>
       )}
     </Styles>
   );
-
 }
