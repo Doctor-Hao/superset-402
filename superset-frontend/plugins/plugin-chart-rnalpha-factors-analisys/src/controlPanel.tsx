@@ -52,20 +52,20 @@ const config = {
                 return {
                   options: [
                     {
-                      label: `/variant/factor/analisys/slide_27/`,
-                      value: `/variant/factor/analisys/slide_27/`,
+                      label: `/variant/factor/analisys/slide_24`,
+                      value: `/variant/factor/analisys/slide_24`,
                     },
                     {
-                      label: `/variant/factor/analisys/slide_49/`,
-                      value: `/variant/factor/analisys/slide_49/`,
+                      label: `/variant/factor/analisys/slide_49`,
+                      value: `/variant/factor/analisys/slide_49`,
                     },
                     {
-                      label: `/variant/factor/analisys/slide_87/`,
-                      value: `/variant/factor/analisys/slide_87/`,
+                      label: `/variant/factor/analisys/slide_87`,
+                      value: `/variant/factor/analisys/slide_87`,
                     },
                     {
-                      label: `/variant/factor/analisys/slide_89/`,
-                      value: `/variant/factor/analisys/slide_89/`,
+                      label: `/variant/factor/analisys/slide_89`,
+                      value: `/variant/factor/analisys/slide_89`,
                     },
                   ],
                 };
@@ -81,6 +81,30 @@ const config = {
               label: t('Название фильтра варианта'),
               description: t(`Табличное название варианта`),
               default: 'cmp_case_name',
+              freeForm: true, // Разрешает ввод вручную
+            },
+          },
+        ],
+        [
+          {
+            name: 'variant_name',
+            config: {
+              type: 'SelectControl',
+              label: t('Название поля варианта'),
+              description: t(`Табличное название поля варианта`),
+              default: 'cmp_case_name',
+              freeForm: true, // Разрешает ввод вручную
+            },
+          },
+        ],
+        [
+          {
+            name: 'variant_id',
+            config: {
+              type: 'SelectControl',
+              label: t('Название поля id варианта'),
+              description: t(`Табличное название id варианта`),
+              default: 'cmp_sort_order',
               freeForm: true, // Разрешает ввод вручную
             },
           },
