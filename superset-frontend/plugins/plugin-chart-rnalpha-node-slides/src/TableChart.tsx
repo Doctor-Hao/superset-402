@@ -75,13 +75,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     try {
       const res = await fetch(`${process.env.BACKEND_URL}/project/node/slide/${projId}/${slideNumber}`);
       if (res.status === 404) {
-        setIsEmpty(true);
+        setIsEmpty(true); // только при 404
         return;
       }
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
       const json = await res.json();
-      if (!json || typeof json.data !== 'string') {
-        setIsEmpty(true);
+      if (!json || typeof json.data !== 'string' || json.data === 'null' || json.data.trim() === '') {
+        setData({ commentary: '' }); // пустое значение, но редактируемое
       } else {
         setData({ commentary: json.data });
       }
@@ -99,8 +100,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     try {
       const payload = {
         proj_id: projId,
-        slide_number: slideNumber,
-        commentary: data.commentary,
+        slide_number: slideNumber ?? '',
+        commentary: data.commentary ?? '',
       };
       const res = await fetch(`${process.env.BACKEND_URL}/project/node/slide`, {
         method: 'PATCH',

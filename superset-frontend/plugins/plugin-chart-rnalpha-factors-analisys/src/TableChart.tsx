@@ -89,8 +89,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
 
   useEffect(() => {
-    if (endpoint && leftVarId && rightVarId) fetchData();
+    if (!endpoint) return;
+    if (!leftVarId || !rightVarId) {
+      setHasError(true);
+      console.error('Не выбраны два варианта для сравнения');
+      return;
+    }
+    fetchData();
   }, [endpoint, leftVarId, rightVarId]);
+
 
   async function fetchData() {
     setIsLoading(true);
@@ -108,7 +115,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       }
 
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        throw new Error(`Ошибка сервера: ${res.status}`);
       }
 
       const json = await res.json();
@@ -117,7 +124,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       } else {
         setData(json);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('GET error:', err);
       setHasError(true);
     } finally {
@@ -126,17 +133,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }
 
   async function handleSave() {
-    if (!leftVarId || !rightVarId) return;
+    if (!leftVarId || !rightVarId) {
+      alert('Не выбраны два варианта для сохранения');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const payload = {
         left_var_id: leftVarId,
         right_var_id: rightVarId,
         data: Object.fromEntries(
-          Object.entries(data).map(([key, row]) => [key, {
-            description: row.description,
-            commentary: row.commentary,
-          }])
+          Object.entries(data)
+            .filter(([_, row]) => row !== null && typeof row === 'object')
+            .map(([key, row]) => [key, {
+              description: row.description ?? '',
+              commentary: row.commentary ?? '',
+            }])
         ),
       };
 
@@ -146,14 +159,25 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('PATCH error');
-    } catch (err) {
-      console.error(err);
-      alert('Ошибка при сохранении');
+      if (res.status === 404) {
+        alert('Ошибка: ресурс не найден (404)');
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`PATCH failed: ${res.status} - ${text}`);
+      }
+
+    } catch (err: any) {
+      console.error('PATCH error:', err);
+      alert(`Ошибка при сохранении: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+      setIsEditing(false);
     }
-    setIsSaving(false);
-    setIsEditing(false);
   }
+
 
 
   const handleChange = (key: string, field: keyof FactorRow, value: string) => {
@@ -171,7 +195,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       {isLoading ? (
         <p>Загрузка...</p>
       ) : hasError ? (
-        <p style={{ color: 'red' }}>Произошла ошибка при загрузке данных.</p>
+        <p style={{ color: 'red' }}>
+          Произошла ошибка при загрузке данных. Убедитесь, что выбраны ровно два варианта и сервер доступен.
+        </p>
       ) : isEmpty ? (
         <p>Нет данных для отображения.</p>
       ) : (
@@ -197,7 +223,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
             <thead>
               <tr>
-                <th>Значение</th>
+                <th>Наименование фактора</th>
                 <th>Описание</th>
                 <th>Комментарий</th>
               </tr>
