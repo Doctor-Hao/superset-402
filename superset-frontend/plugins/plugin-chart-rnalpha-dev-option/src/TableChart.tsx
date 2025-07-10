@@ -79,6 +79,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [projId, setProjId] = useState<string | null>(null);
   const [selectedVariants, setSelectedVariants] = useState<string[] | undefined>(undefined);
   const [idsToDelete, setIdsToDelete] = useState<number[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
@@ -137,42 +138,39 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // ========== GET-логика ==========
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
 
-    // Пример retry в 5 попыток
-    const maxAttempts = 5;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetch(urlGet, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (response.ok) {
-          const dataFromGet = await response.json();
-          const sorted: ProjectVariant[] = dataFromGet.data.map((variant: ProjectVariant) => ({
-            ...variant,
-            descriptions: [...variant.descriptions].sort((a, b) => a.id - b.id),
-          }));
-          setEditedData(sorted);
-          console.log('✅ Внешние данные получены');
-          break; // прерываем цикл при успехе
-        } else {
-          console.error('Ошибка при GET-запросе, статус:', response.status);
-        }
-      } catch (error) {
-        console.error('Ошибка сети при GET-запросе:', error);
-      }
-      attempts += 1;
-      if (attempts < maxAttempts) {
-        console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
-        await new Promise(res => setTimeout(res, 2000));
+    try {
+      const response = await fetch(urlGet, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const dataFromGet = await response.json();
+        const sorted: ProjectVariant[] = dataFromGet.data.map((variant: ProjectVariant) => ({
+          ...variant,
+          descriptions: [...variant.descriptions].sort((a, b) => a.id - b.id),
+        }));
+        setEditedData(sorted);
+        console.log('✅ Внешние данные получены');
       } else {
-        console.error('❌ GET-запрос завершился неудачно после 5 попыток');
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch {
+          /* тело не JSON — игнорируем */
+        }
+        if (response.status === 404) {
+          setErrorMessage(`Запрошенные данные не найдены (404)${backendMsg}`);
+        }
+        console.error('Ошибка при GET-запросе, статус:', response.status);
       }
+    } catch (error: any) {
+      alert(`Ошибка получения GET: ${error.message}`);
     }
 
     setIsLoading(false);
@@ -181,8 +179,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleSave = async () => {
     if (!projId) return;
     setIsSaveLoading(true);
+    setErrorMessage(null);
 
-    // 0. DELETE — если есть idsToDelete
+    // DELETE — если есть idsToDelete
     if (idsToDelete.length > 0) {
       try {
         for (const id of idsToDelete) {
@@ -216,7 +215,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       .filter(Boolean); // убираем null
     console.log("POST", postPayload)
 
-    // 1. POST для новых описаний
+    // POST для новых описаний
     if (postPayload.length > 0) {
       try {
         const resPost = await fetch(`${process.env.BACKEND_URL}${url}`, {
@@ -225,8 +224,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           body: JSON.stringify({ proj_id: projId, data: postPayload }),
         });
 
-        if (!resPost.ok) throw new Error('POST failed');
-        console.log('✅ Новые ячейки успешно отправлены (POST)');
+        if (resPost.ok) {
+          console.log('✅ POST отправлен:', postPayload);
+        }
+
+        // ---------- обработка ошибок ----------
+        let backendMsg = '';
+        try {
+          const { message } = await resPost.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch { /* тело не JSON — игнорируем */ }
+
+        if (resPost.status === 404) {
+          setErrorMessage(`Запись для POST не найдена (404)${backendMsg}`);
+        }
+
+        // другие статусы – выбрасываем общее исключение
+        throw new Error(`POST failed (${resPost.status})${backendMsg}`);
       } catch (err) {
         console.error('❌ Ошибка POST:', err);
         alert('Ошибка при добавлении новых записей');
@@ -255,8 +269,25 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           body: JSON.stringify(patchItem),
         });
 
-        if (!resPatch.ok) throw new Error('PATCH failed');
-        console.log('✅ PATCH отправлен:', patchItem);
+        if (resPatch.ok) {
+          console.log('✅ PATCH отправлен:', patchItem);
+          continue;
+        }
+
+        // ---------- обработка ошибок ----------
+        let backendMsg = '';
+        try {
+          const { message } = await resPatch.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch { /* тело не JSON — игнорируем */ }
+
+        if (resPatch.status === 404) {
+          setErrorMessage(`Запись для PATCH не найдена (404)${backendMsg}`);
+          break;
+        }
+
+        // другие статусы – выбрасываем общее исключение
+        throw new Error(`PATCH failed (${resPatch.status})${backendMsg}`);
       } catch (err) {
         console.error('❌ PATCH error:', err);
         alert('Ошибка при обновлении записей');
@@ -278,18 +309,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     setIsEditing(false);
   };
 
-  const handleChange = (id: number, field: keyof ProjectVariant, value: any) => {
-    setEditedData(prev =>
-      prev.map(row => (row.id === id ? { ...row, [field]: value } : row)),
-    );
-  };
-
-
-  const handleDelete = (id: number) => {
-    setEditedData(prev => prev.filter(row => row.id !== id));
-  };
-
-
   const filteredVariants = !selectedVariants || selectedVariants.length === 0
     ? editedData
     : editedData.filter(v => selectedVariants.includes(v.var_name));
@@ -299,11 +318,23 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
+        <></>)}
+
+      {errorMessage && !isLoading && (
+        <p style={{ color: 'red', marginTop: 8 }}>
+          {errorMessage}
+        </p>
+      )}
+
+      {!isLoading && !errorMessage && (
         <>
           <div>
             <button
               style={{ marginRight: 10 }}
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                setIsEditing(!isEditing);
+                setErrorMessage(null);
+              }}
               className="icon-button edit"
             >
               ✏️ {isEditing ? 'Выход из редактирования' : 'Редактировать'}
