@@ -4,6 +4,7 @@ import { TableChartTransformedProps } from './types';
 import { Styles } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
@@ -15,47 +16,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const CASE_NAME_ID = formData.variant_id;
   const slideNumber = formData.slide_number || 'slide_28';
 
-  const [projId] = React.useMemo(() => {
-    let variants: string[] = [];
-    if (Array.isArray(formData.adhoc_filters)) {
-      formData.adhoc_filters.forEach(flt => {
-        const colName = flt.col || flt.subject;
-        if (colName === CASE_NAME_FILTER_KEY) {
-          if (Array.isArray(flt.val)) {
-            variants = flt.val.map(String);
-          } else if (Array.isArray(flt.comparator)) {
-            variants = flt.comparator.map(String);
-          }
-        }
-      });
-    }
-    if (variants.length === 0 && formData.native_filters) {
-      Object.values<any>(formData.native_filters).forEach(nf => {
-        const col = typeof nf.target === 'string' ? nf.target : nf.target?.column || '';
-        const valArr: any[] = Array.isArray(nf.value)
-          ? nf.value
-          : Array.isArray(nf.currentValue)
-            ? nf.currentValue
-            : [];
-        if (col === CASE_NAME_FILTER_KEY && valArr.length) {
-          variants = valArr.map(String);
-        }
-      });
-    }
-    if (variants.length === 0 && formData.extra_form_data?.filters) {
-      formData.extra_form_data.filters.forEach((flt: any) => {
-        const col = flt.col || flt.subject || flt.field || '';
-        if (col === CASE_NAME_FILTER_KEY && Array.isArray(flt.val)) {
-          variants = flt.val.map(String);
-        }
-      });
-    }
-
-    if (variants.length === 0) return [null];
-    const name = variants[0];
-    const match = chartData.find(d => d[CASE_NAME_VARIANT] === name);
-    return [match ? match[CASE_NAME_ID as keyof typeof match] ?? null : null];
-  }, [formData, chartData]);
+  const { projId, variantId } = useProjectVariantIds(formData, chartData);
+  console.log("projId", projId, "varId", variantId);
 
   const [data, setData] = useState<{ commentary: string }>({ commentary: '' });
   const [isEditing, setIsEditing] = useState(false);
