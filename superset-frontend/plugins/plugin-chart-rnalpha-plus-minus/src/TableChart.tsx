@@ -1,5 +1,6 @@
 import React, { useEffect, createRef, useState } from 'react';
 import { styled } from '@superset-ui/core';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 // Типы данных для props
 interface HeaderColumn {
@@ -60,12 +61,16 @@ const Styles = styled.div`
 
 
 export default function SupersetPluginChartKpiCards(props) {
-  const { data, height, width, queryData, formData } = props;
+  const { data, height, width, queryData, formData, data: chartData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const url = formData.endpoint
+
+  const { projId, variantId } = useProjectVariantIds(formData, chartData);
+  console.log("projId", projId, "varId", variantId);
 
   useEffect(() => {
     console.log('Plugin props', data);
@@ -87,12 +92,13 @@ export default function SupersetPluginChartKpiCards(props) {
   // Отправка данных на сервер
   const handleSave = async () => {
     setIsSaving(true);
+    setErrorMessage(null);
     let attempts = 0;
     const maxAttempts = 5;
 
     const formResult = {
-      var_id: tableData[0].VAR_ID,
-      proj_id: tableData[0].PROJ_ID,
+      var_id: variantId,
+      proj_id: projId,
       plus: tableData[0].VAR_PLUS,
       minus: tableData[0].VAR_MINUS,
       prerequsites: tableData[0].PREREQUISITES,
@@ -116,8 +122,20 @@ export default function SupersetPluginChartKpiCards(props) {
         if (response.ok) {
           console.log('✅ Данные успешно сохранены!');
           setIsSaving(false);
+          setErrorMessage(null);
           return; // Если успех, завершаем выполнение
         } else {
+          let backendMsg = '';
+          try {
+            const { message } = await response.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch { /* тело не JSON – игнорируем */ }
+
+          if (response.status === 404) {
+            setErrorMessage(`Запись не найдена (404)${backendMsg}`); // NEW
+            break;                          // прекращаем повторные попытки
+          }
+
           console.warn(`⚠️ Ошибка при сохранении (Попытка ${attempts + 1}/${maxAttempts})`);
         }
       } catch (error) {
@@ -130,8 +148,9 @@ export default function SupersetPluginChartKpiCards(props) {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
-
-    alert('❌ Ошибка: Данные не удалось сохранить. Повторите попытку позднее...');
+    if (!errorMessage) {
+      alert('❌ Ошибка: Данные не удалось сохранить. Повторите позже…');
+    }
     setIsSaving(false);
   };
 
@@ -151,6 +170,12 @@ export default function SupersetPluginChartKpiCards(props) {
         </div>
       ) : (
         <>
+          {errorMessage && (
+            <p style={{ color: 'red', marginTop: 8 }}>
+              {errorMessage}
+            </p>
+          )}
+
           <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={handleSave}

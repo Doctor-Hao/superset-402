@@ -9,6 +9,7 @@ import RiskMatrix from './components/RiskMatrix';
 import Risk4Table from './components/Risk4Table';
 import RiskDesignations from './components/RiskDesignations';
 import Risk5Table from './components/Risk5Table';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 
 type ImpactEnum =
@@ -173,10 +174,13 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<D[]>([]);
-  const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
   const { risk_type } = formData;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);  // NEW
+
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
 
   useEffect(() => {
     // mockDATA
@@ -192,18 +196,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     if (projId) {
       // handleLoadExternalMock(projId)
       handleLoadExternal(projId);
+      setErrorMessage(null);
     }
   }, [projId]);
 
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
-  useEffect(() => {
-    if (initialData.length > 0) {
-      const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
-        setProjId(firstProjId); // Обновляем `projId`
-      }
-    }
-  }, [initialData]);
+  // useEffect(() => {
+  //   if (initialData.length > 0) {
+  //     const firstProjId = initialData[0]?.PROJ_ID;
+  //     if (firstProjId && firstProjId !== projId) {
+  //       setProjId(firstProjId); // Обновляем `projId`
+  //     }
+  //   }
+  // }, [initialData]);
 
 
   const handleLoadExternalMock = async (projId: string) => {
@@ -223,6 +228,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // ========== GET-логика ==========
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
@@ -243,6 +249,17 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
+          let backendMsg = '';
+          try {
+            const { message } = await response.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch {/* тело не JSON – игнор */ }
+
+          if (response.status === 404) {
+            setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+            break;                               // НЕ повторяем попытки
+          }
+
           console.error('Ошибка при GET-запросе, статус:', response.status);
         }
       } catch (error) {
@@ -290,10 +307,12 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // ========== PATCH-логика ==========
   const handleSave = async () => {
     if (!projId) {
+      setErrorMessage('PROJ_ID не найден');
       console.error('❌ Ошибка: PROJ_ID не найден');
       return;
     }
     setIsSaveLoading(true)
+    setErrorMessage(null);
 
     const formattedData = editedData.map((item) => {
       const safeAdditionalData = (item.additional_data?.length === 3 ? item.additional_data : generateDefaultAdditionalData());
@@ -347,9 +366,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       if (response.ok) {
         console.log('✅ Данные успешно обновлены!');
       } else {
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch { }
+
+        if (response.status === 404) {
+          setErrorMessage(`Запись не найдена (404)${backendMsg}`); // NEW
+        } else {
+          setErrorMessage(`Ошибка PATCH (${response.status})${backendMsg}`);
+        }
+
         console.error('Ошибка при PATCH-запросе, статус:', response.status);
       }
     } catch (error) {
+      setErrorMessage('Сетевая ошибка при сохранении');
       console.error('Ошибка сети при PATCH-запросе:', error);
     } finally {
       setIsSaveLoading(false)
@@ -362,6 +394,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <>
+          {errorMessage && (
+            <p style={{ color: 'red', marginTop: 8 }}>{errorMessage}</p>
+          )}
           {risk_type === 'riskDesignations' ? (
             <RiskDesignations />
           ) : risk_type === 'risk' ? (
