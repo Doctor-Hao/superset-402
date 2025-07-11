@@ -2,6 +2,7 @@ import React, { createRef, useEffect, useState } from 'react';
 import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { Styles, StyledTextArea } from './styles';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 interface Variant {
   var_id: number;
@@ -40,9 +41,12 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const { height, width, data: initialData, formData } = props;
   const [isLoading, setIsLoading] = useState(false);
   const [editedData, setEditedData] = useState<Variant[]>([]);
-  const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);  // NEW
+
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
 
   // const handleLoadExternalMock = async (projId: string) => {
   //   setIsLoading(true);
@@ -67,20 +71,21 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }, [initialData]); // Вызываем только при изменении initialData
 
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
-  useEffect(() => {
-    if (initialData.length > 0) {
-      const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
-        setProjId(firstProjId);
-      }
-    }
-  }, [initialData]);
+  // useEffect(() => {
+  //   if (initialData.length > 0) {
+  //     const firstProjId = initialData[0]?.PROJ_ID;
+  //     if (firstProjId && firstProjId !== projId) {
+  //       setProjId(firstProjId);
+  //     }
+  //   }
+  // }, [initialData]);
 
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
       // handleLoadExternalMock(projId)
       handleLoadExternal(projId);
+      setErrorMessage(null);
     }
   }, [projId]);
 
@@ -88,6 +93,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // ========== GET-логика ==========
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
@@ -108,6 +114,17 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
+          let backendMsg = '';
+          try {
+            const { message } = await response.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch {/* тело не JSON – игнор */ }
+
+          if (response.status === 404) {
+            setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+            break;                               // НЕ повторяем попытки
+          }
+
           console.error('Ошибка при GET-запросе, статус:', response.status);
         }
       } catch (error) {
@@ -130,17 +147,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {editedData.length > 0 ? (
-            editedData.map((item, index) => (
-              <div key={item.var_id ?? index}>
-                <strong>Вариант «{item.var_name}»</strong> — {item.note ? item.note : ''}
-              </div>
-            ))
-          ) : (
-            <p>Нет данных для отображения</p>
+        <>
+          {errorMessage && (
+            <p style={{ color: 'red', marginTop: 8 }}>{errorMessage}</p>
           )}
-        </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {editedData.length > 0 ? (
+              editedData.map((item, index) => (
+                <div key={item.var_id ?? index}>
+                  <strong>Вариант «{item.var_name}»</strong> — {item.note ? item.note : ''}
+                </div>
+              ))
+            ) : (
+              <p>Нет данных для отображения</p>
+            )}
+          </div>
+        </>
       )}
     </Styles>
   );

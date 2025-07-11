@@ -3,8 +3,7 @@ import { DataRecord } from '@superset-ui/core';
 import { TableChartTransformedProps } from './types';
 import { Styles, StyledTextArea } from './styles';
 import { ControlButtons } from './components/ControlButtons';
-
-
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 
 // Моковые данные
@@ -28,9 +27,12 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<Record<string, any> | undefined>();
-  const [projId, setProjId] = useState<string | null>(null);
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
 
   // const handleLoadExternalMock = async (projId: string) => {
   //   setIsLoading(true);
@@ -55,20 +57,21 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }, [initialData]); // Вызываем только при изменении initialData
 
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
-  useEffect(() => {
-    if (initialData.length > 0) {
-      const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
-        setProjId(firstProjId);
-      }
-    }
-  }, [initialData]);
+  // useEffect(() => {
+  //   if (initialData.length > 0) {
+  //     const firstProjId = initialData[0]?.PROJ_ID;
+  //     if (firstProjId && firstProjId !== projId) {
+  //       setProjId(firstProjId);
+  //     }
+  //   }
+  // }, [initialData]);
 
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
     if (projId) {
       // handleLoadExternalMock(projId)
       handleLoadExternal(projId);
+      setErrorMessage(null);
     }
   }, [projId]);
 
@@ -76,6 +79,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   // ========== GET-логика ==========
   const handleLoadExternal = async (projId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
@@ -96,6 +100,16 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           console.log('✅ Внешние данные получены');
           break; // прерываем цикл при успехе
         } else {
+          let backendMsg = '';
+          try {
+            const { message } = await response.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch {/* тело не JSON – игнор */ }
+
+          if (response.status === 404) {
+            setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+            break;                               // НЕ повторяем попытки
+          }
           console.error('Ошибка при GET-запросе, статус:', response.status);
         }
       } catch (error) {
@@ -120,6 +134,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       return;
     }
     setIsSaveLoading(true)
+    setErrorMessage(null);
 
     const requestBody = {
       proj_id: projId,
@@ -137,6 +152,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
       if (response.ok) {
         console.log('✅ Данные успешно обновлены!');
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch {/* тело не JSON – игнор */ }
+
+        if (response.status === 404) {
+          setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+        }
       } else {
         console.error('Ошибка при PATCH-запросе, статус:', response.status);
       }
@@ -167,6 +191,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <>
+          {errorMessage && (
+            <p style={{ color: 'red', marginTop: 8 }}>{errorMessage}</p>
+          )}
           <ControlButtons
             isSaving={isSaveLoading}
             onSave={handleSave}

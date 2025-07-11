@@ -4,6 +4,7 @@ import { TableChartTransformedProps } from './types';
 import { Styles } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 // Новый тип данных
 interface Paragraph {
@@ -69,18 +70,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isEditing, setIsEditing] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<ProtocolRow[]>([]);
-  const [projId, setProjId] = useState<number | null>(null);
-
   const [deletedIds, setDeletedIds] = useState<number[]>([]);
   const [showPastePopup, setShowPastePopup] = useState(false);
   const [clipboardInput, setClipboardInput] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
 
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
+
   // Загрузка данных
   const handleLoadExternal = async (projId: number) => {
     setIsLoading(true);
+    setErrorMessage(null);
+
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     const maxAttempts = 5;
     let attempts = 0;
@@ -94,8 +99,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           const dataFromGet: ProtocolData = await response.json();
           setEditedData(dataFromGet.data);
           break;
+        } else {
+          let backendMsg = '';
+          try {
+            const { message } = await response.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch {/* тело не JSON – игнор */ }
+
+          if (response.status === 404) {
+            setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+            break;                               // НЕ повторяем попытки
+          }
+
+          console.error('Ошибка при GET-запросе, статус:', response.status);
         }
       } catch (error) {
+
         console.error('Ошибка загрузки данных:', error);
       }
       attempts += 1;
@@ -108,6 +127,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const handleSave = async () => {
     if (projId === null) return;
     setIsSaveLoading(true);
+    setErrorMessage(null);
+
     try {
       // DELETE
       if (deletedIds.length) {
@@ -116,6 +137,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           try {
             await fetch(`${process.env.BACKEND_URL}${url}/${id}/paragraph`, { method: 'DELETE' });
           } catch (err) {
+            setErrorMessage(`Ошибка DELETE (${err.message}`);
             console.error('Ошибка удаления протокола:', id, err);
           }
         }
@@ -145,6 +167,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               body: JSON.stringify(postBody),
             });
           } catch (err) {
+            setErrorMessage(`Ошибка POST (${err.message}`);
             console.error('Ошибка создания параграфов (POST):', err);
           }
         }
@@ -180,6 +203,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
             body: JSON.stringify(patchBody),
           });
         } catch (err) {
+          setErrorMessage(`Ошибка PATCH (${err.message}`);
           console.error('Ошибка обновления протокола (PATCH):', patchBody, err);
         }
       }
@@ -279,23 +303,24 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   };
 
   // useEffect для загрузки данных
-  useEffect(() => {
-    if (initialData.length > 0 && typeof initialData[0]?.PROJ_ID === 'number') {
-      setProjId(initialData[0].PROJ_ID);
-      //   setEditedData(
-      //     Array.isArray(initialData[0].data)
-      //       ? initialData[0].data
-      //       : mockData.data,
-      //   );
-      // } else {
-      //   setProjId(mockData.proj_id);
-      //   setEditedData(mockData.data);
-    }
-  }, [initialData]);
+  // useEffect(() => {
+  // if (initialData.length > 0 && typeof initialData[0]?.PROJ_ID === 'number') {
+  // setProjId(initialData[0].PROJ_ID);
+  //   setEditedData(
+  //     Array.isArray(initialData[0].data)
+  //       ? initialData[0].data
+  //       : mockData.data,
+  //   );
+  // } else {
+  //   setProjId(mockData.proj_id);
+  //   setEditedData(mockData.data);
+  // }
+  // }, [initialData]);
 
   useEffect(() => {
-    if (projId !== null) {
+    if (projId) {
       handleLoadExternal(projId); // подгружать с сервера
+      setErrorMessage(null);
     }
   }, [projId]);
 
@@ -305,6 +330,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         <p>Загрузка...</p>
       ) : (
         <>
+          {errorMessage && (
+            <p style={{ color: 'red', marginTop: 8 }}>{errorMessage}</p>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex' }}>
               <button

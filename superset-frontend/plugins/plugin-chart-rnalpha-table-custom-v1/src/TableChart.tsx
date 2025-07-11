@@ -10,6 +10,7 @@ import { ControlButtons } from './components/ControlButtons';
 
 import { useExternalData } from './hooks/useExternalData';
 import { useInternalData } from './hooks/useInternalData';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 interface DataRow {
   [key: string]: string | number | null;
@@ -18,7 +19,7 @@ interface DataRow {
 export default function TableChart<D extends DataRecord = DataRecord>(
   props: TableChartTransformedProps<D>,
 ) {
-  const { data, height, width, endpoint, formData } = props;
+  const { data, height, width, endpoint, formData, data: initialData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
   const [tableData, setTableData] = useState<DataRow[]>([]);
@@ -28,6 +29,9 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   );
   const [mappingArray, setMappingArray] = useState<any[]>([]);
   const { isSaving, handleSave } = useInternalData(endpoint);
+
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
 
 
   // Загрузка из props
@@ -69,7 +73,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     isLoading,
     handleLoadExternal,
     handleSaveExternal,
-  } = useExternalData(endpoint, mappingArray, tableData);
+  } = useExternalData(endpoint, mappingArray, tableData, projId, variantId);
 
 
   // Получаем hiddenIndexes (из formData)

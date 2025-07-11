@@ -4,6 +4,7 @@ import { TableChartTransformedProps } from './types';
 import { AddDescriptionButton, Styles, VariantCell } from './styles';
 import { ControlButtons } from './components/ControlButtons';
 import AutoResizeTextArea from './components/AutoResizeTextArea';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
 
 interface ProjectVariant {
   var_id: number;
@@ -76,13 +77,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const [isEditing, setIsEditing] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [editedData, setEditedData] = useState<ProjectVariant[]>([]);
-  const [projId, setProjId] = useState<string | null>(null);
   const [selectedVariants, setSelectedVariants] = useState<string[] | undefined>(undefined);
   const [idsToDelete, setIdsToDelete] = useState<number[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const rootElem = createRef<HTMLDivElement>();
   const url = formData.endpoint;
+
+  const { projId, variantId } = useProjectVariantIds(formData, initialData);
+  console.log("projId", projId, "varId", variantId);
 
   useEffect(() => {
     if (initialData.length > 0) {
@@ -115,14 +118,14 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   }, [initialData]); // Вызываем только при изменении initialData
 
   // 1️⃣ Обновляем `projId`, когда изменяется `initialData`
-  useEffect(() => {
-    if (initialData.length > 0) {
-      const firstProjId = initialData[0]?.PROJ_ID;
-      if (firstProjId && firstProjId !== projId) {
-        setProjId(firstProjId);
-      }
-    }
-  }, [initialData]);
+  // useEffect(() => {
+  //   if (initialData.length > 0) {
+  //     const firstProjId = initialData[0]?.PROJ_ID;
+  //     if (firstProjId && firstProjId !== projId) {
+  //       setProjId(firstProjId);
+  //     }
+  //   }
+  // }, [initialData]);
 
   // 2️⃣ Загружаем данные после обновления `projId`
   useEffect(() => {
@@ -131,6 +134,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       // handleLoadExternalMock(projId)
 
       handleLoadExternal(projId);
+      setErrorMessage(null);
     }
   }, [projId]);
 

@@ -30,7 +30,7 @@ import { useState } from 'react';
  * то значения по этим колонкам (во всех строках tableData) будут отправляться как /val1/val2/val3
  */
 
-export function useExternalData(endpoint: string, mapping: any[], tableData: any[]) {
+export function useExternalData(endpoint: string, mapping: any[], tableData: any[], projId: number | null, variantId: number | null) {
     const [externalData, setExternalData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -65,40 +65,27 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
         });
 
         // Формируем url: /endpoint/val1/val2/...
-        const urlWithPath = values.length
-            ? `${endpoint}/${values.join('/')}`
-            : endpoint;
+        // const urlWithPath = values.length
+        //     ? `${endpoint}/${values.join('/')}`
+        //     : endpoint;
 
-        console.log('GET urlWithPath:', urlWithPath);
+        console.log('GET urlWithPath:', endpoint);
 
         // Пример retry в 5 попыток
-        const maxAttempts = 5;
-        let attempts = 0;
-
-        while (attempts < maxAttempts) {
-            try {
-                const response = await fetch(`${process.env.BACKEND_URL}${urlWithPath}`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                if (response.ok) {
-                    const dataFromGet = await response.json();
-                    setExternalData(dataFromGet);
-                    console.log('✅ Внешние данные получены');
-                    break; // прерываем цикл при успехе
-                } else {
-                    console.error('Ошибка при GET-запросе, статус:', response.status);
-                }
-            } catch (error) {
-                console.error('Ошибка сети при GET-запросе:', error);
-            }
-            attempts++;
-            if (attempts < maxAttempts) {
-                console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
-                await new Promise(res => setTimeout(res, 2000));
+        try {
+            const response = await fetch(`${process.env.BACKEND_URL}${endpoint}/${projId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (response.ok) {
+                const dataFromGet = await response.json();
+                setExternalData(dataFromGet);
+                console.log('✅ Внешние данные получены');
             } else {
-                console.error('❌ GET-запрос завершился неудачно после 5 попыток');
+                console.error('Ошибка при GET-запросе, статус:', response.status);
             }
+        } catch (error) {
+            console.error('Ошибка сети при GET-запросе:', error);
         }
 
         setIsLoading(false);
@@ -113,7 +100,7 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
         }
 
         // Создаём копию
-        const payload = { ...externalData };
+        let payload = { ...externalData };
 
         mapping.forEach((mapItem: any) => {
             const originalColumn = Object.keys(mapItem)[0];
@@ -126,35 +113,23 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
                 }
             }
         });
+        payload = { ...payload, proj_id: projId, var_id: variantId };
 
         console.log('PATCH payload:', payload);
 
-        const maxAttempts = 5;
-        let attempts = 0;
-
-        while (attempts < maxAttempts) {
-            try {
-                const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                if (response.ok) {
-                    console.log('✅ Внешние данные успешно сохранены');
-                    break;
-                } else {
-                    console.error('Ошибка при сохранении внешних данных, статус:', response.status);
-                }
-            } catch (error) {
-                console.error('Ошибка сети при PATCH-запросе:', error);
-            }
-            attempts++;
-            if (attempts < maxAttempts) {
-                console.log(`🔄 Повторная попытка PATCH-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
-                await new Promise(res => setTimeout(res, 2000));
+        try {
+            const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (response.ok) {
+                console.log('✅ Внешние данные успешно сохранены');
             } else {
-                console.error('❌ PATCH-запрос завершился неудачно после 5 попыток');
+                console.error('Ошибка при сохранении внешних данных, статус:', response.status);
             }
+        } catch (error) {
+            console.error('Ошибка сети при PATCH-запросе:', error);
         }
     };
 
