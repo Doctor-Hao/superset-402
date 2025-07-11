@@ -230,21 +230,22 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
         if (resPost.ok) {
           console.log('✅ POST отправлен:', postPayload);
+        } else {
+          let backendMsg = '';
+          try {
+            const { message } = await resPost.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch { /* тело не JSON — игнорируем */ }
+
+          if (resPost.status === 404) {
+            setErrorMessage(`Запись для POST не найдена (404)${backendMsg}`);
+          }
+
+          // другие статусы – выбрасываем общее исключение
+          throw new Error(`POST failed (${resPost.status})${backendMsg}`);
         }
 
-        // ---------- обработка ошибок ----------
-        let backendMsg = '';
-        try {
-          const { message } = await resPost.clone().json();
-          backendMsg = message ? `: ${message}` : '';
-        } catch { /* тело не JSON — игнорируем */ }
 
-        if (resPost.status === 404) {
-          setErrorMessage(`Запись для POST не найдена (404)${backendMsg}`);
-        }
-
-        // другие статусы – выбрасываем общее исключение
-        throw new Error(`POST failed (${resPost.status})${backendMsg}`);
       } catch (err) {
         console.error('❌ Ошибка POST:', err);
         alert('Ошибка при добавлении новых записей');
@@ -276,22 +277,21 @@ export default function TableChart<D extends DataRecord = DataRecord>(
         if (resPatch.ok) {
           console.log('✅ PATCH отправлен:', patchItem);
           continue;
+        } else {
+          let backendMsg = '';
+          try {
+            const { message } = await resPatch.clone().json();
+            backendMsg = message ? `: ${message}` : '';
+          } catch { /* тело не JSON — игнорируем */ }
+
+          if (resPatch.status === 404) {
+            setErrorMessage(`Запись для PATCH не найдена (404)${backendMsg}`);
+            break;
+          }
+
+          // другие статусы – выбрасываем общее исключение
+          throw new Error(`PATCH failed (${resPatch.status})${backendMsg}`);
         }
-
-        // ---------- обработка ошибок ----------
-        let backendMsg = '';
-        try {
-          const { message } = await resPatch.clone().json();
-          backendMsg = message ? `: ${message}` : '';
-        } catch { /* тело не JSON — игнорируем */ }
-
-        if (resPatch.status === 404) {
-          setErrorMessage(`Запись для PATCH не найдена (404)${backendMsg}`);
-          break;
-        }
-
-        // другие статусы – выбрасываем общее исключение
-        throw new Error(`PATCH failed (${resPatch.status})${backendMsg}`);
       } catch (err) {
         console.error('❌ PATCH error:', err);
         alert('Ошибка при обновлении записей');
