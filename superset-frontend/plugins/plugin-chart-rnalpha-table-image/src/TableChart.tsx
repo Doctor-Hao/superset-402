@@ -112,7 +112,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     while (attempts < maxAttempts) {
       try {
         const res = await fetch(
-          `http://10.205.110.59:443/picture/foto/download/${variantId}/${dashboardId}`,
+          `https://bnipi-kin-app-prop.rosneft.ru:6886/alpha_photo/foto/download/${variantId}/${dashboardId}`,
         );
 
         if (res.ok) {
