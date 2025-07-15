@@ -65,15 +65,15 @@ export function useExternalData(endpoint: string, mapping: any[], tableData: any
         });
 
         // Формируем url: /endpoint/val1/val2/...
-        // const urlWithPath = values.length
-        //     ? `${endpoint}/${values.join('/')}`
-        //     : endpoint;
+        const urlWithPath = values.length
+            ? `${endpoint}/${values.join('/')}`
+            : endpoint;
 
-        console.log('GET urlWithPath:', endpoint);
+        console.log('GET urlWithPath:', urlWithPath);
 
         // Пример retry в 5 попыток
         try {
-            const response = await fetch(`${process.env.BACKEND_URL}${endpoint}/${projId}`, {
+            const response = await fetch(`${process.env.BACKEND_URL}${urlWithPath}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
