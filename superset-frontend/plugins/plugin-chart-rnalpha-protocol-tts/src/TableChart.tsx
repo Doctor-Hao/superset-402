@@ -542,6 +542,37 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
             </div>
           ))}
+          {editedData.length === 0 && isEditing && (
+            <div style={{ margin: '20px 0' }}>
+              <button
+                className="icon-button edit"
+                onClick={() => {
+                  // Добавить новый протокол с пустым параграфом
+                  const newProtocolId = Date.now();
+                  setEditedData(prev => [
+                    ...prev,
+                    {
+                      id: newProtocolId,
+                      description: 'Новый протокол',
+                      paragraphs: [
+                        {
+                          isNew: true,
+                          id: Date.now() + 1,
+                          decision_desc: '-',
+                          deadline: '-',
+                          responsible_empl: '-',
+                          decision_status: '-',
+                          comment_protocol: '-',
+                        },
+                      ],
+                    },
+                  ]);
+                }}
+              >
+                ➕ Добавить протокол и строку
+              </button>
+            </div>
+          )}
         </>
       )}
     </Styles>

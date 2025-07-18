@@ -89,7 +89,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   useEffect(() => {
     if (initialData.length > 0) {
-      const allNames = initialData.map(row => row.VAR_NAME).filter(Boolean);
+      const allNames = initialData.map(row => row.CASE_NAME).filter(Boolean);
       setSelectedVariants(allNames);
     }
   }, [initialData]);

@@ -145,7 +145,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           <ControlButtons
             isSaving={isSaving || isLoading}
             onSave={onSaveExternalData}
-            onAddRow={handleAddRow}
+            onAddRow={formData.add_new_row ? handleAddRow : undefined}
           />
           <ExternalTable
             externalData={externalData}

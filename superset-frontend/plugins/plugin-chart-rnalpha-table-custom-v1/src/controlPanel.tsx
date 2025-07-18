@@ -116,6 +116,17 @@ const config = {
         ],
         [
           {
+            name: 'add_new_row',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Добавить новую строку'),
+              description: t('Если галочка установлена, добавляется кнопка Добавить строку в таблицу'),
+              default: false,
+            },
+          },
+        ],
+        [
+          {
             name: 'send_as_array',
             config: {
               type: 'CheckboxControl',

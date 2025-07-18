@@ -233,45 +233,30 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     const urlGet = `${process.env.BACKEND_URL}${url}/${projId}`;
     console.log(`🔗 GET запрос: ${url}`);
 
-    // Пример retry в 5 попыток
-    const maxAttempts = 5;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetch(urlGet, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (response.ok) {
-          const dataFromGet = await response.json();
-          setEditedData(dataFromGet.data);
-          console.log('✅ Внешние данные получены');
-          break; // прерываем цикл при успехе
-        } else {
-          let backendMsg = '';
-          try {
-            const { message } = await response.clone().json();
-            backendMsg = message ? `: ${message}` : '';
-          } catch {/* тело не JSON – игнор */ }
-
-          if (response.status === 404) {
-            setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
-            break;                               // НЕ повторяем попытки
-          }
-
-          console.error('Ошибка при GET-запросе, статус:', response.status);
-        }
-      } catch (error) {
-        console.error('Ошибка сети при GET-запросе:', error);
-      }
-      attempts++;
-      if (attempts < maxAttempts) {
-        console.log(`🔄 Повторная попытка GET-запроса через 2 секунды... (${attempts}/${maxAttempts})`);
-        await new Promise(res => setTimeout(res, 2000));
+    try {
+      const response = await fetch(urlGet, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const dataFromGet = await response.json();
+        setEditedData(dataFromGet.data);
+        console.log('✅ Внешние данные получены');
       } else {
-        console.error('❌ GET-запрос завершился неудачно после 5 попыток');
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch {/* тело не JSON – игнор */ }
+
+        if (response.status === 404) {
+          setErrorMessage(`Данные не найдены (404)${backendMsg}`); // NEW
+        }
+
+        console.error('Ошибка при GET-запросе, статус:', response.status);
       }
+    } catch (error) {
+      console.error('Ошибка сети при GET-запросе:', error);
     }
 
     setIsLoading(false);

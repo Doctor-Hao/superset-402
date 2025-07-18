@@ -1,6 +1,7 @@
 import React, { useEffect, createRef, useState } from 'react';
 import { styled } from '@superset-ui/core';
 import { useProjectVariantIds } from './hooks/useProjectVariantIds';
+import AutoResizeTextArea from './components/AutoResizeTextArea';
 
 // Типы данных для props
 interface HeaderColumn {
@@ -10,8 +11,11 @@ interface HeaderColumn {
   children?: HeaderColumn[];
 }
 
-interface DataRow {
-  [key: string]: string | number | null;
+interface ProjectVariant {
+  var_name: string;
+  plus: string;
+  minus: string;
+  prerequsites: string;
 }
 
 const Styles = styled.div`
@@ -64,7 +68,8 @@ export default function SupersetPluginChartKpiCards(props) {
   const { data, height, width, queryData, formData, data: chartData } = props;
   const rootElem = createRef<HTMLDivElement>();
 
-  const [tableData, setTableData] = useState<DataRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editedData, setEditedData] = useState<ProjectVariant | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const url = formData.endpoint
@@ -72,84 +77,123 @@ export default function SupersetPluginChartKpiCards(props) {
   const { projId, variantId } = useProjectVariantIds(formData, chartData);
   console.log("projId", projId, "varId", variantId);
 
-  useEffect(() => {
-    console.log('Plugin props', data);
+  // useEffect(() => {
+  // console.log('Plugin props', data);
 
-    if (data) {
-      setTableData([...data]); // Копируем массив, чтобы избежать мутаций
+  // if (data) {
+  // setEditedData([...data]);
+  // setErrorMessage(null);
+  // }
+  // }, [data]);
+
+  useEffect(() => {
+    if (projId) {
+      // mockDATA
+      // handleLoadExternalMock(projId)
+
+      handleLoadExternal(projId);
+      setErrorMessage(null);
     }
-  }, [data]);
+  }, [projId]);
 
   // Обработчик изменения значения в textarea
   const handleInputChange = (rowIndex, field, value) => {
-    setTableData(prevData =>
+    setEditedData(prevData =>
       prevData.map((row, index) =>
         index === rowIndex ? { ...row, [field]: value } : row,
       ),
     );
   };
 
+  // ========== GET-логика ==========
+  const handleLoadExternal = async (projId: string) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    const urlGet = `${process.env.BACKEND_URL}${url}/${projId}/${variantId}`;
+    console.log(`🔗 GET запрос: ${url}`);
+
+    try {
+      const response = await fetch(urlGet, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const dataFromGet: ProjectVariant = await response.json();
+        setEditedData(dataFromGet);
+        console.log('✅ Внешние данные получены');
+      } else {
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch {
+          /* тело не JSON — игнорируем */
+        }
+        if (response.status === 404) {
+          setErrorMessage(`Запрошенные данные не найдены (404)${backendMsg}`);
+        }
+        console.error('Ошибка при GET-запросе, статус:', response.status);
+      }
+    } catch (error: any) {
+      alert(`Ошибка получения GET: ${error.message}`);
+    }
+
+    setIsLoading(false);
+  };
+
+
   // Отправка данных на сервер
   const handleSave = async () => {
     setIsSaving(true);
     setErrorMessage(null);
-    let attempts = 0;
-    const maxAttempts = 5;
 
     const formResult = {
       var_id: variantId,
       proj_id: projId,
-      plus: tableData[0].VAR_PLUS,
-      minus: tableData[0].VAR_MINUS,
-      prerequsites: tableData[0].PREREQUISITES,
+      plus: editedData?.plus || '',
+      minus: editedData?.minus || '',
+      prerequsites: editedData?.prerequsites || '',
     };
 
     console.log("📤 Отправка данных...", formResult);
 
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetch(
-          `${process.env.BACKEND_URL}${url}`,
-          {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formResult),
-          }
-        );
-
-        if (response.ok) {
-          console.log('✅ Данные успешно сохранены!');
-          setIsSaving(false);
-          setErrorMessage(null);
-          return; // Если успех, завершаем выполнение
-        } else {
-          let backendMsg = '';
-          try {
-            const { message } = await response.clone().json();
-            backendMsg = message ? `: ${message}` : '';
-          } catch { /* тело не JSON – игнорируем */ }
-
-          if (response.status === 404) {
-            setErrorMessage(`Запись не найдена (404)${backendMsg}`); // NEW
-            break;                          // прекращаем повторные попытки
-          }
-
-          console.warn(`⚠️ Ошибка при сохранении (Попытка ${attempts + 1}/${maxAttempts})`);
+    try {
+      const response = await fetch(
+        `${process.env.BACKEND_URL}${url}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formResult),
         }
-      } catch (error) {
-        console.error(`🚨 Ошибка сети (Попытка ${attempts + 1}/${maxAttempts}):`, error);
-      }
+      );
 
-      attempts += 1;
-      if (attempts < maxAttempts) {
-        console.log(`🔄 Повторная попытка через 2 секунды... (${attempts}/${maxAttempts})`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      if (response.ok) {
+        console.log('✅ Данные успешно сохранены!');
+        setIsSaving(false);
+        setErrorMessage(null);
+        return; // Если успех, завершаем выполнение
+      } else {
+        let backendMsg = '';
+        try {
+          const { message } = await response.clone().json();
+          backendMsg = message ? `: ${message}` : '';
+        } catch { /* тело не JSON – игнорируем */ }
+
+        if (response.status === 404) {
+          setErrorMessage(`Запись не найдена (404)${backendMsg}`);
+        }
+
       }
+    } catch (error) {
+      console.error('❌ Ошибка при PATCH-запросе:', error);
+      setErrorMessage(`Ошибка при сохранении данных: ${error.message}`);
     }
+
     if (!errorMessage) {
-      alert('❌ Ошибка: Данные не удалось сохранить. Повторите позже…');
+      setErrorMessage(`Ошибка при сохранении данных: ${errorMessage}`);
     }
     setIsSaving(false);
   };
@@ -164,18 +208,18 @@ export default function SupersetPluginChartKpiCards(props) {
 
   return (
     <Styles ref={rootElem} height={height} width={width}>
-      {tableData.length > 1 ? (
-        <div style={{ textAlign: 'center', padding: '20px', fontSize: '16px', fontWeight: 'bold' }}>
-          Выберите только 1 вариант и 1 проект
-        </div>
-      ) : (
-        <>
-          {errorMessage && (
-            <p style={{ color: 'red', marginTop: 8 }}>
-              {errorMessage}
-            </p>
-          )}
+      {isLoading ? (
+        <p>Загрузка...</p>
+      ) : null}
 
+      {!isLoading && errorMessage && (
+        <p style={{ color: 'red', marginTop: 8 }}>
+          {errorMessage}
+        </p>
+      )}
+
+      {!isLoading && editedData ? (
+        <>
           <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={handleSave}
@@ -212,25 +256,19 @@ export default function SupersetPluginChartKpiCards(props) {
           <div>
             <table>
               <thead>
-                <tr>
-                  <th>Предпосылки варианта</th>
-                </tr>
+                <tr><th>Предпосылки варианта</th></tr>
               </thead>
               <tbody>
-                {tableData.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    <td>
-                      <textarea
-                        value={row.PREREQUISITES || ''}
-                        onChange={e => {
-                          handleInputChange(rowIndex, 'PREREQUISITES', e.target.value);
-                          adjustHeight(e.target);
-                        }}
-                        ref={textarea => textarea && adjustHeight(textarea)}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td>
+                    <textarea
+                      value={editedData.prerequsites}
+                      onChange={e =>
+                        setEditedData({ ...editedData, prerequsites: e.target.value })
+                      }
+                    />
+                  </td>
+                </tr>
               </tbody>
             </table>
 
@@ -242,30 +280,24 @@ export default function SupersetPluginChartKpiCards(props) {
                 </tr>
               </thead>
               <tbody>
-                {tableData.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    <td>
-                      <textarea
-                        value={row.VAR_PLUS || ''}
-                        onChange={e => {
-                          handleInputChange(rowIndex, 'VAR_PLUS', e.target.value);
-                          adjustHeight(e.target);
-                        }}
-                        ref={textarea => textarea && adjustHeight(textarea)}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        value={row.VAR_MINUS || ''}
-                        onChange={e => {
-                          handleInputChange(rowIndex, 'VAR_MINUS', e.target.value);
-                          adjustHeight(e.target);
-                        }}
-                        ref={textarea => textarea && adjustHeight(textarea)}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td>
+                    <textarea
+                      value={editedData.plus}
+                      onChange={e =>
+                        setEditedData({ ...editedData, plus: e.target.value })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <textarea
+                      value={editedData.minus}
+                      onChange={e =>
+                        setEditedData({ ...editedData, minus: e.target.value })
+                      }
+                    />
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -279,7 +311,7 @@ export default function SupersetPluginChartKpiCards(props) {
           `}
           </style>
         </>
-      )}
+      ) : null}
     </Styles>
   );
 }

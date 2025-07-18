@@ -53,7 +53,8 @@ const compareRiskNum = (a: Risk, b: Risk) => {
 const Risk2Table: React.FC<Risk2TableProps> = ({ data, onChange, onSave, isSaving }) => {
     const [isEditing, setIsEditing] = useState(false); // Режим редактирования
 
-    const sortedData = useMemo(() => [...data].sort(compareRiskNum), [data]);
+    // const sortedData = useMemo(() => [...data].sort(compareRiskNum), [data]);
+    const sortedData = data;
 
     // 🛠 Генерация `groupId` для `risk_direction`
     const generateGroupId = (() => {

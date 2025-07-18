@@ -106,32 +106,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
   const fetchImages = async () => {
     setIsLoading(true);
 
-    const maxAttempts = 5;
-    let attempts = 0;
+    try {
+      const res = await fetch(
+        `https://bnipi-kin-app-prop.rosneft.ru:6886/alpha_photo/foto/download/${variantId}/${dashboardId}`,
+      );
 
-    while (attempts < maxAttempts) {
-      try {
-        const res = await fetch(
-          `https://bnipi-kin-app-prop.rosneft.ru:6886/alpha_photo/foto/download/${variantId}/${dashboardId}`,
-        );
-
-        if (res.ok) {
-          const json = await res.json();
-          setTableData([{ image: json.image }]);
-          break;
-        } else {
-          console.warn('Fetch error status:', res.status);
-        }
-      } catch (err) {
-        console.error('Fetch error:', err);
+      if (res.ok) {
+        const json = await res.json();
+        setTableData([{ image: json.image }]);
+      } else {
+        console.warn('Fetch error status:', res.status);
       }
-
-      attempts++;
-      await new Promise(res => setTimeout(res, 2000));
-    }
-
-    if (attempts === maxAttempts) {
-      setTableData([{ image: null }]);
+    } catch (err) {
+      console.error('Fetch error:', err);
     }
 
     setIsLoading(false);
