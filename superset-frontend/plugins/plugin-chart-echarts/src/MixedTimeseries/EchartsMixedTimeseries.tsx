@@ -17,7 +17,6 @@
  * under the License.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-// import Draggable from 'react-draggable';
 
 import {
   AxisType,
@@ -33,6 +32,8 @@ import { EchartsMixedTimeseriesChartTransformedProps } from './types';
 import Echart from '../components/Echart';
 import { EventHandlers } from '../types';
 import { formatSeriesName } from '../utils/series';
+import { useProjectVariantIds } from './hooks/useProjectVariantIds';
+import Draggable from './components/Draggable';
 
 const StyledTextArea = styled.textarea`
   width: 100%;
@@ -46,20 +47,77 @@ const StyledTextArea = styled.textarea`
   overflow: hidden;
   background: transparent;
   outline: none;
-
-  &:hover {
-    resize: vertical; /* При наведении появляется возможность вертикального ресайза */
-  }
 `;
 
-type CommentItem = {
-  comm_id: number;
-  var_id: number;
-  comm_type: string;
+let uid = 0;
+
+export const genTempId = () =>
+  `t${Date.now().toString(36)}_${(uid++).toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 6)}`;
+
+export interface CommentBody {
+  id?: number;
+  x_coord: number;
+  y_coord: number;
+  prof_design_type: 'ppn' | 'ppv' | 'other';
   description: string;
-  x: number;
-  y: number;
-};
+}
+
+export interface CommentaryPayload {
+  var_id: number;
+  data: CommentBody[];
+}
+
+export type CommentItem = CommentBody & {
+  tempId?: string;
+  x_pct: number;
+  y_pct: number;
+}
+
+const ENDPOINT = '/variant/profile_design/commentary';
+
+type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+
+export async function request<T>(
+  method: HttpMethod,
+  endpoint: string,
+  body?: unknown,
+): Promise<T> {
+  const fetchOptions: RequestInit = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+  const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, fetchOptions);
+
+  if (!response.ok) {
+    let backendMsg = '';
+    try {
+      const { message } = await response.clone().json();
+      backendMsg = message ? `: ${message}` : '';
+    } catch {
+      /* тело не JSON – игнор */
+    }
+    throw new Error(`HTTP ${response.status}${backendMsg}`);
+  }
+
+  return response.json();
+}
+
+export const getComments = (varId: number) =>
+  request<{ data: CommentBody[] }>('GET', `${ENDPOINT}/${varId}`);
+
+export const createComments = (payload: CommentaryPayload) =>
+  request<{ data: CommentBody[] }>('POST', ENDPOINT, payload);
+
+export const patchComments = (payload: CommentaryPayload) =>
+  request<{ data: CommentBody[] }>('PATCH', ENDPOINT, payload);
+
+export const deleteComment = (commentId: number) =>
+  request<void>('DELETE', `${ENDPOINT}/${commentId}`);
 
 export default function EchartsMixedTimeseries({
   height,
@@ -80,13 +138,59 @@ export default function EchartsMixedTimeseries({
   xAxis,
   refs,
   coltypeMapping,
+  queriesData,
 }: EchartsMixedTimeseriesChartTransformedProps) {
   const isFirstQuery = useCallback(
     (seriesIndex: number) => seriesIndex < seriesBreakdown,
     [seriesBreakdown],
   );
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // const [comments, setComments] = useState<CommentItem[]>([]);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { projId, variantId: rawVariantId } = useProjectVariantIds(formData, queriesData);
+  const variantId = React.useMemo<number | undefined>(() => {
+    if (rawVariantId == null) return undefined;
+    return typeof rawVariantId === 'string' ? Number(rawVariantId) : rawVariantId;
+  }, [rawVariantId]);
+
+  console.log("projId", projId, "varId", variantId);
+
+
+
+  useEffect(() => {
+    if (!formData.showComments || variantId === undefined) return;
+    setLoading(true);
+    getComments(variantId)
+      .then(({ data }: { data: CommentItem[] }) => setComments(data))
+      .finally(() => setLoading(false));
+  }, [variantId, formData.showComments]);
+
+  const [, force] = useState({});
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver(() => force({})); // триггерит перерисовку
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const toPixels = (c: CommentItem) => {
+    const el = containerRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const { width: w, height: h } = el.getBoundingClientRect();
+    return { x: c.x_pct * w, y: c.y_pct * h };
+  };
+
+  const toPercents = (x: number, y: number) => {
+    const el = containerRef.current;
+    if (!el) return { x_pct: 0, y_pct: 0 };
+    const { width: w, height: h } = el.getBoundingClientRect();
+    return { x_pct: x / w, y_pct: y / h };
+  };
 
   // useEffect(() => {
   //   if (formData.showComments) {
@@ -106,7 +210,6 @@ export default function EchartsMixedTimeseries({
   //       });
   //   }
   // }, [formData.showComments]);
-
 
 
 
@@ -246,6 +349,90 @@ export default function EchartsMixedTimeseries({
     },
   };
 
+  const addEmptyComment = () => {
+    if (variantId === undefined) return;
+
+    // ставим в левый-верхний угол (20 px, 20 px)
+    const { x_pct, y_pct } = toPercents(20, 20);
+
+    const temp: CommentItem = {
+      tempId: genTempId(),
+      x_coord: 20,          // не критично, но оставим для POST (бэк всё равно примет проценты)
+      y_coord: 20,
+      x_pct,
+      y_pct,
+      prof_design_type: 'ppn',
+      description: 'Новый комментарий',
+    };
+
+    setComments(prev => [...prev, temp]);
+
+    createComments({ var_id: variantId, data: [temp] })
+      .then(({ data }) =>
+        setComments(prev => prev.map(c => (c.tempId === temp.tempId ? data[0] : c))),
+      )
+      .catch(console.error);
+  };
+
+  const handleSave = async () => {
+    if (variantId === undefined) return;
+    setSaving(true);
+    try {
+      const payload: CommentaryPayload = {
+        var_id: variantId,
+        data: comments.map(({ tempId, x_pct, y_pct, …rest }) => ({
+          ...rest,
+          x_coord: x_pct,
+          y_coord: y_pct,
+        })),
+      };
+      console.log("handleSave", payload)
+      await patchComments(payload);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = (idx: number) => {
+    setComments(cs => {
+      const target = cs[idx];
+      const rest = cs.filter((_, i) => i !== idx);
+
+      // optimistic UI: убираем сразу
+      if (target.id) {
+        deleteComment(target.id).catch(err => {
+          alert(`❌ Не удалось удалить: ${err.message}`);
+          // откатываем, если сервер упал
+          setComments(prev => [...prev.slice(0, idx), target, ...prev.slice(idx)]);
+        });
+      }
+      return rest;
+    });
+  };
+
+  const onDragStop = (idx: number, pos: { x: number; y: number }) => {
+    const { width: w, height: h } = containerRef.current!.getBoundingClientRect();
+    setComments(cs => {
+      const copy = [...cs];
+      copy[idx] = {
+        ...copy[idx],
+        x_pct: pos.x / w,
+        y_pct: pos.y / h,
+      };
+      return copy;
+    });
+  };
+
+
+  const onBlur = (idx: number, text: string) => {
+    setComments(cs => {
+      const copy = [...cs];
+      copy[idx] = { ...copy[idx], description: text };
+      return copy;
+    });
+  };
+
+
   // Подстройка высоты textarea
   // const autoResize = (textarea: HTMLTextAreaElement) => {
   //   textarea.style.height = 'auto';
@@ -253,33 +440,45 @@ export default function EchartsMixedTimeseries({
   // };
 
   return (
-    <div style={{ position: 'relative', height, width }}>
-      {/* {formData.showComments && (
-        <div style={{ marginBottom: 8 }}>
-          <button
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              marginLeft: '8px',
-            }}
-            onClick={() => {
-              const newComment = {
-                comm_id: Math.random(),
-                var_id: 0,
-                comm_type: 'note',
-                description: 'Комментарий',
-                x: 0,
-                y: -100,
-              };
-              setComments([...comments, newComment]);
-
-            }}>
-            Добавить комментарий
-          </button>
-        </div>
-      )} */}
+    <div ref={containerRef} style={{ position: 'relative', height, width }}>
+      {loading ? (
+        <p>Загрузка...</p>
+      ) : (
+        <>
+          {formData.comments && (
+            <div style={{ marginBottom: 8 }}>
+              <button
+                onClick={addEmptyComment}
+                style={{
+                  padding: '4px 10px',
+                  background: '#4CAF50',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  marginRight: '10px',
+                }}
+              >
+                Добавить комментарий
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  padding: '4px 10px',
+                  background: '#4CAF50',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Сохранение…' : 'Сохранить'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
       <Echart
         refs={refs}
         height={height}
@@ -288,53 +487,55 @@ export default function EchartsMixedTimeseries({
         eventHandlers={eventHandlers}
         selectedValues={selectedValues}
       />
-      {/* {formData.showComments && Array.isArray(comments) && comments.map((c, idx) => (
-        <Draggable
-          key={c.comm_id}
-          defaultPosition={{ x: c.x, y: c.y }}
-          onStop={(e, data) => {
-            const updated = [...comments];
-            updated[idx] = { ...updated[idx], x: data.x, y: data.y };
-            setComments(updated);
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              background: '#fffbe8',
-              border: '1px solid #ccc',
-              padding: 6,
-              borderRadius: 4,
-              width: 250,
-              zIndex: 10,
-            }}
-          >
-            <StyledTextArea
-              defaultValue={c.description}
-              onChange={e => {
-                const textarea = e.target as HTMLTextAreaElement;
-                textarea.style.height = 'auto';
-                textarea.style.height = `${textarea.scrollHeight}px`;
-              }}
-              onBlur={e => {
-                const updated = { ...c, description: e.target.value };
-                fetch(`/api/comments/${c.comm_id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(updated),
-                })
-                  .then(res => {
-                    if (res.ok) {
-                      alert('✅ Комментарий сохранён');
-                    } else {
-                      alert('❌ Ошибка при сохранении');
-                    }
-                  });
-              }}
-            />
-          </div>
-        </Draggable>
-      ))} */}
+      {formData.comments &&
+        comments.map((c, idx) => {
+          const { x, y } = toPixels(c);
+          return (
+            <Draggable
+              key={c.id ?? c.tempId}
+              defaultPosition={{ x, y }}
+              onStop={(_, p) => onDragStop(idx, p)}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  background: '#fffbe8',
+                  border: '1px solid #ccc',
+                  padding: 6,
+                  borderRadius: 4,
+                  width: 250,
+                  zIndex: 10,
+                  boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <StyledTextArea
+                    defaultValue={c.description}
+                    onBlur={e => onBlur(idx, e.target.value)}
+                    onInput={e => {
+                      const ta = e.currentTarget;
+                      ta.style.height = 'auto';
+                      ta.style.height = `${ta.scrollHeight}px`;
+                    }}
+                  />
+                  <button
+                    onClick={() => handleDelete(idx)}
+                    title="Удалить"
+                    style={{
+                      marginLeft: 4,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ❌
+                  </button>
+                </div>
+              </div>
+            </Draggable>)
+        })}
     </div>
   );
 }

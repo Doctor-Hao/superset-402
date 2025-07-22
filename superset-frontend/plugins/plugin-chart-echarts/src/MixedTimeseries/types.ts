@@ -147,6 +147,7 @@ export type EchartsMixedTimeseriesChartTransformedProps =
   BaseTransformedProps<EchartsMixedTimeseriesFormData> &
   ContextMenuTransformedProps &
   CrossFilterTransformedProps & {
+    queriesData: any;
     groupbyB: QueryFormColumn[];
     labelMapB: Record<string, string[]>;
     labelMapC?: Record<string, unknown>;

@@ -752,6 +752,7 @@ export default function transformProps(
   };
 
   return {
+    queriesData,
     formData,
     width,
     height,

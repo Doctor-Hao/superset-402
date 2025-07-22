@@ -314,7 +314,7 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         [
           {
-            name: 'show_comments',
+            name: 'comments',
             config: {
               type: 'CheckboxControl',
               label: t('Включить комментарии'),
