@@ -12,7 +12,7 @@ interface ProjectVariant {
   is_recomended: string | null;
   descriptions: {
     id: number;
-    comm_descrp: string;
+    comm_descrp: string | null;
     __isNew?: boolean;
   }[];
 }
@@ -420,7 +420,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                         {description ? (
                           <div style={{ position: 'relative', paddingRight: '10px', paddingLeft: '10px' }}>
                             <AutoResizeTextArea
-                              value={description.comm_descrp}
+                              value={description.comm_descrp ? description.comm_descrp : ''}
                               onChange={e => {
                                 const targetId = filteredVariants[colIndex].var_id;
                                 const updated = editedData.map(variant => {
