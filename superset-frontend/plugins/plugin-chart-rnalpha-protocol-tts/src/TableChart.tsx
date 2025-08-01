@@ -144,6 +144,37 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       }
       setDeletedIds([]);
 
+      /* ---------- POST новые протоколы ---------- */
+      for (const row of editedData) {
+        if (row.isNew) {
+          const body = { proj_id: projId, description: row.description };
+          try {
+            const resp = await fetch(
+              `${process.env.BACKEND_URL}${url}/title`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              },
+            );
+            if (!resp.ok) throw new Error(`status ${resp.status}`);
+            const { protocol_tts_id } = await resp.json();
+
+            // Меняем id в состоянии, чтобы следующие запросы шли с «настоящим» protocol_id
+            setEditedData(prev =>
+              prev.map(r =>
+                r === row ? { ...r, id: protocol_tts_id, isNew: false } : r,
+              ),
+            );
+            row.id = protocol_tts_id;   // для последующих циклов
+            row.isNew = false;
+          } catch (err) {
+            setErrorMessage(`Ошибка POST /title (${err.message})`);
+            console.error('Ошибка создания заголовка:', body, err);
+          }
+        }
+      }
+
       // POST новые строки
       for (const row of editedData) {
         const newParagraphs = row.paragraphs.filter(p => p.isNew);
@@ -288,15 +319,13 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       };
     });
 
-    if (editedData.length === 1) {
-      console.log('Вставка из Excel, новые параграфы:', newParagraphs);
-      setEditedData(prev =>
-        prev.map(row => ({
-          ...row,
-          paragraphs: [...row.paragraphs, ...newParagraphs],
-        })),
-      );
-    }
+    console.log('Вставка из Excel, новые параграфы:', newParagraphs);
+    setEditedData(prev =>
+      prev.map(row => ({
+        ...row,
+        paragraphs: [...row.paragraphs, ...newParagraphs],
+      })),
+    );
 
     setShowPastePopup(false);
     setClipboardInput('');
@@ -374,7 +403,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               </div>
             </div>
           )}
-          {editedData.map(row => (
+          {editedData.filter(r => r.paragraphs.length).map(row => (
             <div key={row.id} style={{ marginBottom: 30 }}>
               {isEditing && (
                 <div style={{ margin: '15px 0 10px 0', display: 'flex', gap: 8 }}>
@@ -473,8 +502,16 @@ export default function TableChart<D extends DataRecord = DataRecord>(
               <table>
                 <thead>
                   <tr>
-                    <th colSpan={isEditing ? 5 : 4} style={{ textAlign: 'center', fontSize: 18, }}>
-                      {row.description}
+                    <th colSpan={isEditing ? 5 : 4} style={{ textAlign: 'center', fontSize: 18 }}>
+                      {isEditing ? (
+                        <AutoResizeTextArea
+                          value={row.description}
+                          onChange={e => handleChange(row.id, 'description', e.target.value)}
+                          style={{ textAlign: 'center', fontWeight: 600 }}
+                        />
+                      ) : (
+                        row.description
+                      )}
                     </th>
                   </tr>
                   <tr>
@@ -542,7 +579,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
             </div>
           ))}
-          {editedData.length === 0 && isEditing && (
+          {isEditing && (
             <div style={{ margin: '20px 0' }}>
               <button
                 className="icon-button edit"
@@ -554,6 +591,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                     {
                       id: newProtocolId,
                       description: 'Новый протокол',
+                      isNew: true,
                       paragraphs: [
                         {
                           isNew: true,
