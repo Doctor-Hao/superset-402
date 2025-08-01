@@ -19,6 +19,7 @@
 import React from 'react';
 import { t } from '@superset-ui/core';
 import {
+  ColumnOption,
   ControlPanelConfig,
   ControlSubSectionHeader,
   D3_TIME_FORMAT_DOCS,
@@ -59,20 +60,6 @@ const config: ControlPanelConfig = {
                 'Если включено, будут сравниваться три варианта: первый, последний и средний',
               ),
               default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'compareFilterColumn',
-            config: {
-              type: 'TextControl',
-              label: t('Имя столбца для сравнения'),
-              default: 'genre',
-              description: t(
-                'Укажите имя колонки (например, genre или name), по которой брать два варианта из фильтра (название из Filters)',
-              ),
               renderTrigger: true,
             },
           },
@@ -195,6 +182,38 @@ const config: ControlPanelConfig = {
         ['groupby'],
         ['metric'],
         ['adhoc_filters'],
+        [
+          {
+            name: 'sort_column',
+            config: {
+              type: 'DndColumnSelect',
+              label: t('Колонка сортировки'),
+              description: t(
+                'Выберите колонку или метрику, по значениям которой будут '
+                + 'отсортированы столбики waterfall-графика.',
+              ),
+              multi: false,
+              default: null,
+              optionRenderer: c => <ColumnOption showType column={c} />,
+              valueRenderer: c => <ColumnOption column={c} />,
+              mapStateToProps: ({ datasource }) => ({
+                options: datasource?.columns || [],
+              }),
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'sort_desc',
+            config: {
+              type: 'CheckboxControl',
+              label: t('По убыванию'),
+              default: false,
+              renderTrigger: true,
+            },
+          },
+        ],
         ['row_limit'],
       ],
     },

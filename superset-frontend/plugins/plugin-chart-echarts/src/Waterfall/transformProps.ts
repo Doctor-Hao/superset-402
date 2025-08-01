@@ -495,60 +495,56 @@ export default function transformProps(
    Режим «2 варианта + тоталы по краям»
  ─────────────────────────────────────────────────────────────*/
   if (formData.compareTwoVariants) {
-    // 1) Читаем имя поля X-AXIS, из которого будем брать “левый/правый” варианты
+    // 1) Читаем имя поля X-AXIS
     const xAxisField = isAdhocColumn(xAxis)
       ? (xAxis as any).label!
       : (xAxis || granularitySqla);
 
-    // 2) Читаем поле фильтра, введённое пользователем
-    const filterColUser = String(formData.compareFilterColumn || '').trim();
-    let variants: string[] = [];
+    // 2.a) Варианты
+    const variants = Array.from(
+      new Set<string>(
+        data.map(r => String(r[xAxisField] ?? NULL_STRING)),
+      ),
+    );
 
-    // 2.a) Пробуем достать из formData.adhocFilters
-    if (Array.isArray(formData.adhocFilters)) {
-      formData.adhocFilters.forEach(flt => {
-        const colName = flt.col || flt.subject;
-        if (colName === filterColUser) {
-          if (Array.isArray(flt.val)) {
-            variants = flt.val.map(String);
-          } else if (Array.isArray(flt.comparator)) {
-            variants = flt.comparator.map(String);
-          }
-        }
-      });
+    console.log('variants =', variants);
+
+    /* ----- Обработка ошибки: должно быть ровно 2 уникальных значения ----- */
+    if (variants.length !== 2) {
+      echartOptions.xAxis = { show: false };
+      echartOptions.yAxis = { show: false };
+      echartOptions.series = [];
+
+      echartOptions.graphic = [
+        {
+          type: 'text',
+          left: 'center',
+          top: 'middle',
+          style: {
+            text: `Колонка «${xAxisField}» должна содержать ровно 2 уникальных ` +
+              `значения.\nСейчас — ${variants.length}.`,
+            fontSize: theme.typography.sizes.l,
+            fontWeight: 'bold',
+            fill: theme.colors.grayscale.base,
+            align: 'center',
+          },
+          z: 100,
+        },
+      ];
+
+      return {
+        refs,
+        formData,
+        width,
+        height,
+        echartOptions,
+        setDataMask,
+        onContextMenu,
+        onLegendStateChanged,
+      };
     }
+    /* ----- конец блока обработки ошибки ----- */
 
-    // 2.b) Если не нашли в adhocFilters, пробуем formData.native_filters
-    if (variants.length === 0 && formData.native_filters) {
-      Object.values<any>(formData.native_filters).forEach(nf => {
-        const col =
-          typeof nf.target === 'string'
-            ? nf.target
-            : nf.target?.column || '';
-        const valArr: any[] =
-          Array.isArray(nf.value)
-            ? nf.value
-            : Array.isArray(nf.currentValue)
-              ? nf.currentValue
-              : [];
-        if (col === filterColUser && valArr.length) {
-          variants = valArr.map(String);
-        }
-      });
-    }
-
-    // 2.c) Если ещё пусто, пробуем formData.extraFormData.filters (Dashboard)
-    if (variants.length === 0 && formData.extraFormData?.filters) {
-      formData.extraFormData.filters.forEach((flt: any) => {
-        const col =
-          flt.col || flt.subject || flt.field || '';
-        if (col === filterColUser && Array.isArray(flt.val)) {
-          variants = flt.val.map(String);
-        }
-      });
-    }
-
-    console.log('compareFilterColumn =', filterColUser, 'variants =', variants);
 
     // 3) Если ровно два варианта и есть breakdownName + metricLabel, запускаем сравнение
     if (variants.length === 2 && breakdownName && metricLabel) {
@@ -735,54 +731,49 @@ export default function transformProps(
       ? (xAxis as any).label!
       : (xAxis || granularitySqla);
 
-    // 2) Поле фильтра, введённое пользователем (compareFilterColumn)
-    const filterColUser = String(formData.compareFilterColumn || '').trim();
-    let variants: string[] = [];
+    const variants = Array.from(
+      new Set<string>(
+        data.map(r => String(r[xAxisField] ?? NULL_STRING)),
+      ),
+    );
 
-    // 2.a) Пробуем достать из formData.adhocFilters
-    if (Array.isArray(formData.adhocFilters)) {
-      formData.adhocFilters.forEach(flt => {
-        const colName = flt.col || flt.subject;
-        if (colName === filterColUser) {
-          if (Array.isArray(flt.val)) {
-            variants = flt.val.map(String);
-          } else if (Array.isArray(flt.comparator)) {
-            variants = flt.comparator.map(String);
-          }
-        }
-      });
+    console.log('variants =', variants);
+
+    /* ----- Обработка ошибки: должно быть ровно 3 уникальных значения ----- */
+    if (variants.length !== 3) {
+      echartOptions.xAxis = { show: false };
+      echartOptions.yAxis = { show: false };
+      echartOptions.series = [];
+
+      echartOptions.graphic = [
+        {
+          type: 'text',
+          left: 'center',
+          top: 'middle',
+          style: {
+            text: `Колонка «${xAxisField}» должна содержать ровно 3 уникальных ` +
+              `значения.\nСейчас — ${variants.length}.`,
+            fontSize: theme.typography.sizes.l,
+            fontWeight: 'bold',
+            fill: theme.colors.grayscale.base,
+            align: 'center',
+          },
+          z: 100,
+        },
+      ];
+
+      return {
+        refs,
+        formData,
+        width,
+        height,
+        echartOptions,
+        setDataMask,
+        onContextMenu,
+        onLegendStateChanged,
+      };
     }
-
-    // 2.b) Если не нашли в adhocFilters, пробуем formData.native_filters
-    if (variants.length === 0 && formData.native_filters) {
-      Object.values<any>(formData.native_filters).forEach(nf => {
-        const col =
-          typeof nf.target === 'string'
-            ? nf.target
-            : nf.target?.column || '';
-        const valArr: any[] =
-          Array.isArray(nf.value)
-            ? nf.value
-            : Array.isArray(nf.currentValue)
-              ? nf.currentValue
-              : [];
-        if (col === filterColUser && valArr.length) {
-          variants = valArr.map(String);
-        }
-      });
-    }
-
-    // 2.c) Если ещё пусто, пробуем formData.extraFormData.filters
-    if (variants.length === 0 && formData.extraFormData?.filters) {
-      formData.extraFormData.filters.forEach((flt: any) => {
-        const col = flt.col || flt.subject || flt.field || '';
-        if (col === filterColUser && Array.isArray(flt.val)) {
-          variants = flt.val.map(String);
-        }
-      });
-    }
-
-    console.log('compareFilterColumn =', filterColUser, 'variants =', variants);
+    /* ----- конец блока обработки ошибки ----- */
 
     // 3) Убедимся, что получили ровно три значения
     if (variants.length === 3) {
