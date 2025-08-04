@@ -118,6 +118,7 @@
     "@superset-ui/plugin-chart-rnalpha-grr-option": "file:plugins/plugin-chart-rnalpha-grr-option",
     "@superset-ui/plugin-chart-rnalpha-node-slides": "file:plugins/plugin-chart-rnalpha-node-slides",
     "@superset-ui/plugin-chart-rnalpha-plus-minus": "file:plugins/plugin-chart-rnalpha-plus-minus",
+    "@superset-ui/plugin-chart-rnalpha-plus-minus-expend": "file:plugins/plugin-chart-rnalpha-plus-minus-expend",
     "@superset-ui/plugin-chart-rnalpha-project-first-and-second-level-risks": "file:plugins/plugin-chart-rnalpha-project-first-and-second-level-risks",
     "@superset-ui/plugin-chart-rnalpha-project-infrastructure-description": "file:plugins/plugin-chart-rnalpha-project-infrastructure-description",
     "@superset-ui/plugin-chart-rnalpha-project-milestones": "file:plugins/plugin-chart-rnalpha-project-milestones",

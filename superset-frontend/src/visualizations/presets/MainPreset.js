@@ -91,6 +91,7 @@ import ChartRnalphaProgectDevOptionPlugin from '@superset-ui/plugin-chart-rnalph
 import ChartRnalphaProtocolTts from '@superset-ui/plugin-chart-rnalpha-protocol-tts';
 import ChartRnalphaFactorsAnalisys from '@superset-ui/plugin-chart-rnalpha-factors-analisys';
 import ChartRnalphaNodeSlides from '@superset-ui/plugin-chart-rnalpha-node-slides';
+import ChartRnalphaPlusMinusPluginExpend from '@superset-ui/plugin-chart-rnalpha-plus-minus-expend';
 
 
 import { PivotTableChartPlugin as PivotTableChartPluginV2 } from '@superset-ui/plugin-chart-pivot-table';
@@ -203,6 +204,7 @@ export default class MainPreset extends Preset {
         new ChartRnalphaProtocolTts().configure({ key: 'plugin-chart-rnalpha-protocol-tts', }),
         new ChartRnalphaFactorsAnalisys().configure({ key: 'plugin-chart-rnalpha-factors-analisys', }),
         new ChartRnalphaNodeSlides().configure({ key: 'plugin-chart-rnalpha-node-slides', }),
+        new ChartRnalphaPlusMinusPluginExpend().configure({ key: 'plugin-chart-rnalpha-plus-minus-expend', }),
 
         ...experimentalPlugins,
       ],
