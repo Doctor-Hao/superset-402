@@ -25,7 +25,7 @@ interface ProsConsVariant {
 }
 
 // ============ МОКИ ============
-const USE_MOCK = true; // ← переключите на false для боевого режима
+const USE_MOCK = false; // ← переключите на false для боевого режима
 const mockDevOptions = [
   { var_id: 21, var_name: 'Базовый (БП 2022‑2026)', is_recommended: null },
   { var_id: 22, var_name: 'Нулевой', is_recommended: null },

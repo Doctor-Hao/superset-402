@@ -12,12 +12,13 @@ const Styles = styled.div<{ height: number; width: number }>`
   border-radius: ${({ theme }) => theme.gridUnit * 2}px;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
-  overflow: auto;
+  overflow: hidden;
+  background-color: #fff; /* 🖌️ белый фон */
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
+  /* Центрируем изображение */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 export default function TableChart<D extends DataRecord = DataRecord>(
@@ -136,9 +137,15 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                 <td>
                   {row.image ? (
                     <img
-                      src={`data:image/png;base64,${row.image}`}
+                      src={`data:image/png;base64,${tableData[0].image}`}
                       alt="Изображение"
-                      style={{ maxWidth: '100%', height: 'auto' }}
+                      style={{
+                        height: '100%', /* 📐 автомасштабирование по высоте */
+                        width: 'auto',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
                     />
                   ) : (
                     'Нет изображения'

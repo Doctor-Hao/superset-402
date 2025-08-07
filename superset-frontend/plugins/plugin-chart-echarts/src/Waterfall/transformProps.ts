@@ -686,6 +686,34 @@ export default function transformProps(
         }
       });
 
+
+      /* ─── Подкраска промежуточных Totals ────────────────────────── */
+      if (
+        formData.colorizeIntermediateTotals &&
+        (formData.compareTwoVariants || formData.compareThreeVariants)
+      ) {
+        // 1. пользовательские цвета из control panel
+        const posColor = rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b);
+        const negColor = rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b);
+
+        // 2. красим все Totals, кроме последнего
+        newTotalArr.slice(0, -1).forEach((point: any) => {
+          const raw = point.originalValue ?? point.value;
+          if (typeof raw === 'number' && raw !== TOKEN) {
+            point.itemStyle = { color: raw >= 0 ? posColor : negColor };
+          }
+        });
+
+        // 3. обновляем серию TOTAL
+        barSeries
+          .filter(s => s.name === LEGEND.TOTAL)
+          .forEach(s => {
+            s.data = newTotalArr;
+          });
+      }
+      /* ─── конец блока ───────────────────────────────────────────── */
+
+
       // 10) Рисуем Δ-стрелку между крайними total
       const diff = rightTotal - leftTotal;
       const pct = leftTotal !== 0 ? (diff / Math.abs(leftTotal)) * 100 : 0;
@@ -968,6 +996,32 @@ export default function transformProps(
           s.label = { show: showValue, position: 'top', formatter: seriesformatter };
         }
       });
+
+      /* ─── Подкраска промежуточных Totals ────────────────────────── */
+      if (
+        formData.colorizeIntermediateTotals &&
+        (formData.compareTwoVariants || formData.compareThreeVariants)
+      ) {
+        // 1. пользовательские цвета из control panel
+        const posColor = rgbToHex(increaseColor.r, increaseColor.g, increaseColor.b);
+        const negColor = rgbToHex(decreaseColor.r, decreaseColor.g, decreaseColor.b);
+
+        // 2. красим все Totals, кроме последнего
+        newTotalArr.slice(0, -1).forEach((point: any) => {
+          const raw = point.originalValue ?? point.value;
+          if (typeof raw === 'number' && raw !== TOKEN) {
+            point.itemStyle = { color: raw >= 0 ? posColor : negColor };
+          }
+        });
+
+        // 3. обновляем серию TOTAL
+        barSeries
+          .filter(s => s.name === LEGEND.TOTAL)
+          .forEach(s => {
+            s.data = newTotalArr;
+          });
+      }
+      /* ─── конец блока ───────────────────────────────────────────── */
 
       // 10) Рисуем Δ-стрелки между A→B и B→C
       const diffAB = totalB - totalA;

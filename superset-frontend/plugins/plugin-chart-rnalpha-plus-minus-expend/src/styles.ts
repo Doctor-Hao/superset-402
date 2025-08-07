@@ -23,6 +23,7 @@ export const Styles = styled.div<{ height: number; width: number }>`
     
     th {
       font-weight: bold;
+      background: rgb(249, 189, 0);
     }
   }
 
