@@ -29,6 +29,7 @@ import {
   getStandardizedControls,
   sections,
   sharedControls,
+  columnChoices
 } from '@superset-ui/chart-controls';
 
 import { DEFAULT_FORM_DATA } from './types';
@@ -321,6 +322,22 @@ const config: ControlPanelConfig = {
               default: false,
               renderTrigger: true,
               description: t('Показать комментарии и кнопку добавления'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'variantIdField',
+            config: {
+              type: 'SelectControl',
+              freeForm: false,
+              clearable: false,
+              label: t('Колонка для variant ID'),
+              description: t('Укажите колонку, содержащую ID варианта'),
+              mapStateToProps: state => ({
+                choices: columnChoices(state.datasource),
+              }),
+              renderTrigger: true,
             },
           },
         ],

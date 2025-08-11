@@ -53,9 +53,30 @@ export default function buildQuery(formData: QueryFormData) {
   // 3) Query C — оставляем поля с суффиксом _c, убираем _b
   const formDataC = retainFormDataSuffix(removeFormDataSuffix(baseFormData, '_b'), '_c');
 
+  /** ---------- Вариант-query (только __variant_id) ---------- */
+  let formDataVariant: QueryFormData | null = null;
+  if (formData.comments && formData.variantIdField) {
+    formDataVariant = {
+      ...formDataA,
+      metrics: [
+        {
+          label: '__variant_id',
+          expressionType: 'SQL',
+          sqlExpression: `MAX(${formData.variantIdField})::bigint`,
+        },
+      ],
+      groupby: [],
+      orderDesc: false,
+      rowLimit: 1,
+    };
+  }
+
   const formDatas = [formDataA, formDataB];
   if (Array.isArray(formDataC.metrics) && formDataC.metrics.length > 0) {
     formDatas.push(formDataC);
+  }
+  if (baseFormData.comments && formDataVariant) {
+    formDatas.push(formDataVariant);
   }
 
   const queryContexts = formDatas.map(fd =>

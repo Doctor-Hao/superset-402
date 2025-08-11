@@ -114,10 +114,10 @@ export const createComments = (payload: CommentaryPayload) =>
   request<{ data: CommentBody[] }>('POST', ENDPOINT, payload);
 
 export const patchComments = (payload: CommentaryPayload) =>
-  request<{ data: CommentBody[] }>('PATCH', ENDPOINT, payload);
+  request<{ info: string }>('PATCH', ENDPOINT, payload);
 
 export const deleteComment = (commentId: number) =>
-  request<void>('DELETE', `${ENDPOINT}/${commentId}`);
+  request<void>('DELETE', `${ENDPOINT}/del_comm/${commentId}`);
 
 export default function EchartsMixedTimeseries({
   height,
@@ -150,23 +150,39 @@ export default function EchartsMixedTimeseries({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { projId, variantId: rawVariantId } = useProjectVariantIds(formData, queriesData);
+  const { variantId: rawVariantId, hint } = useProjectVariantIds(queriesData);
   const variantId = React.useMemo<number | undefined>(() => {
     if (rawVariantId == null) return undefined;
     return typeof rawVariantId === 'string' ? Number(rawVariantId) : rawVariantId;
   }, [rawVariantId]);
 
-  console.log("projId", projId, "varId", variantId);
-
+  console.log("varId", variantId);
 
 
   useEffect(() => {
-    if (!formData.showComments || variantId === undefined) return;
-    setLoading(true);
-    getComments(variantId)
-      .then(({ data }: { data: CommentItem[] }) => setComments(data))
-      .finally(() => setLoading(false));
-  }, [variantId, formData.showComments]);
+    if (!formData.comments || variantId === undefined) return;
+
+    const fetchComments = async () => {
+      setLoading(true);
+      try {
+        const { data } = await getComments(variantId);
+
+        const items: CommentItem[] = data.map(c => ({
+          ...c,
+          x_pct: c.x_coord,
+          y_pct: c.y_coord,
+        }));
+
+        setComments(items);
+      } catch (err) {
+        console.error('❌ Ошибка загрузки комментариев:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchComments();
+  }, [variantId, formData.comments]);
 
   const [, force] = useState({});
   useEffect(() => {
@@ -191,26 +207,6 @@ export default function EchartsMixedTimeseries({
     const { width: w, height: h } = el.getBoundingClientRect();
     return { x_pct: x / w, y_pct: y / h };
   };
-
-  // useEffect(() => {
-  //   if (formData.showComments) {
-  //     fetch('/api/comments')
-  //       .then(res => res.json())
-  //       .then(data => {
-  //         if (Array.isArray(data)) {
-  //           setComments(data);
-  //         } else {
-  //           console.warn('⚠️ Комментарии не массив:', data);
-  //           setComments([]); // fallback
-  //         }
-  //       })
-  //       .catch(err => {
-  //         console.error('Ошибка загрузки комментариев:', err);
-  //         setComments([]); // fallback на ошибку
-  //       });
-  //   }
-  // }, [formData.showComments]);
-
 
 
   const getCrossFilterDataMask = useCallback(
@@ -357,8 +353,8 @@ export default function EchartsMixedTimeseries({
 
     const temp: CommentItem = {
       tempId: genTempId(),
-      x_coord: 20,          // не критично, но оставим для POST (бэк всё равно примет проценты)
-      y_coord: 20,
+      x_coord: x_pct,
+      y_coord: y_pct,
       x_pct,
       y_pct,
       prof_design_type: 'ppn',
@@ -367,27 +363,55 @@ export default function EchartsMixedTimeseries({
 
     setComments(prev => [...prev, temp]);
 
+    const toItem = (c: CommentBody): CommentItem => ({
+      ...c,
+      x_pct: c.x_coord,
+      y_pct: c.y_coord,
+    });
+
     createComments({ var_id: variantId, data: [temp] })
       .then(({ data }) =>
-        setComments(prev => prev.map(c => (c.tempId === temp.tempId ? data[0] : c))),
+        setComments(prev =>
+          prev.map(c => (c.tempId === temp.tempId ? toItem(data[0]) : c)),
+        ),
       )
       .catch(console.error);
   };
 
+  const toItem = (c: CommentBody): CommentItem => ({
+    ...c,
+    x_pct: c.x_coord,
+    y_pct: c.y_coord,
+  });
+
+  const fetchAndSet = async (varId: number) => {
+    try {
+      const { data } = await getComments(varId);
+      setComments(data.map(toItem));
+    } catch (err) {
+      console.error('❌ Ошибка загрузки комментариев:', err);
+    }
+  };
+
+
   const handleSave = async () => {
     if (variantId === undefined) return;
+
     setSaving(true);
     try {
       const payload: CommentaryPayload = {
         var_id: variantId,
-        data: comments.map(({ tempId, x_pct, y_pct, …rest }) => ({
+        data: comments.map(({ x_pct, y_pct, ...rest }) => ({
           ...rest,
           x_coord: x_pct,
           y_coord: y_pct,
         })),
       };
-      console.log("handleSave", payload)
-      await patchComments(payload);
+
+      await patchComments(payload);   // если дошли сюда – сохранение прошло
+      await fetchAndSet(variantId);   // перечитываем - всегда актуальные данные
+    } catch (err) {
+      alert(`❌ Не удалось сохранить комментарии: ${err}`);
     } finally {
       setSaving(false);
     }
@@ -445,12 +469,33 @@ export default function EchartsMixedTimeseries({
         <p>Загрузка...</p>
       ) : (
         <>
-          {formData.comments && (
-            <div style={{ marginBottom: 8 }}>
+          {hint && formData.comments && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: 8,
+                maxWidth: 320,
+                padding: '2px 10px',
+                background: '#fff8d1',
+                border: '1px solid #e6d48c',
+                borderRadius: 4,
+                fontSize: 13,
+                lineHeight: 1.4,
+                zIndex: 20,
+                boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
+              }}
+            >
+              {hint}
+            </div>
+          )}
+
+          {!hint && formData.comments && (
+            <div style={{ marginBottom: 0 }}>
               <button
                 onClick={addEmptyComment}
                 style={{
-                  padding: '4px 10px',
+                  padding: '2px 10px',
                   background: '#4CAF50',
                   color: '#fff',
                   border: 'none',
@@ -465,7 +510,7 @@ export default function EchartsMixedTimeseries({
                 onClick={handleSave}
                 disabled={saving}
                 style={{
-                  padding: '4px 10px',
+                  padding: '2px 10px',
                   background: '#4CAF50',
                   color: '#fff',
                   border: 'none',
@@ -487,14 +532,14 @@ export default function EchartsMixedTimeseries({
         eventHandlers={eventHandlers}
         selectedValues={selectedValues}
       />
-      {formData.comments &&
+      {!hint && formData.comments &&
         comments.map((c, idx) => {
           const { x, y } = toPixels(c);
           return (
             <Draggable
               key={c.id ?? c.tempId}
               defaultPosition={{ x, y }}
-              onStop={(_, p) => onDragStop(idx, p)}
+              onStop={(_, data) => onDragStop(idx, data)}
             >
               <div
                 style={{

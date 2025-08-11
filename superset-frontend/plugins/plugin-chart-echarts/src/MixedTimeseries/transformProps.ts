@@ -94,6 +94,11 @@ import {
   getYAxisFormatter,
 } from '../utils/formatters';
 
+const VARIANT_METRIC = '__variant_id';
+const stripVariantMetric = <T extends Record<string, any>>(rows: T[]) =>
+  rows.map(({ [VARIANT_METRIC]: _omit, ...rest }) => rest);
+
+
 const getFormatter = (
   customFormatters: Record<string, ValueFormatter>,
   defaultFormatter: ValueFormatter,
@@ -136,15 +141,27 @@ export default function transformProps(
   const { label_map: labelMap = {} } = (queriesData[0] as TimeseriesChartDataResponseResult) || {};
   const { label_map: labelMapB = {} } = (queriesData[1] as TimeseriesChartDataResponseResult) || {};
 
-  const data1 = (queriesData[0].data || []) as TimeseriesDataRecord[];
-  const data2 = (queriesData[1].data || []) as TimeseriesDataRecord[];
+  // const data1 = (queriesData[0].data || []) as TimeseriesDataRecord[];
+  // const data2 = (queriesData[1].data || []) as TimeseriesDataRecord[];
 
-  let data3: TimeseriesDataRecord[] = [];
+  // let data3: TimeseriesDataRecord[] = [];
+
+  const data1Raw = (queriesData[0].data || []) as TimeseriesDataRecord[];
+  const data2Raw = (queriesData[1].data || []) as TimeseriesDataRecord[];
+  let data3Raw: TimeseriesDataRecord[] = [];
+
+
   let labelMapC: Record<string, unknown> | undefined;
   if (queriesData.length > 2 && queriesData[2]?.data) {
-    data3 = queriesData[2].data as TimeseriesDataRecord[];
+    data3Raw = queriesData.length > 2 ? ((queriesData[2].data || []) as TimeseriesDataRecord[]) : [];
     labelMapC = (queriesData[2] as TimeseriesChartDataResponseResult).label_map;
   }
+
+  // ⚠️ Для построения серий берём «очищенные» массивы
+  const data1 = stripVariantMetric(data1Raw);
+  const data2 = stripVariantMetric(data2Raw);
+  const data3 = stripVariantMetric(data3Raw);
+
   const annotationData = getAnnotationData(chartProps);
   const coltypeMapping = {
     ...getColtypesMapping(queriesData[0]),
