@@ -66,6 +66,7 @@ import {
   EchartsSunburstChartPlugin,
   EchartsBubbleChartPlugin,
   EchartsWaterfallChartPlugin,
+  EchartsTornadoChartPlugin,
   EchartsRnkinWaterfallMetricsChartPlugin
 } from '@superset-ui/plugin-chart-echarts';
 import {
@@ -173,6 +174,9 @@ export default class MainPreset extends Preset {
         }),
         new EchartsWaterfallChartPlugin().configure({
           key: 'waterfall',
+        }),
+        new EchartsTornadoChartPlugin().configure({
+          key: 'tornado',
         }),
         new EchartsRnkinWaterfallMetricsChartPlugin().configure({
           key: 'rnkin_waterfall_metrics',
