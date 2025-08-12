@@ -66,6 +66,18 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'compareLabelBadges',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Крупные подписи без минусов'),
+              description: t('Увеличить и утолщить числа, поместить их в чёрную рамку и убрать знак «-». Работает только при включённом режиме сравнения 2-х вариантов.'),
+              default: false,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
             name: 'colorizeIntermediateTotals',
             config: {
               type: 'CheckboxControl',

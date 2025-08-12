@@ -686,6 +686,92 @@ export default function transformProps(
         }
       });
 
+      /* ── Бейджи на одном уровне (поверх всех столбцов) ───────────── */
+      if (formData.compareLabelBadges) {
+        // 0) убираем штатные подписи у самих столбцов, чтобы не было дублей
+        barSeries.forEach(s => {
+          if (s.name !== ASSIST_MARK) {
+            s.label = { ...(s.label || {}), show: false };
+          }
+        });
+
+        // 1) посчитаем «верх» каждого столбца и общий максимум
+        const val = (p: any) => (p && p.value !== TOKEN ? Number(p.value) : 0);
+        const tops: number[] = newXAxisData.map((_, i) => {
+          const a = val(newAssist[i]);
+          const inc = val(newIncrease[i]);
+          const dec = val(newDecrease[i]);
+          const tot = val(newTotalArr[i]);
+          return Math.max(a + inc, a + dec, tot);
+        });
+        const maxTop = Math.max(...tops, 0);
+
+        // 2) сырое значение для подписи на i-й категории
+        const rawAt = (i: number) => {
+          if (newTotalArr[i]?.value !== TOKEN) {
+            return newTotalArr[i].originalValue ?? newTotalArr[i].value ?? 0;
+          }
+          if (newIncrease[i]?.value !== TOKEN) {
+            return newIncrease[i].originalValue ?? newIncrease[i].value ?? 0;
+          }
+          if (newDecrease[i]?.value !== TOKEN) {
+            // decrease.originalValue уже со знаком — это то, что нужно
+            return newDecrease[i].originalValue ?? 0;
+          }
+          return 0;
+        };
+
+        // 3) данные «невидимой» линии: по точке на каждую категорию
+        const badgeData = newXAxisData.map((_, i) => ({
+          value: maxTop,          // все точки на одном уровне
+          rawValue: rawAt(i),     // что показываем в рамке
+        }));
+
+        // 4) добавляем линию без линии и без точек — только label
+        echartOptions.series = [
+          ...echartOptions.series,
+          {
+            type: 'line',
+            name: '__BADGES__',
+            data: badgeData,                 // [{ value: maxTop, rawValue }, ...]
+            showSymbol: true,                // <— ВКЛЮЧАЕМ
+            symbolSize: 1,                   // <— микро-точка
+            symbol: 'circle',
+            lineStyle: { opacity: 0 },
+            tooltip: { show: false },
+            silent: true,
+            z: 20,
+            labelLayout: { hideOverlap: false }, // на всякий случай
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (p: any) =>
+                defaultFormatter(Math.abs(Number(p?.data?.rawValue ?? 0))),
+              fontSize: Math.max(16, theme.typography.sizes.l),
+              fontWeight: 'bold',
+              color: '#000',
+              backgroundColor: '#fff',
+              borderColor: '#000',
+              borderWidth: 1,
+              minMargin: 5,
+              borderRadius: 0,
+              padding: [5, 3],
+            },
+          },
+        ];
+
+        // 5) запас по Y, чтобы рамки не обрезались
+        const curYAxis: any = echartOptions.yAxis || {};
+        (echartOptions.yAxis as any) = {
+          ...curYAxis,
+          max:
+            typeof curYAxis.max === 'number'
+              ? Math.max(curYAxis.max, maxTop * 1.12)
+              : maxTop * 1.12,
+        };
+
+      }
+
 
       /* ─── Подкраска промежуточных Totals ────────────────────────── */
       if (
