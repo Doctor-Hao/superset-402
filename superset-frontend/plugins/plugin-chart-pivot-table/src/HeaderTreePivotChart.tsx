@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
 import { MinusSquareOutlined, PlusSquareOutlined } from '@ant-design/icons';
 import {
-    AdhocMetric,
     BinaryQueryObjectFilterClause,
     CurrencyFormatter,
     DataRecordValue,
     FeatureFlag,
+    getColumnLabel,
     getNumberFormatter,
     isAdhocColumn,
     isPhysicalColumn,
@@ -13,7 +13,7 @@ import {
     styled,
     t,
     useTheme,
-    getColumnLabel
+    isFeatureEnabled,
 } from '@superset-ui/core';
 import { aggregatorTemplates, PivotTable, sortAs } from './react-pivottable';
 import {
@@ -29,7 +29,7 @@ const Styles = styled.div<PivotTableStylesProps>`
       margin: ${margin}px;
       height: ${height - margin * 2}px;
       width: ${typeof width === 'string' ? parseInt(width, 10) : width - margin * 2}px;
- `}
+  `}
 `;
 
 const PivotTableWrapper = styled.div`
@@ -127,10 +127,10 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         dateFormatters,
         onContextMenu,
         timeGrainSqla,
-        headerTree, // JSON вида { groups: [{ title, subgroups:[{title,count},...] }, ...] }
+        headerTree,
     } = props;
 
-    console.log("headerTree", headerTree)
+    const METRIC_KEY = t('Metric');
 
     const theme = useTheme();
     const defaultFormatter = useMemo(
@@ -141,7 +141,6 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         [valueFormat, currencyFormat],
     );
 
-    // индивидуальные форматтеры метрик (как в исходном компоненте)
     const customFormatsArray = useMemo(
         () =>
             Array.from(
@@ -157,112 +156,78 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         [columnFormats, currencyFormat, currencyFormats, valueFormat],
     );
 
-
-
-    // карта форматтеров для конкретных метрик
     const metricFormatterMap = useMemo(
         () =>
             Object.fromEntries(
                 customFormatsArray.map(([metric, d3Format, currency]) => [
                     metric,
-                    currency
-                        ? new CurrencyFormatter({ currency, d3Format })
-                        : getNumberFormatter(d3Format),
+                    currency ? new CurrencyFormatter({ currency, d3Format }) : getNumberFormatter(d3Format),
                 ]),
             ),
         [customFormatsArray],
     );
 
-    // порядок метрик из UI
+    const customFormatters = useMemo(() => {
+        if (!customFormatsArray.length) return undefined;
+        return { [METRIC_KEY]: metricFormatterMap };
+    }, [customFormatsArray.length, metricFormatterMap]);
+
     const metricLabels: string[] = useMemo(
         () => metrics.map(m => (typeof m === 'string' ? m : (m.label as string))),
         [metrics],
     );
 
-    // раскладываем метрики по: Группа -> Подгруппа
+    const tree = useMemo(() => {
+        if (!headerTree) return { groups: [] as any[] };
+        if (typeof headerTree === 'string') {
+            try { return JSON.parse(headerTree); } catch { return { groups: [] as any[] }; }
+        }
+        return headerTree;
+    }, [headerTree]);
+
     type Slot = { group: string; subgroup: string; metric: string };
     const slots: Slot[] = useMemo(() => {
         const res: Slot[] = [];
         let p = 0;
-        (headerTree?.groups ?? []).forEach((g: any) => {
-            (g?.subgroups ?? []).forEach((sg: any) => {
-                const cnt = Number(sg?.count ?? 0);
-                for (let i = 0; i < cnt && p < metricLabels.length; i++, p++) {
-                    res.push({ group: g?.title ?? '—', subgroup: sg?.title ?? '—', metric: metricLabels[p] });
+        const groups = Array.isArray(tree?.groups) ? tree.groups : [];
+        groups.forEach((g: any) => {
+            const gTitle = g?.title ?? '—';
+            const sgs = Array.isArray(g?.subgroups) ? g.subgroups : [];
+            sgs.forEach((sg: any) => {
+                const sgTitle = sg?.title ?? '';
+                const cnt = Math.max(0, Number(sg?.count ?? 0));
+                for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
+                    res.push({ group: gTitle, subgroup: sgTitle, metric: metricLabels[p] });
                 }
             });
         });
-        // остаток — в последнюю подгруппу последней группы
-        while (p < metricLabels.length) {
-            const lastG = headerTree?.groups?.at(-1)?.title ?? 'Прочее';
-            const lastSG = headerTree?.groups?.at(-1)?.subgroups?.at(-1)?.title ?? ' ';
-            res.push({ group: lastG, subgroup: lastSG, metric: metricLabels[p++] });
+        if (p < metricLabels.length) {
+            const lastG = groups.at(-1)?.title ?? '—';
+            const lastSG = (groups.at(-1)?.subgroups ?? []).at(-1)?.title ?? '';
+            for (; p < metricLabels.length; p += 1) {
+                res.push({ group: lastG, subgroup: lastSG, metric: metricLabels[p] });
+            }
         }
         return res;
-    }, [headerTree, metricLabels]);
+    }, [tree, metricLabels]);
 
-    // детектируем режим 2-уровневой шапки (есть пустые подгруппы)
-    const hasEmptySubgroup = useMemo(
-        () => slots.some(s => !String(s.subgroup || '').trim()),
-        [slots],
-    );
-    const LEAF_KEY = '__leaf';
-
-    const metricFormatters = useMemo(() => {
-        if (!customFormatsArray.length) return undefined;
-        return hasEmptySubgroup
-            ? { [LEAF_KEY]: metricFormatterMap }   // 2 уровня: лист = подгруппа/метрика
-            : { [METRIC_KEY]: metricFormatterMap } // 3 уровня: лист = метрика
-    }, [customFormatsArray.length, hasEmptySubgroup, metricFormatterMap]);
-
-    const metricToLevels = useMemo(
-        () => Object.fromEntries(slots.map(s => [s.metric, [s.group, s.subgroup] as [string, string]])),
-        [slots],
-    );
-
-    // добавляем 2 искусственных уровня над метриками
-    const METRIC_KEY = t('Metric');
-
-    // 2 режима: три уровня (группа→подгруппа→метрика) ИЛИ два (группа→подгруппа/метрика)
-    const LEVEL_KEYS = hasEmptySubgroup
-        ? (['__m0', LEAF_KEY] as const)
-        : (['__m0', '__m1', METRIC_KEY] as const);
+    const LEVEL_KEYS = ['__m0', '__m1', METRIC_KEY] as const;
 
     const unpivotedData = useMemo(
         () =>
             data
                 .flatMap(rec =>
                     metricLabels.map(lbl => {
-                        const [g, sg] = metricToLevels[lbl] ?? ['—', '—'];
-                        if (hasEmptySubgroup) {
-                            // ДВЕ СТРОКИ: верх = группа, низ = (подгруппа или метрика)
-                            const leaf = String(sg || '').trim() ? sg : lbl;
-                            return { ...rec, value: (rec as any)[lbl], __m0: g, [LEAF_KEY]: leaf };
-                        }
-                        // ТРИ СТРОКИ (как раньше): группа → подгруппа → метрика
-                        return {
-                            ...rec,
-                            value: (rec as any)[lbl],
-                            __m0: g,
-                            __m1: sg,
-                            [METRIC_KEY]: lbl,
-                        };
+                        const slot = slots.find(s => s.metric === lbl) || { group: '—', subgroup: '' };
+                        return { ...rec, value: (rec as any)[lbl], __m0: slot.group, __m1: slot.subgroup, [METRIC_KEY]: lbl } as any;
                     }),
                 )
                 .filter(r => r.value !== null && r.value !== undefined),
-        [data, metricLabels, metricToLevels, hasEmptySubgroup],
+        [data, metricLabels, slots],
     );
 
-
-    const groupbyRows = useMemo(
-        () => groupbyRowsRaw.map(getColumnLabel),
-        [groupbyRowsRaw],
-    );
-    const groupbyColumns = useMemo(
-        () => groupbyColumnsRaw.map(getColumnLabel),
-        [groupbyColumnsRaw],
-    );
-
+    const groupbyRows = useMemo(() => groupbyRowsRaw.map(getColumnLabel), [groupbyRowsRaw]);
+    const groupbyColumns = useMemo(() => groupbyColumnsRaw.map(getColumnLabel), [groupbyColumnsRaw]);
 
     const [rows, cols] = useMemo(() => {
         let [rows_, cols_] = transposePivot ? [groupbyColumns, groupbyRows] : [groupbyRows, groupbyColumns];
@@ -272,65 +237,35 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             cols_ = [...LEVEL_KEYS, ...cols_];
         }
         return [rows_, cols_];
-    }, [groupbyColumns, groupbyRows, metricsLayout, transposePivot, LEVEL_KEYS]);
+    }, [groupbyColumns, groupbyRows, metricsLayout, transposePivot]);
 
-
-
-    // сортировка: как в JSON, слева-направо
     const groupOrder = useMemo(
-        () => (headerTree?.groups ?? []).map((g: any) => g?.title ?? '—'),
-        [headerTree],
+        () => (Array.isArray(tree?.groups) ? tree.groups : []).map((g: any) => g?.title ?? '—'),
+        [tree],
     );
+
     const subgroupOrder = useMemo(() => {
         const out: string[] = [];
-        (headerTree?.groups ?? []).forEach((g: any) =>
-            (g?.subgroups ?? []).forEach((sg: any) => out.push(sg?.title ?? '—')),
-        );
-        return out;
-    }, [headerTree]);
-
-    const leafOrder = useMemo(() => {
-        if (!hasEmptySubgroup) return [];
-        const order: string[] = [];
-        (headerTree?.groups ?? []).forEach((g: any) => {
-            const gTitle = g?.title ?? '—';
-            (g?.subgroups ?? []).forEach((sg: any) => {
-                const sgTitle = String(sg?.title ?? '').trim();
-                if (sgTitle) {
-                    order.push(sgTitle);
-                } else {
-                    // подгруппа без title: подставляем список метрик этой подгруппы по slots
-                    slots
-                        .filter(s => (s.group ?? '—') === gTitle && !String(s.subgroup || '').trim())
-                        .forEach(s => order.push(s.metric));
-                }
+        (Array.isArray(tree?.groups) ? tree.groups : []).forEach((g: any) => {
+            (Array.isArray(g?.subgroups) ? g.subgroups : []).forEach((sg: any) => {
+                const title = sg?.title ?? '';
+                if (!out.includes(title)) out.push(title);
             });
         });
-        return order;
-    }, [headerTree, slots, hasEmptySubgroup]);
+        return out;
+    }, [tree]);
 
-    const sorters = useMemo(() => {
-        if (hasEmptySubgroup) {
-            return {
-                __m0: sortAs(groupOrder),
-                [LEAF_KEY]: sortAs(leafOrder.length ? leafOrder : slots.map(s => s.subgroup || s.metric)),
-            };
-        }
-        return {
+    const metricLeafOrder = useMemo(() => slots.map(s => s.metric), [slots]);
+
+    const sorters = useMemo(
+        () => ({
             __m0: sortAs(groupOrder),
-            __m1: sortAs(
-                // порядок подгрупп как в JSON
-                (headerTree?.groups ?? []).flatMap((g: any) =>
-                    (g?.subgroups ?? []).map((sg: any) => sg?.title ?? '—'),
-                ),
-            ),
-            [METRIC_KEY]: sortAs(metricLabels), // лист: как в UI
-        };
-    }, [groupOrder, leafOrder, hasEmptySubgroup, headerTree, metricLabels, slots]);
+            __m1: sortAs(subgroupOrder),
+            [METRIC_KEY]: sortAs(metricLeafOrder),
+        }),
+        [groupOrder, subgroupOrder, metricLeafOrder],
+    );
 
-
-    // cross-filter/контекстное меню — копия из исходного компонента,
-    // но исключаем наши искусственные уровни из фильтров
     const handleChange = useCallback(
         (filters: SelectedFiltersType) => {
             const filterKeys = Object.keys(filters);
@@ -340,19 +275,20 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     filters:
                         filterKeys.length === 0
                             ? undefined
-                            : filterKeys.map(key => {
-                                // отбрасываем служебные уровни
-                                if (key === '__m0' || key === '__m1') return null as any;
-                                const val = filters?.[key];
-                                const col =
-                                    groupby.find(item => {
-                                        if (isPhysicalColumn(item)) return item === key;
-                                        if (isAdhocColumn(item)) return (item as any).label === key;
-                                        return false;
-                                    }) ?? '';
-                                if (val === null || val === undefined) return { col, op: 'IS NULL' as const };
-                                return { col, op: 'IN' as const, val: val as (string | number | boolean)[] };
-                            }).filter(Boolean as any),
+                            : filterKeys
+                                .map(key => {
+                                    if (key === '__m0' || key === '__m1' || key === METRIC_KEY) return null as any;
+                                    const val = (filters as any)?.[key];
+                                    const col =
+                                        groupby.find(item => {
+                                            if (isPhysicalColumn(item)) return item === key;
+                                            if (isAdhocColumn(item)) return (item as any).label === key;
+                                            return false;
+                                        }) ?? '';
+                                    if (val === null || val === undefined) return { col, op: 'IS NULL' as const };
+                                    return { col, op: 'IN' as const, val: val as (string | number | boolean)[] };
+                                })
+                                .filter(Boolean as any),
                 },
                 filterState: {
                     value: filters && Object.keys(filters).length ? Object.values(filters) : null,
@@ -365,19 +301,15 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
 
     const getCrossFilterDataMask = useCallback(
         (value: { [key: string]: string }) => {
-            const isActive = (key: string, val: DataRecordValue) =>
-                !!selectedFilters && selectedFilters[key]?.includes(val);
+            const isActive = (key: string, val: DataRecordValue) => !!selectedFilters && selectedFilters[key]?.includes(val);
             if (!value) return undefined;
-
             const [key, val] = Object.entries(value)[0];
-            // не фильтруем по служебным уровням
-            if (key === '__m0' || key === '__m1') return undefined;
+            if (key === '__m0' || key === '__m1' || key === METRIC_KEY) return undefined;
 
-            let values = { ...selectedFilters };
-            if (isActive(key, val)) values = {};
-            else values = { [key]: [val] };
+            let values = { ...selectedFilters } as SelectedFiltersType;
+            if (isActive(key, val)) values = {} as any; else values = { [key]: [val] } as any;
 
-            const filterKeys = Object.keys(values);
+            const filterKeys = Object.keys(values || {});
             const groupby = [...groupbyRowsRaw, ...groupbyColumnsRaw];
             return {
                 dataMask: {
@@ -411,23 +343,51 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     const toggleFilter = useCallback(
         (
             e: MouseEvent,
-            value: string,
+            _value: string,
             filters: FilterType,
-            pivotData: Record<string, any>,
+            _pivotData: Record<string, any>,
             isSubtotal: boolean,
             isGrandTotal: boolean,
         ) => {
             if (isSubtotal || isGrandTotal || !emitCrossFilters) return;
-            const filtersCopy = { ...filters };
-            delete (filtersCopy as any)['__m0'];
-            delete (filtersCopy as any)['__m1'];
+            const filtersCopy = { ...filters } as any;
+            delete filtersCopy.__m0; delete filtersCopy.__m1; delete filtersCopy[METRIC_KEY];
             const entries = Object.entries(filtersCopy);
             if (entries.length === 0) return;
-
             const [key, val] = entries[entries.length - 1];
             handleChange({ [key]: [val] } as any);
         },
         [emitCrossFilters, handleChange],
+    );
+
+    const tableOptions = useMemo(
+        () => ({
+            clickRowHeaderCallback: toggleFilter,
+            clickColumnHeaderCallback: toggleFilter,
+            colTotals,
+            colSubTotals,
+            rowTotals,
+            rowSubTotals,
+            highlightHeaderCellsOnHover:
+                emitCrossFilters ||
+                isFeatureEnabled(FeatureFlag.DrillBy) ||
+                isFeatureEnabled(FeatureFlag.DrillToDetail),
+            highlightedHeaderCells: selectedFilters,
+            omittedHighlightHeaderGroups: ['__m0', '__m1', METRIC_KEY],
+            cellColorFormatters: { value: metricColorFormatters },
+            dateFormatters,
+        }),
+        [
+            colTotals,
+            colSubTotals,
+            dateFormatters,
+            emitCrossFilters,
+            metricColorFormatters,
+            rowTotals,
+            rowSubTotals,
+            selectedFilters,
+            toggleFilter,
+        ],
     );
 
     const subtotalOptions = useMemo(
@@ -440,41 +400,10 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         [colSubtotalPosition, rowSubtotalPosition],
     );
 
-    const namesMapping = useMemo(() => {
-        return hasEmptySubgroup
-            ? ({ ...verboseMap, __m0: ' ', [LEAF_KEY]: ' ' })
-            : ({ ...verboseMap, __m0: ' ', __m1: ' ', [METRIC_KEY]: ' ' });
-    }, [verboseMap, hasEmptySubgroup]);
-
-    const tableOptions = useMemo(
-        () => ({
-            clickRowHeaderCallback: toggleFilter,
-            clickColumnHeaderCallback: toggleFilter,
-            colTotals,
-            colSubTotals,
-            rowTotals,
-            rowSubTotals,
-            highlightHeaderCellsOnHover: true,
-            highlightedHeaderCells: selectedFilters,
-            omittedHighlightHeaderGroups: hasEmptySubgroup
-                ? ['__m0', LEAF_KEY]
-                : ['__m0', '__m1', METRIC_KEY],
-            cellColorFormatters: { value: metricColorFormatters },
-            dateFormatters,
-        }),
-        [
-            colTotals,
-            colSubTotals,
-            dateFormatters,
-            metricColorFormatters,
-            rowTotals,
-            rowSubTotals,
-            selectedFilters,
-            toggleFilter,
-            hasEmptySubgroup,
-        ],
+    const namesMapping = useMemo(
+        () => ({ ...(verboseMap || {}), __m0: ' ', __m1: ' ', [METRIC_KEY]: ' ' }),
+        [verboseMap],
     );
-
 
     const handleContextMenu = useCallback(
         (
@@ -491,7 +420,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             if (colKey && colKey.length > 1) {
                 colKey.forEach((val, i) => {
                     const col = cols[i];
-                    if (col === '__m0' || col === '__m1') return; // пропускаем служебные уровни
+                    if (col === '__m0' || col === '__m1' || col === METRIC_KEY) return;
                     drillToDetailFilters.push({ col, op: '==', val, formattedVal: String(val) });
                 });
             }
@@ -519,10 +448,10 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     cols={cols}
                     aggregatorsFactory={aggregatorsFactory}
                     defaultFormatter={defaultFormatter}
-                    customFormatters={metricFormatters}
+                    customFormatters={customFormatters}
                     aggregatorName={aggregateFunction}
                     vals={vals}
-                    colOrder={colOrder}
+                    colOrder="key_a_to_z"
                     rowOrder={rowOrder}
                     sorters={sorters}
                     tableOptions={tableOptions}
