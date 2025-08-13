@@ -43,14 +43,14 @@ import {
   PivotTableStylesProps,
   SelectedFiltersType,
 } from './types';
+import HeaderTreePivotChart from './HeaderTreePivotChart';
 
 const Styles = styled.div<PivotTableStylesProps>`
   ${({ height, width, margin }) => `
       margin: ${margin}px;
       height: ${height - margin * 2}px;
-      width: ${
-        typeof width === 'string' ? parseInt(width, 10) : width - margin * 2
-      }px;
+      width: ${typeof width === 'string' ? parseInt(width, 10) : width - margin * 2
+    }px;
  `}
 `;
 
@@ -154,16 +154,27 @@ export default function PivotTableChart(props: PivotTableProps) {
     dateFormatters,
     onContextMenu,
     timeGrainSqla,
+    headerTree
   } = props;
+
+  const hasHeaderTree =
+    !!headerTree &&
+    Array.isArray((headerTree as any).groups) &&
+    (headerTree as any).groups.length > 0;
+
+  if (hasHeaderTree) {
+    // передаём все пропсы как есть в новый компонент
+    return <HeaderTreePivotChart {...(props as any)} />;
+  }
 
   const theme = useTheme();
   const defaultFormatter = useMemo(
     () =>
       currencyFormat?.symbol
         ? new CurrencyFormatter({
-            currency: currencyFormat,
-            d3Format: valueFormat,
-          })
+          currency: currencyFormat,
+          d3Format: valueFormat,
+        })
         : getNumberFormatter(valueFormat),
     [valueFormat, currencyFormat],
   );
@@ -186,18 +197,18 @@ export default function PivotTableChart(props: PivotTableProps) {
     () =>
       hasCustomMetricFormatters
         ? {
-            [METRIC_KEY]: Object.fromEntries(
-              customFormatsArray.map(([metric, d3Format, currency]) => [
-                metric,
-                currency
-                  ? new CurrencyFormatter({
-                      currency,
-                      d3Format,
-                    })
-                  : getNumberFormatter(d3Format),
-              ]),
-            ),
-          }
+          [METRIC_KEY]: Object.fromEntries(
+            customFormatsArray.map(([metric, d3Format, currency]) => [
+              metric,
+              currency
+                ? new CurrencyFormatter({
+                  currency,
+                  d3Format,
+                })
+                : getNumberFormatter(d3Format),
+            ]),
+          ),
+        }
         : undefined,
     [customFormatsArray, hasCustomMetricFormatters],
   );
@@ -272,28 +283,28 @@ export default function PivotTableChart(props: PivotTableProps) {
             filterKeys.length === 0
               ? undefined
               : filterKeys.map(key => {
-                  const val = filters?.[key];
-                  const col =
-                    groupby.find(item => {
-                      if (isPhysicalColumn(item)) {
-                        return item === key;
-                      }
-                      if (isAdhocColumn(item)) {
-                        return item.label === key;
-                      }
-                      return false;
-                    }) ?? '';
-                  if (val === null || val === undefined)
-                    return {
-                      col,
-                      op: 'IS NULL',
-                    };
+                const val = filters?.[key];
+                const col =
+                  groupby.find(item => {
+                    if (isPhysicalColumn(item)) {
+                      return item === key;
+                    }
+                    if (isAdhocColumn(item)) {
+                      return item.label === key;
+                    }
+                    return false;
+                  }) ?? '';
+                if (val === null || val === undefined)
                   return {
                     col,
-                    op: 'IN',
-                    val: val as (string | number | boolean)[],
+                    op: 'IS NULL',
                   };
-                }),
+                return {
+                  col,
+                  op: 'IN',
+                  val: val as (string | number | boolean)[],
+                };
+              }),
         },
         filterState: {
           value:
@@ -334,28 +345,28 @@ export default function PivotTableChart(props: PivotTableProps) {
               filterKeys.length === 0
                 ? undefined
                 : filterKeys.map(key => {
-                    const val = values?.[key];
-                    const col =
-                      groupby.find(item => {
-                        if (isPhysicalColumn(item)) {
-                          return item === key;
-                        }
-                        if (isAdhocColumn(item)) {
-                          return item.label === key;
-                        }
-                        return false;
-                      }) ?? '';
-                    if (val === null || val === undefined)
-                      return {
-                        col,
-                        op: 'IS NULL' as const,
-                      };
+                  const val = values?.[key];
+                  const col =
+                    groupby.find(item => {
+                      if (isPhysicalColumn(item)) {
+                        return item === key;
+                      }
+                      if (isAdhocColumn(item)) {
+                        return item.label === key;
+                      }
+                      return false;
+                    }) ?? '';
+                  if (val === null || val === undefined)
                     return {
                       col,
-                      op: 'IN' as const,
-                      val: val as (string | number | boolean)[],
+                      op: 'IS NULL' as const,
                     };
-                  }),
+                  return {
+                    col,
+                    op: 'IN' as const,
+                    val: val as (string | number | boolean)[],
+                  };
+                }),
           },
           filterState: {
             value:

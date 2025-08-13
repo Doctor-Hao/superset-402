@@ -140,7 +140,7 @@ const config: ControlPanelConfig = {
               ...sharedControls.series_limit_metric,
               description: t(
                 'Metric used to define how the top series are sorted if a series or cell limit is present. ' +
-                  'If undefined reverts to the first metric (where appropriate).',
+                'If undefined reverts to the first metric (where appropriate).',
               ),
             },
           },
@@ -270,7 +270,7 @@ const config: ControlPanelConfig = {
               default: false,
               description: t(
                 'Display metrics side by side within each column, as ' +
-                  'opposed to each column being displayed side by side for each metric.',
+                'opposed to each column being displayed side by side for each metric.',
               ),
               renderTrigger: true,
             },
@@ -282,6 +282,20 @@ const config: ControlPanelConfig = {
       label: t('Options'),
       expanded: true,
       controlSetRows: [
+        [
+          {
+            name: 'metricHeaderTreeJson',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Header (2 levels) JSON'),
+              default: ``,
+              description: t('JSON with { groups: [{ title, subgroups:[{title,count}] }] }'),
+              renderTrigger: true,
+              resetOnHide: false,
+              language: 'json',
+            },
+          }
+        ],
         [
           {
             name: 'valueFormat',

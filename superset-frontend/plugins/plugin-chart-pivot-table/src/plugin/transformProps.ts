@@ -77,7 +77,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     queriesData,
     formData,
     rawFormData,
-    hooks: { setDataMask = () => {}, onContextMenu },
+    hooks: { setDataMask = () => { }, onContextMenu },
     filterState,
     datasource: { verboseMap = {}, columnFormats = {}, currencyFormats = {} },
     emitCrossFilters,
@@ -142,6 +142,9 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     );
   const metricColorFormatters = getColorFormatters(conditionalFormatting, data);
 
+  let headerTree = { groups: [] as Array<{ title: string; subgroups: Array<{ title: string; count: number }> }> };
+  try { headerTree = JSON.parse(formData.metricHeaderTreeJson || '{}'); } catch (e) { console.error(e) }
+
   return {
     width,
     height,
@@ -174,5 +177,6 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     dateFormatters,
     onContextMenu,
     timeGrainSqla,
+    headerTree
   };
 }
