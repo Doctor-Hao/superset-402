@@ -1,164 +1,72 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Tornado controlPanel.tsx
  */
 import React from 'react';
-import { t } from '@superset-ui/core';
 import {
-  ColumnOption,
   ControlPanelConfig,
   ControlSubSectionHeader,
-  D3_TIME_FORMAT_DOCS,
-  DEFAULT_TIME_FORMAT,
-  formatSelectOptions,
   sharedControls,
+  formatSelectOptions,
 } from '@superset-ui/chart-controls';
-import { showValueControl } from '../controls';
+import { t, validateNonEmpty } from '@superset-ui/core';
 
 const config: ControlPanelConfig = {
   controlPanelSections: [
-    {
-      label: t('Настройки для сравнения вариантов'),
-      expanded: false,
-      controlSetRows: [
-        [
-          {
-            name: 'compareTwoVariants',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Режим сравнения 2-х вариантов'),
-              description: t(
-                'Если включено, первый и последний выбранные вариант ' +
-                'будут стоять по краям, а факторы — между ними',
-              ),
-              default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'compareThreeVariants',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Режим сравнения 3-х вариантов'),
-              description: t(
-                'Если включено, будут сравниваться три варианта: первый, последний и средний',
-              ),
-              default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'colorizeIntermediateTotals',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Подсветить промежуточные Total'),
-              description: t(
-                'Когда включён режим сравнения вариантов — '
-                + 'раскрасить все Total, кроме последнего, в зелёный или красный '
-              ),
-              default: false,
-              renderTrigger: true,
-            },
-          },
-        ],
-      ],
-    },
-    {
-      label: t('Настройки для Δ'),
-      expanded: false,
-      controlSetRows: [
-        [
-          {
-            name: 'showDeltaArrow',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Показывать стрелку суммирующую дельту'),
-              description: t(
-                'Если включено, будут стрелки суммирующую дельту',
-              ),
-              default: true,
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'deltaDecimals',
-            config: {
-              type: 'TextControl', // вводим число знаков
-              isInt: true,
-              default: '2',
-              label: t('Δ: знаков после запятой'),
-              description: t('Сколько цифр оставлять после запятой в значении Δ и процентах'),
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'deltaUnit',
-            config: {
-              type: 'TextControl',
-              default: 'руб.',
-              label: t('Δ: единица измерения'),
-              description: t('Например «млн руб.» — будет добавлено сразу после числа'),
-              renderTrigger: true,
-            },
-          },
-        ],
-      ],
-    },
-    {
-      label: t('Customize'),
-      expanded: true,
-      controlSetRows: [
-      ],
-    },
+    /* ====== ДАННЫЕ / ЗАПРОС ====== */
     {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
-        ['x_axis'],
-        ['time_grain_sqla'],
-        ['groupby'],
-        ['metric'],
-        ['adhoc_filters'],
         [
           {
-            name: 'sort_column',
+            // фактор (категория)
+            name: 'groupby',
             config: {
-              type: 'DndColumnSelect',
-              label: t('Колонка сортировки'),
-              description: t(
-                'Выберите колонку или метрику, по значениям которой будут '
-                + 'отсортированы столбики waterfall-графика.',
-              ),
+              ...sharedControls.groupby,
+              label: t('Фактор'),
+              description: t('Столбец с названиями факторов'),
               multi: false,
-              default: null,
-              optionRenderer: c => <ColumnOption showType column={c} />,
-              valueRenderer: c => <ColumnOption column={c} />,
-              mapStateToProps: ({ datasource }) => ({
-                options: datasource?.columns || [],
-              }),
+              validators: [validateNonEmpty],
+            },
+          },
+        ],
+        [
+          {
+            // левая граница
+            name: 'metric_min',
+            config: {
+              ...sharedControls.metric,
+              label: t('Метрика (минимум)'),
+              description: t('Значение при нижнем сценарии / −Δ'),
+            },
+          },
+        ],
+        [
+          {
+            // правая граница
+            name: 'metric_max',
+            config: {
+              ...sharedControls.metric,
+              label: t('Метрика (максимум)'),
+              description: t('Значение при верхнем сценарии / +Δ'),
+            },
+          },
+        ],
+        // стандартная фильтрация
+        ['adhoc_filters'],
+
+        // сортировка по min/max (простая и надёжная)
+        [
+          {
+            name: 'sort_by_edge',
+            config: {
+              type: 'SelectControl',
+              label: t('Сортировать по'),
+              choices: formatSelectOptions(['min', 'max']),
+              default: 'max',
+              clearable: false,
               renderTrigger: true,
+              description: t('Какой край использовать для сортировки стобиков'),
             },
           },
         ],
@@ -168,7 +76,7 @@ const config: ControlPanelConfig = {
             config: {
               type: 'CheckboxControl',
               label: t('По убыванию'),
-              default: false,
+              default: true,
               renderTrigger: true,
             },
           },
@@ -176,122 +84,101 @@ const config: ControlPanelConfig = {
         ['row_limit'],
       ],
     },
+
+    /* ====== ОПЦИИ ЧАРТА ====== */
     {
       label: t('Chart Options'),
       expanded: true,
       controlSetRows: [
-        [showValueControl],
         [
+          {
+            name: 'baseline',
+            config: {
+              type: 'TextControl',
+              label: t('Базис'),
+              description: t('Число, относительно которого строятся плечи. На графике это вертикальная линия посередине.'),
+              default: '0',
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'show_labels',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Подписи значений'),
+              default: true,
+              renderTrigger: true,
+            },
+          },
           {
             name: 'show_legend',
             config: {
               type: 'CheckboxControl',
-              label: t('Show legend'),
-              renderTrigger: true,
+              label: t('Легенда'),
               default: false,
-              description: t('Whether to display a legend for the chart'),
+              renderTrigger: true,
             },
           },
         ],
         [
-          <ControlSubSectionHeader>
-            {t('Series colors')}
-          </ControlSubSectionHeader>,
+          {
+            name: 'bar_color',
+            config: {
+              type: 'ColorPickerControl',
+              label: t('Цвет баров'),
+              renderTrigger: true,
+            },
+          },
+          {
+            name: 'y_axis_label_width',
+            config: {
+              type: 'TextControl',
+              label: t('Ширина подписей по Y'),
+              description: t('Чтобы длинные названия факторов помещались'),
+              default: '220',
+              isInt: true,
+              renderTrigger: true,
+            },
+          },
         ],
         [
-          {
-            name: 'increase_color',
-            config: {
-              label: t('Increase'),
-              type: 'ColorPickerControl',
-              default: { r: 90, g: 193, b: 137, a: 1 },
-              renderTrigger: true,
-            },
-          },
-          {
-            name: 'decrease_color',
-            config: {
-              label: t('Decrease'),
-              type: 'ColorPickerControl',
-              default: { r: 224, g: 67, b: 85, a: 1 },
-              renderTrigger: true,
-            },
-          },
-          {
-            name: 'total_color',
-            config: {
-              label: t('Total'),
-              type: 'ColorPickerControl',
-              default: { r: 102, g: 102, b: 102, a: 1 },
-              renderTrigger: true,
-            },
-          },
+          <ControlSubSectionHeader key="x">{t('X Axis')}</ControlSubSectionHeader>,
         ],
-        [<ControlSubSectionHeader>{t('X Axis')}</ControlSubSectionHeader>],
         [
           {
             name: 'x_axis_label',
             config: {
               type: 'TextControl',
-              label: t('X Axis Label'),
-              renderTrigger: true,
+              label: t('Подпись оси X'),
               default: '',
-            },
-          },
-        ],
-        [
-          {
-            name: 'x_axis_time_format',
-            config: {
-              ...sharedControls.x_axis_time_format,
-              default: DEFAULT_TIME_FORMAT,
-              description: `${D3_TIME_FORMAT_DOCS}.`,
-            },
-          },
-        ],
-        [
-          {
-            name: 'x_ticks_layout',
-            config: {
-              type: 'SelectControl',
-              label: t('X Tick Layout'),
-              choices: formatSelectOptions([
-                'auto',
-                'flat',
-                '45°',
-                '90°',
-                'staggered',
-              ]),
-              default: 'auto',
-              clearable: false,
               renderTrigger: true,
-              description: t('The way the ticks are laid out on the X-axis'),
             },
           },
         ],
-        [<ControlSubSectionHeader>{t('Y Axis')}</ControlSubSectionHeader>],
+        [
+          <ControlSubSectionHeader key="y">{t('Y Axis')}</ControlSubSectionHeader>,
+        ],
         [
           {
             name: 'y_axis_label',
             config: {
               type: 'TextControl',
-              label: t('Y Axis Label'),
-              renderTrigger: true,
+              label: t('Подпись оси Y'),
               default: '',
+              renderTrigger: true,
             },
           },
         ],
-        ['y_axis_format'],
-        ['currency_format'],
       ],
     },
   ],
+
+  /* мелкая правка стандартных контролов */
   controlOverrides: {
     groupby: {
-      label: t('Breakdowns'),
-      description:
-        t(`Breaks down the series by the category specified in this control.
-      This can help viewers understand how each category affects the overall value.`),
+      label: t('Фактор'),
       multi: false,
     },
   },

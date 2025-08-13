@@ -49,7 +49,7 @@ export default class EchartsTornadoChartPlugin extends ChartPlugin<
         credits: ['https://echarts.apache.org'],
         category: t('Evolution'),
         description: t(
-          `A tornado chart.`,
+          `График чувствительности: прямоугольник от min до max вокруг baseline`,
         ),
         exampleGallery: [
           { url: example1 },
