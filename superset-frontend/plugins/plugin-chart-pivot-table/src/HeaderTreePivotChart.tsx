@@ -103,11 +103,9 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         groupbyRows: groupbyRowsRaw,
         groupbyColumns: groupbyColumnsRaw,
         metrics,
-        colOrder,
         rowOrder,
         aggregateFunction,
         transposePivot,
-        combineMetric,
         rowSubtotalPosition,
         colSubtotalPosition,
         colTotals,
@@ -126,7 +124,6 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         metricColorFormatters,
         dateFormatters,
         onContextMenu,
-        timeGrainSqla,
         headerTree,
     } = props;
 
@@ -189,7 +186,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     const slots: Slot[] = useMemo(() => {
         const res: Slot[] = [];
         let p = 0;
-        const groups = Array.isArray(tree?.groups) ? tree.groups : [];
+        const groups = Array.isArray((tree as any)?.groups) ? (tree as any).groups : [];
         groups.forEach((g: any) => {
             const gTitle = g?.title ?? '—';
             const sgs = Array.isArray(g?.subgroups) ? g.subgroups : [];
@@ -202,10 +199,9 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             });
         });
         if (p < metricLabels.length) {
-            const lastG = groups.at(-1)?.title ?? '—';
-            const lastSG = (groups.at(-1)?.subgroups ?? []).at(-1)?.title ?? '';
             for (; p < metricLabels.length; p += 1) {
-                res.push({ group: lastG, subgroup: lastSG, metric: metricLabels[p] });
+                const m = metricLabels[p];
+                res.push({ group: m, subgroup: '', metric: m });
             }
         }
         return res;
@@ -219,7 +215,16 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                 .flatMap(rec =>
                     metricLabels.map(lbl => {
                         const slot = slots.find(s => s.metric === lbl) || { group: '—', subgroup: '' };
-                        return { ...rec, value: (rec as any)[lbl], __m0: slot.group, __m1: slot.subgroup, [METRIC_KEY]: lbl } as any;
+                        const isOrphan = slot.group === lbl && (slot.subgroup ?? '') === '';
+                        const metricKeyValue = isOrphan ? '' : lbl;
+                        return {
+                            ...rec,
+                            value: (rec as any)[lbl],
+                            __m0: slot.group,
+                            __m1: slot.subgroup,
+                            [METRIC_KEY]: metricKeyValue,
+                            __orphan_header__: isOrphan ? 1 : 0,
+                        } as any;
                     }),
                 )
                 .filter(r => r.value !== null && r.value !== undefined),
@@ -240,20 +245,14 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     }, [groupbyColumns, groupbyRows, metricsLayout, transposePivot]);
 
     const groupOrder = useMemo(
-        () => (Array.isArray(tree?.groups) ? tree.groups : []).map((g: any) => g?.title ?? '—'),
-        [tree],
+        () => Array.from(new Set(slots.map(s => s.group))),
+        [slots],
     );
 
-    const subgroupOrder = useMemo(() => {
-        const out: string[] = [];
-        (Array.isArray(tree?.groups) ? tree.groups : []).forEach((g: any) => {
-            (Array.isArray(g?.subgroups) ? g.subgroups : []).forEach((sg: any) => {
-                const title = sg?.title ?? '';
-                if (!out.includes(title)) out.push(title);
-            });
-        });
-        return out;
-    }, [tree]);
+    const subgroupOrder = useMemo(
+        () => Array.from(new Set(slots.map(s => s.subgroup))),
+        [slots],
+    );
 
     const metricLeafOrder = useMemo(() => slots.map(s => s.metric), [slots]);
 
@@ -376,6 +375,12 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             omittedHighlightHeaderGroups: ['__m0', '__m1', METRIC_KEY],
             cellColorFormatters: { value: metricColorFormatters },
             dateFormatters,
+            orphanHeader: {
+                enabled: true,
+                attrKeys: { group: '__m0', subgroup: '__m1', metric: METRIC_KEY },
+                flagField: '__orphan_header__',
+                rowSpan: 3,
+            },
         }),
         [
             colTotals,
