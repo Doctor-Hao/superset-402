@@ -298,6 +298,34 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'relocateRules',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Relocate rules (re-parent columns)'),
+              description: t('JSON: [{"when": {...}, "set": {...}}]. Keys: __m0/__m1/__m2 and/or groupby columns (e.g. "platform").'),
+              default: '[]',
+              language: 'json',
+              renderTrigger: true,
+              resetOnHide: false,
+            },
+          },
+        ],
+        [
+          {
+            name: 'excludeColumnsRules',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Relocate rules (re-parent columns)'),
+              description: t('JSON: [{"when": {...}, "set": {...}}].'),
+              default: '[]',
+              language: 'json',
+              renderTrigger: true,
+              resetOnHide: false,
+            },
+          },
+        ],
+        [
+          {
             name: 'valueFormat',
             config: {
               ...sharedControls.y_axis_format,

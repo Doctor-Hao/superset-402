@@ -24,6 +24,8 @@ import {
     SelectedFiltersType,
 } from './types';
 
+const vals = ['value'];
+
 const Styles = styled.div<PivotTableStylesProps>`
   ${({ height, width, margin }) => `
       margin: ${margin}px;
@@ -37,8 +39,6 @@ const PivotTableWrapper = styled.div`
   max-width: inherit;
   overflow: auto;
 `;
-
-const vals = ['value'];
 
 const StyledPlusSquareOutlined = styled(PlusSquareOutlined)`
   stroke: ${({ theme }) => theme.colors.grayscale.light2};
@@ -95,6 +95,62 @@ const aggregatorsFactory = (formatter: NumberFormatter) => ({
     ),
 });
 
+function swapByPairs<T>(arr: T[], swaps: [number, number][]): T[] {
+    const a = arr.slice();
+    for (const [from, to] of swaps) {
+        if (
+            Number.isInteger(from) && Number.isInteger(to) &&
+            from >= 0 && to >= 0 && from < a.length && to < a.length
+        ) {
+            const tmp = a[from];
+            a[from] = a[to];
+            a[to] = tmp;
+        }
+    }
+    return a;
+}
+
+function parseSwaps(input: unknown): [number, number][] {
+    try {
+        if (!input) return [];
+        if (typeof input === 'string') return JSON.parse(input);
+        if (Array.isArray(input)) return input as [number, number][];
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+function parseRelocateRules(input: unknown): { when: Record<string, any>; set: Record<string, any> }[] {
+    try {
+        if (!input) return [];
+        if (typeof input === 'string') return JSON.parse(input);
+        if (Array.isArray(input)) return input as any[];
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+function parseExcludeRules(input: unknown): any[] {
+    try {
+        if (!input) return [];
+        if (typeof input === 'string') return JSON.parse(input);
+        if (Array.isArray(input)) return input as any[];
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+function logPivotBuild(tag: string, payload: Record<string, unknown>) {
+    console.group(`%cPivot build ▶ ${tag}`, 'color:#7f54b3;font-weight:bold');
+    Object.entries(payload).forEach(([k, v]) => {
+        console.log(`%c${k}:`, 'color:#999', v);
+    });
+    console.groupEnd();
+}
+
 export default function HeaderTreePivotChart(props: PivotTableProps) {
     const {
         data,
@@ -125,11 +181,40 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         dateFormatters,
         onContextMenu,
         headerTree,
-    } = props;
+        formData,
+    } = props as any;
 
     const METRIC_KEY = t('Metric');
-
+    const norm = (x: any) => String(x ?? '').replace(/[^A-Za-zА-Яа-я0-9]+/g, '').toLowerCase();
+    const resolveMetricKey = (wanted: string, rec: Record<string, any>) => {
+        if (!wanted) return wanted;
+        const target = norm(wanted);
+        const found = Object.keys(rec).find(k => norm(k) === target);
+        return found ?? wanted;
+    };
     const theme = useTheme();
+
+    const columnsIndexSwapsRaw = (props as any).columnsIndexSwaps ?? formData?.columnsIndexSwaps;
+    const relocateRulesRaw = (props as any).relocateRules ?? formData?.relocateRules;
+    const excludeColumnsRulesRaw = (props as any).excludeColumnsRules ?? formData?.excludeColumnsRules;
+
+    console.groupCollapsed('HeaderTreePivotChart ▶ inputs');
+    console.log('formData', formData);
+    console.log('columnsIndexSwapsRaw', columnsIndexSwapsRaw);
+    console.log('relocateRulesRaw', relocateRulesRaw);
+    console.log('excludeColumnsRulesRaw', excludeColumnsRulesRaw);
+    console.groupEnd();
+
+    const swaps = useMemo(() => parseSwaps(columnsIndexSwapsRaw), [columnsIndexSwapsRaw]);
+    const relocateRules = useMemo(() => parseRelocateRules(relocateRulesRaw), [relocateRulesRaw]);
+    const excludeRules = useMemo(() => parseExcludeRules(excludeColumnsRulesRaw), [excludeColumnsRulesRaw]);
+
+    console.groupCollapsed('HeaderTreePivotChart ▶ parsed');
+    console.log('swaps', swaps);
+    console.log('relocateRules', relocateRules);
+    console.log('excludeRules', excludeRules);
+    console.groupEnd();
+
     const defaultFormatter = useMemo(
         () =>
             currencyFormat?.symbol
@@ -147,8 +232,8 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                 ]),
             ).map(metricName => [
                 metricName,
-                columnFormats[metricName] || valueFormat,
-                currencyFormats[metricName] || currencyFormat,
+                columnFormats?.[metricName] || valueFormat,
+                currencyFormats?.[metricName] || currencyFormat,
             ]),
         [columnFormats, currencyFormat, currencyFormats, valueFormat],
     );
@@ -158,19 +243,14 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             Object.fromEntries(
                 customFormatsArray.map(([metric, d3Format, currency]) => [
                     metric,
-                    currency ? new CurrencyFormatter({ currency, d3Format }) : getNumberFormatter(d3Format),
+                    currency ? new CurrencyFormatter({ currency, d3Format }) : getNumberFormatter(d3Format as string),
                 ]),
             ),
         [customFormatsArray],
     );
 
-    const customFormatters = useMemo(() => {
-        if (!customFormatsArray.length) return undefined;
-        return { [METRIC_KEY]: metricFormatterMap };
-    }, [customFormatsArray.length, metricFormatterMap]);
-
     const metricLabels: string[] = useMemo(
-        () => metrics.map(m => (typeof m === 'string' ? m : (m.label as string))),
+        () => metrics.map((m: any) => (typeof m === 'string' ? m : (m.label as string))),
         [metrics],
     );
 
@@ -191,6 +271,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     }, [tree]);
 
     type Slot = { level1: string; level2: string; level3: string; metric: string };
+
     const slots: Slot[] = useMemo(() => {
         const res: Slot[] = [];
         let p = 0;
@@ -254,6 +335,34 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         return res;
     }, [tree, metricLabels, showSegments]);
 
+    // порядок m2 из header JSON в исходной последовательности
+    const m2HeaderOrder = useMemo(() => {
+        const order: string[] = [];
+        const push = (v?: string) => {
+            const t = String(v ?? '');
+            if (t && !order.includes(t)) order.push(t);
+        };
+
+        const groups = Array.isArray((tree as any)?.groups) ? (tree as any).groups : [];
+        groups.forEach((g: any) => {
+            const subgroups = Array.isArray(g?.subgroups) ? g.subgroups : [];
+            if (!subgroups.length) {
+                const segs = Array.isArray(g?.segments) ? g.segments : [];
+                segs.forEach((s: any) => push(s?.title));
+            } else {
+                subgroups.forEach((sg: any) => {
+                    const segs = Array.isArray(sg?.segments) ? sg.segments : [];
+                    segs.forEach((s: any) => push(s?.title));
+                });
+            }
+        });
+
+        return order;
+    }, [tree]);
+
+
+    const slotsReordered = useMemo(() => swapByPairs(slots, swaps), [slots, swaps]);
+
     const groupbyRows = useMemo(() => groupbyRowsRaw.map(getColumnLabel), [groupbyRowsRaw]);
     const groupbyColumns = useMemo(() => groupbyColumnsRaw.map(getColumnLabel), [groupbyColumnsRaw]);
 
@@ -262,30 +371,98 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         [showSegments],
     );
 
+    function applyRelocate(tuple: Record<string, any>, gb: Record<string, any>, ctx: { lbl: string; rec: any }) {
+        const keyAlias = (k: string) => (String(k).toLowerCase() === 'metric' ? METRIC_KEY : k);
+        for (const raw of relocateRules) {
+            const r = {
+                when: Object.fromEntries(Object.entries(raw.when || {}).map(([k, v]) => [keyAlias(k), v])),
+                set: Object.fromEntries(Object.entries(raw.set || {}).map(([k, v]) => [keyAlias(k), v])),
+            };
+            const ok = Object.entries(r.when).every(([k, v]) => {
+                const source = k in gb ? gb : tuple;
+                return norm(source[k]) === norm(v);
+            });
+            if (ok) {
+                console.groupCollapsed('relocate match');
+                console.log('rule', r);
+                console.log('before', { tuple: { ...tuple }, gb: { ...gb }, metricLbl: ctx.lbl });
+                Object.entries(r.set).forEach(([k, v]) => { if (k in gb) gb[k] = v; else tuple[k] = v; });
+                console.log('after', { tuple: { ...tuple }, gb: { ...gb } });
+                console.groupEnd();
+            }
+        }
+    }
+
     const unpivotedData = useMemo(
         () =>
             data
-                .flatMap(rec =>
+                .flatMap((rec: any) =>
                     metricLabels.map(lbl => {
                         const slot =
-                            slots.find(s => s.metric === lbl) ||
+                            slotsReordered.find(s => s.metric === lbl) ||
                             ({ level1: '—', level2: '', level3: '' } as Slot);
                         const isOrphan = slot.level1 === lbl && slot.level2 === '' && slot.level3 === '';
                         const metricKeyValue = isOrphan ? '' : lbl;
-                        return {
+
+                        const tuple: Record<string, any> = { __m0: slot.level1, __m1: slot.level2, __m2: slot.level3, [METRIC_KEY]: metricKeyValue };
+                        const gb: Record<string, any> = Object.fromEntries(groupbyColumns.map(k => [k, (rec as any)[k]]));
+
+                        applyRelocate(tuple, gb, { lbl, rec });
+
+                        const keyAlias = (k: string) => (String(k).toLowerCase() === 'metric' ? METRIC_KEY : k);
+                        const simpleList = Array.isArray(excludeRules) && excludeRules.every(r => typeof r === 'string');
+                        let excluded = false;
+                        if (simpleList) {
+                            const setLC = new Set((excludeRules as string[]).map(v => norm(v)));
+                            for (const k of groupbyColumns) {
+                                if (setLC.has(norm(gb[k]))) { excluded = true; break; }
+                            }
+                        } else if (Array.isArray(excludeRules)) {
+                            for (const r of excludeRules) {
+                                if (r && typeof r === 'object') {
+                                    const key = keyAlias(r.key || r.column || r.path);
+                                    const vals: any[] = r.values || r.vals || [];
+                                    const source = key in gb ? gb : tuple;
+                                    if (vals.map((v: any) => norm(v)).includes(norm(source[key]))) { excluded = true; break; }
+                                }
+                            }
+                        }
+                        if (excluded) {
+                            console.log('excluded', { tuple, gb, lbl });
+                            return null as any;
+                        }
+
+                        const metricForValue = resolveMetricKey(tuple[METRIC_KEY] || lbl, rec);
+
+                        const row = {
                             ...rec,
-                            value: (rec as any)[lbl],
-                            __m0: slot.level1,
-                            __m1: slot.level2,
-                            __m2: slot.level3,
-                            [METRIC_KEY]: metricKeyValue,
+                            value: (rec as any)[metricForValue],
+                            __m0: tuple.__m0,
+                            __m1: tuple.__m1,
+                            __m2: tuple.__m2,
+                            [METRIC_KEY]: tuple[METRIC_KEY],
                             __orphan_header__: isOrphan ? 1 : 0,
+                            ...gb,
                         } as any;
+
+                        console.log('row built', row);
+                        return row;
                     }),
                 )
-                .filter(r => r.value !== null && r.value !== undefined),
-        [data, metricLabels, slots],
+                .filter((r: any) => r && r.value !== null && r.value !== undefined),
+        [data, metricLabels, slotsReordered, groupbyColumns, relocateRules, excludeRules],
     );
+
+    useMemo(() => {
+        const sample = unpivotedData.slice(0, 10);
+        const orders = {
+            m0: Array.from(new Set(unpivotedData.map((r: any) => r.__m0))),
+            m1: Array.from(new Set(unpivotedData.map((r: any) => r.__m1))),
+            m2: Array.from(new Set(unpivotedData.map((r: any) => r.__m2))),
+            metric: Array.from(new Set(unpivotedData.map((r: any) => r[METRIC_KEY]))),
+        };
+        logPivotBuild('unpivot summary', { count: unpivotedData.length, orders, sample });
+    }, [unpivotedData]);
 
     const [rows, cols] = useMemo(() => {
         let rows_ = transposePivot ? groupbyColumns : groupbyRows;
@@ -299,29 +476,53 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         return [rows_, cols_];
     }, [groupbyColumns, groupbyRows, metricsLayout, transposePivot, LEVEL_KEYS]);
 
-    const level1Order = useMemo(
-        () => Array.from(new Set(slots.map(s => s.level1))),
-        [slots],
-    );
-    const level2Order = useMemo(
-        () => Array.from(new Set(slots.map(s => s.level2))),
-        [slots],
-    );
-    const level3Order = useMemo(
-        () => Array.from(new Set(slots.map(s => s.level3))),
-        [slots],
-    );
-    const metricLeafOrder = useMemo(() => slots.map(s => s.metric), [slots]);
+    const lvl0Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m0))), [unpivotedData]);
+    const lvl1Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m1))), [unpivotedData]);
+    const lvl2Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m2))), [unpivotedData]);
+    const metricLeafOrder = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r[METRIC_KEY]))), [unpivotedData]);
+
+    const perAttrOrder = useMemo(() => {
+        const map: Record<string, (string | number | boolean)[]> = {};
+        const seen: Record<string, Set<string>> = {} as any;
+        const attrKeys = cols || [];
+        unpivotedData.forEach((row: any) => {
+            attrKeys.forEach(k => {
+                const v = row[k];
+                const s = (seen[k] ||= new Set<string>());
+                const key = String(v);
+                if (!s.has(key)) {
+                    s.add(key);
+                    (map[k] ||= []).push(v);
+                }
+            });
+        });
+        return map;
+    }, [unpivotedData, cols]);
 
     const sorters = useMemo(() => {
         const base: Record<string, any> = {
-            __m0: sortAs(level1Order),
-            __m1: sortAs(level2Order),
+            __m0: sortAs(lvl0Order),
+            __m1: sortAs(lvl1Order),
             [METRIC_KEY]: sortAs(metricLeafOrder),
         };
-        if (showSegments) base.__m2 = sortAs(level3Order);
+
+        // вместо порядка из данных — жёстко по JSON Header
+        if (showSegments) base.__m2 = sortAs(m2HeaderOrder);
+
+        (cols || []).forEach(k => {
+            const order = (perAttrOrder as any)[k];
+            if (order && order.length) base[k] = sortAs(order);
+        });
+
+        logPivotBuild('sorters', { lvl0Order, lvl1Order, m2HeaderOrder, metricLeafOrder, perAttrOrder });
         return base;
-    }, [level1Order, level2Order, level3Order, metricLeafOrder, showSegments]);
+    }, [lvl0Order, lvl1Order, m2HeaderOrder, metricLeafOrder, showSegments, perAttrOrder, cols]);
+
+
+    const namesMapping = useMemo(
+        () => ({ ...(verboseMap || {}), __m0: ' ', __m1: ' ', ...(showSegments ? { __m2: ' ' } : {}), [METRIC_KEY]: ' ' }),
+        [verboseMap, showSegments],
+    );
 
     const handleChange = useCallback(
         (filters: SelectedFiltersType) => {
@@ -332,7 +533,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     filters:
                         filterKeys.length === 0
                             ? undefined
-                            : filterKeys
+                            : (filterKeys
                                 .map(key => {
                                     if (key === '__m0' || key === '__m1' || key === '__m2' || key === METRIC_KEY) return null as any;
                                     const val = (filters as any)?.[key];
@@ -345,7 +546,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                                     if (val === null || val === undefined) return { col, op: 'IS NULL' as const };
                                     return { col, op: 'IN' as const, val: val as (string | number | boolean)[] };
                                 })
-                                .filter(Boolean as any),
+                                .filter(Boolean as any) as any),
                 },
                 filterState: {
                     value: filters && Object.keys(filters).length ? Object.values(filters) : null,
@@ -408,7 +609,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         ) => {
             if (isSubtotal || isGrandTotal || !emitCrossFilters) return;
             const filtersCopy = { ...filters } as any;
-            delete filtersCopy.__m0; delete filtersCopy.__m1; delete filtersCopy.__m2; delete filtersCopy[METRIC_KEY];
+            delete (filtersCopy as any).__m0; delete (filtersCopy as any).__m1; delete (filtersCopy as any).__m2; delete (filtersCopy as any)[METRIC_KEY];
             const entries = Object.entries(filtersCopy);
             if (entries.length === 0) return;
             const [key, val] = entries[entries.length - 1];
@@ -462,11 +663,6 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             arrowExpanded: <StyledMinusSquareOutlined />,
         }),
         [colSubtotalPosition, rowSubtotalPosition],
-    );
-
-    const namesMapping = useMemo(
-        () => ({ ...(verboseMap || {}), __m0: ' ', __m1: ' ', ...(showSegments ? { __m2: ' ' } : {}), [METRIC_KEY]: ' ' }),
-        [verboseMap, showSegments],
     );
 
     const handleContextMenu = useCallback(
