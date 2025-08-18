@@ -510,6 +510,8 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         if (showSegments) base.__m2 = sortAs(m2HeaderOrder);
 
         (cols || []).forEach(k => {
+            // не трогаем фиксированные уровни и Metric — их порядок задаём вручную
+            if (k === '__m0' || k === '__m1' || k === '__m2' || k === METRIC_KEY) return;
             const order = (perAttrOrder as any)[k];
             if (order && order.length) base[k] = sortAs(order);
         });
