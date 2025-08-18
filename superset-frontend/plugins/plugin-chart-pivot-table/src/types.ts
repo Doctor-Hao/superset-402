@@ -89,11 +89,32 @@ interface PivotTableCustomizeProps {
   granularity_sqla?: string;
 }
 
+export interface DragAndDropConfig {
+  enabled: boolean;
+  columnsDragEnabled?: boolean;
+  rowsDragEnabled?: boolean;
+}
+
+export interface TableDragHandlers {
+  onColumnOrderChange?: (newOrder: string[]) => void;
+  onRowOrderChange?: (newOrder: string[]) => void;
+}
+
 export type PivotTableQueryFormData = QueryFormData &
   PivotTableStylesProps &
-  PivotTableCustomizeProps;
+  PivotTableCustomizeProps & {
+    dragAndDropConfig?: string;
+    columnsIndexSwaps?: string;
+    platformMapping?: string;
+    groupedSwaps?: string;
+  };
 
 export type PivotTableProps = PivotTableStylesProps &
-  PivotTableCustomizeProps & {
+  PivotTableCustomizeProps & 
+  TableDragHandlers & {
     data: DataRecord[];
+    dragAndDropConfig?: string;
+    columnsIndexSwaps?: string;
+    platformMapping?: string;
+    groupedSwaps?: string;
   };

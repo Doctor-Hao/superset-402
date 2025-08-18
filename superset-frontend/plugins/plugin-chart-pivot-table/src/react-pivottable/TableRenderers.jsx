@@ -66,10 +66,84 @@ export class TableRenderer extends React.Component {
     // We need state to record which entries are collapsed and which aren't.
     // This is an object with flat-keys indicating if the corresponding rows
     // should be collapsed.
-    this.state = { collapsedRows: {}, collapsedCols: {} };
+    this.state = { 
+      collapsedRows: {}, 
+      collapsedCols: {},
+      draggedColumn: null,
+      columnOrder: null
+    };
 
     this.clickHeaderHandler = this.clickHeaderHandler.bind(this);
     this.clickHandler = this.clickHandler.bind(this);
+    this.handleColumnDragStart = this.handleColumnDragStart.bind(this);
+    this.handleColumnDragOver = this.handleColumnDragOver.bind(this);
+    this.handleColumnDrop = this.handleColumnDrop.bind(this);
+    this.handleColumnDragEnd = this.handleColumnDragEnd.bind(this);
+  }
+
+  getDragAndDropConfig() {
+    try {
+      const config = this.props.dragAndDropConfig 
+        ? JSON.parse(this.props.dragAndDropConfig) 
+        : { enabled: false };
+      return {
+        enabled: config.enabled || false,
+        columnsDragEnabled: config.columnsDragEnabled !== false,
+        rowsDragEnabled: config.rowsDragEnabled !== false
+      };
+    } catch (e) {
+      return { enabled: false, columnsDragEnabled: false, rowsDragEnabled: false };
+    }
+  }
+
+  handleColumnDragStart(e, columnIndex, colKey) {
+    const dragConfig = this.getDragAndDropConfig();
+    if (!dragConfig.enabled || !dragConfig.columnsDragEnabled) {
+      e.preventDefault();
+      return;
+    }
+    
+    this.setState({ draggedColumn: columnIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+    e.dataTransfer.setData('text/plain', columnIndex.toString());
+  }
+
+  handleColumnDragOver(e) {
+    const dragConfig = this.getDragAndDropConfig();
+    if (!dragConfig.enabled || !dragConfig.columnsDragEnabled) {
+      return;
+    }
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  handleColumnDrop(e, targetColumnIndex) {
+    const dragConfig = this.getDragAndDropConfig();
+    if (!dragConfig.enabled || !dragConfig.columnsDragEnabled) {
+      return;
+    }
+    
+    e.preventDefault();
+    const sourceIndex = this.state.draggedColumn;
+    
+    if (sourceIndex !== null && sourceIndex !== targetColumnIndex) {
+      const newOrder = [...(this.state.columnOrder || this.props.cols || [])];
+      const draggedItem = newOrder[sourceIndex];
+      newOrder.splice(sourceIndex, 1);
+      newOrder.splice(targetColumnIndex, 0, draggedItem);
+      
+      this.setState({ columnOrder: newOrder });
+      
+      if (this.props.onColumnOrderChange) {
+        this.props.onColumnOrderChange(newOrder);
+      }
+    }
+  }
+
+  handleColumnDragEnd(e) {
+    this.setState({ draggedColumn: null });
   }
 
   getBasePivotSettings() {
@@ -429,12 +503,29 @@ export class TableRenderer extends React.Component {
           typeof dateFormatters[attrName] === 'function'
             ? dateFormatters[attrName](colKey[attrIdx])
             : colKey[attrIdx];
+
+        const dragConfig = this.getDragAndDropConfig();
+        const isDragEnabled = dragConfig.enabled && dragConfig.columnsDragEnabled;
+        const isDragging = this.state.draggedColumn === i;
+        
+        if (isDragging) {
+          colLabelClass += ' dragging';
+        }
+        if (isDragEnabled) {
+          colLabelClass += ' draggable';
+        }
+
         attrValueCells.push(
           <th
             className={colLabelClass}
             key={`colKey-${flatColKey}`}
             colSpan={colSpan}
             rowSpan={rowSpan}
+            draggable={isDragEnabled}
+            onDragStart={isDragEnabled ? (e) => this.handleColumnDragStart(e, i, colKey) : undefined}
+            onDragOver={isDragEnabled ? this.handleColumnDragOver : undefined}
+            onDrop={isDragEnabled ? (e) => this.handleColumnDrop(e, i) : undefined}
+            onDragEnd={isDragEnabled ? this.handleColumnDragEnd : undefined}
             onClick={this.clickHeaderHandler(
               pivotData,
               colKey,
@@ -443,6 +534,11 @@ export class TableRenderer extends React.Component {
               this.props.tableOptions.clickColumnHeaderCallback,
             )}
             onContextMenu={handleContextMenu}
+            style={{
+              cursor: isDragEnabled ? 'move' : 'default',
+              opacity: isDragging ? 0.5 : 1,
+              userSelect: isDragEnabled ? 'none' : 'auto'
+            }}
           >
             {displayHeaderCell(
               needToggle,

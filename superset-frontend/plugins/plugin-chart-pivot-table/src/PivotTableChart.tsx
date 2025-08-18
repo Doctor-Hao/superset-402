@@ -63,6 +63,32 @@ const PivotTableWrapper = styled.div`
 const METRIC_KEY = t('Metric');
 const vals = ['value'];
 
+function parseSwaps(input: unknown): [number, number][] {
+  try {
+    if (!input) return [];
+    if (typeof input === 'string') return JSON.parse(input);
+    if (Array.isArray(input)) return input as [number, number][];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function swapArrayByPairs<T>(arr: T[], swaps: [number, number][]): T[] {
+  const a = arr.slice();
+  for (const [from, to] of swaps) {
+    if (
+      Number.isInteger(from) && Number.isInteger(to) &&
+      from >= 0 && to >= 0 && from < a.length && to < a.length
+    ) {
+      const tmp = a[from];
+      a[from] = a[to];
+      a[to] = tmp;
+    }
+  }
+  return a;
+}
+
 const StyledPlusSquareOutlined = styled(PlusSquareOutlined)`
   stroke: ${({ theme }) => theme.colors.grayscale.light2};
   stroke-width: 16px;
@@ -154,7 +180,11 @@ export default function PivotTableChart(props: PivotTableProps) {
     dateFormatters,
     onContextMenu,
     timeGrainSqla,
-    headerTree
+    headerTree,
+    dragAndDropConfig,
+    columnsIndexSwaps,
+    onColumnOrderChange,
+    onRowOrderChange
   } = props;
 
   const hasHeaderTree =
@@ -221,12 +251,24 @@ export default function PivotTableChart(props: PivotTableProps) {
     [metrics],
   );
 
+  // Apply column swaps to metric names for regular pivot table
+  const swaps = useMemo(() => parseSwaps(columnsIndexSwaps), [columnsIndexSwaps]);
+  const reorderedMetricNames = useMemo(() => {
+    if (swaps.length > 0) {
+      console.log('%cApplying column swaps to metrics:', 'color:#1890ff', swaps, 'Original order:', metricNames);
+      const reordered = swapArrayByPairs(metricNames, swaps);
+      console.log('%cReordered metrics:', 'color:#52c41a', reordered);
+      return reordered;
+    }
+    return metricNames;
+  }, [metricNames, swaps]);
+
   const unpivotedData = useMemo(
     () =>
       data.reduce(
         (acc: Record<string, any>[], record: Record<string, any>) => [
           ...acc,
-          ...metricNames
+          ...reorderedMetricNames
             .map((name: string) => ({
               ...record,
               [METRIC_KEY]: name,
@@ -236,7 +278,7 @@ export default function PivotTableChart(props: PivotTableProps) {
         ],
         [],
       ),
-    [data, metricNames],
+    [data, reorderedMetricNames],
   );
   const groupbyRows = useMemo(
     () => groupbyRowsRaw.map(getColumnLabel),
@@ -249,9 +291,9 @@ export default function PivotTableChart(props: PivotTableProps) {
 
   const sorters = useMemo(
     () => ({
-      [METRIC_KEY]: sortAs(metricNames),
+      [METRIC_KEY]: sortAs(reorderedMetricNames),
     }),
-    [metricNames],
+    [reorderedMetricNames],
   );
 
   const [rows, cols] = useMemo(() => {
@@ -566,6 +608,9 @@ export default function PivotTableChart(props: PivotTableProps) {
           subtotalOptions={subtotalOptions}
           namesMapping={verboseMap}
           onContextMenu={handleContextMenu}
+          dragAndDropConfig={dragAndDropConfig}
+          onColumnOrderChange={onColumnOrderChange}
+          onRowOrderChange={onRowOrderChange}
         />
       </PivotTableWrapper>
     </Styles>

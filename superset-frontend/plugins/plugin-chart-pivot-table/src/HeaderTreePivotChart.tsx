@@ -95,8 +95,18 @@ const aggregatorsFactory = (formatter: NumberFormatter) => ({
     ),
 });
 
-function swapByPairs<T>(arr: T[], swaps: [number, number][]): T[] {
+function swapByPairs<T>(arr: T[], swaps: [number, number][], groups?: { [groupKey: string]: number[] }): T[] {
     const a = arr.slice();
+    
+    if (groups) {
+        const validation = validateSwapsWithinGroups(swaps, groups);
+        if (!validation.valid) {
+            console.warn('Invalid swaps detected:', validation.errors);
+            validation.errors.forEach(error => console.warn(error));
+            return a;
+        }
+    }
+    
     for (const [from, to] of swaps) {
         if (
             Number.isInteger(from) && Number.isInteger(to) &&
@@ -143,6 +153,119 @@ function parseExcludeRules(input: unknown): any[] {
     }
 }
 
+
+function parsePlatformMapping(input: unknown): Array<{ 
+  from: { 
+    level1?: string; 
+    level2?: string; 
+    level3?: string; 
+    platform?: string; 
+    metric?: string; 
+    conditions?: Record<string, any> 
+  }; 
+  to: { 
+    level1?: string; 
+    level2?: string; 
+    level3?: string; 
+  } 
+}> {
+    try {
+        if (!input) return [];
+        if (typeof input === 'string') return JSON.parse(input);
+        if (Array.isArray(input)) return input as any;
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+function parseGroupedSwaps(input: unknown): Record<string, [number, number][]> {
+    try {
+        if (!input) return {};
+        if (typeof input === 'string') return JSON.parse(input);
+        if (typeof input === 'object' && input !== null) return input as any;
+        return {};
+    } catch {
+        return {};
+    }
+}
+
+function convertGroupedSwapsToGlobalSwaps(
+    groupedSwaps: Record<string, [number, number][]>,
+    groups: { [groupKey: string]: number[] }
+): [number, number][] {
+    const globalSwaps: [number, number][] = [];
+    
+    Object.entries(groupedSwaps).forEach(([groupName, swaps]) => {
+        // Find matching group by level1 name
+        const matchingGroupKey = Object.keys(groups).find(key => key.startsWith(groupName));
+        if (matchingGroupKey) {
+            const groupIndices = groups[matchingGroupKey];
+            
+            swaps.forEach(([localFrom, localTo]) => {
+                // Convert local indices within group to global indices
+                const globalFrom = groupIndices[localFrom];
+                const globalTo = groupIndices[localTo];
+                
+                if (globalFrom !== undefined && globalTo !== undefined) {
+                    globalSwaps.push([globalFrom, globalTo]);
+                }
+            });
+        }
+    });
+    
+    return globalSwaps;
+}
+
+function groupMetricsByParent(slots: { level1: string; level2: string; level3: string; level4: string; metric: string }[], showSegments: boolean): { [groupKey: string]: number[] } {
+    const groups: { [groupKey: string]: number[] } = {};
+    
+    slots.forEach((slot, index) => {
+        let groupKey: string;
+        
+        // Build key from most specific to least specific level
+        if (showSegments && slot.level4) {
+            groupKey = `${slot.level1}|${slot.level2}|${slot.level3}|${slot.level4}`;
+        } else if (showSegments && slot.level3) {
+            groupKey = `${slot.level1}|${slot.level2}|${slot.level3}`;
+        } else if (slot.level2) {
+            groupKey = `${slot.level1}|${slot.level2}`;
+        } else {
+            groupKey = slot.level1;
+        }
+        
+        if (!groups[groupKey]) {
+            groups[groupKey] = [];
+        }
+        groups[groupKey].push(index);
+    });
+    
+    return groups;
+}
+
+function validateSwapsWithinGroups(swaps: [number, number][], groups: { [groupKey: string]: number[] }): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    for (const [from, to] of swaps) {
+        let fromGroup = '';
+        let toGroup = '';
+        
+        for (const [groupKey, indices] of Object.entries(groups)) {
+            if (indices.includes(from)) fromGroup = groupKey;
+            if (indices.includes(to)) toGroup = groupKey;
+        }
+        
+        if (fromGroup !== toGroup) {
+            errors.push(`Cannot move metric from group "${fromGroup}" to group "${toGroup}". Swaps only allowed within the same group.`);
+        }
+    }
+    
+    return {
+        valid: errors.length === 0,
+        errors
+    };
+}
+
 function logPivotBuild(tag: string, payload: Record<string, unknown>) {
     console.group(`%cPivot build ▶ ${tag}`, 'color:#7f54b3;font-weight:bold');
     Object.entries(payload).forEach(([k, v]) => {
@@ -182,6 +305,8 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         onContextMenu,
         headerTree,
         formData,
+        dragAndDropConfig,
+        onColumnOrderChange
     } = props as any;
 
     const METRIC_KEY = t('Metric');
@@ -197,22 +322,30 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     const columnsIndexSwapsRaw = (props as any).columnsIndexSwaps ?? formData?.columnsIndexSwaps;
     const relocateRulesRaw = (props as any).relocateRules ?? formData?.relocateRules;
     const excludeColumnsRulesRaw = (props as any).excludeColumnsRules ?? formData?.excludeColumnsRules;
+    const platformMappingRaw = (props as any).platformMapping ?? formData?.platformMapping;
+    const groupedSwapsRaw = (props as any).groupedSwaps ?? formData?.groupedSwaps;
 
     console.groupCollapsed('HeaderTreePivotChart ▶ inputs');
     console.log('formData', formData);
     console.log('columnsIndexSwapsRaw', columnsIndexSwapsRaw);
     console.log('relocateRulesRaw', relocateRulesRaw);
     console.log('excludeColumnsRulesRaw', excludeColumnsRulesRaw);
+    console.log('platformMappingRaw', platformMappingRaw);
+    console.log('groupedSwapsRaw', groupedSwapsRaw);
     console.groupEnd();
 
     const swaps = useMemo(() => parseSwaps(columnsIndexSwapsRaw), [columnsIndexSwapsRaw]);
     const relocateRules = useMemo(() => parseRelocateRules(relocateRulesRaw), [relocateRulesRaw]);
     const excludeRules = useMemo(() => parseExcludeRules(excludeColumnsRulesRaw), [excludeColumnsRulesRaw]);
+    const platformMapping = useMemo(() => parsePlatformMapping(platformMappingRaw), [platformMappingRaw]);
+    const groupedSwaps = useMemo(() => parseGroupedSwaps(groupedSwapsRaw), [groupedSwapsRaw]);
 
     console.groupCollapsed('HeaderTreePivotChart ▶ parsed');
     console.log('swaps', swaps);
     console.log('relocateRules', relocateRules);
     console.log('excludeRules', excludeRules);
+    console.log('platformMapping', platformMapping);
+    console.log('groupedSwaps', groupedSwaps);
     console.groupEnd();
 
     const defaultFormatter = useMemo(
@@ -270,31 +403,53 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         return true;
     }, [tree]);
 
-    type Slot = { level1: string; level2: string; level3: string; metric: string };
+    type Slot = { level1: string; level2: string; level3: string; level4: string; metric: string };
 
     const slots: Slot[] = useMemo(() => {
         const res: Slot[] = [];
         let p = 0;
         const groups = Array.isArray((tree as any)?.groups) ? (tree as any).groups : [];
+        
         groups.forEach((g: any) => {
             const l1 = g?.title ?? '—';
             const subgroups = Array.isArray(g?.subgroups) ? g.subgroups : [];
 
             if (!subgroups.length) {
+                // Direct segments under group (no subgroups)
                 const segs = Array.isArray(g?.segments) ? g.segments : [];
                 if (segs.length) {
                     if (showSegments) {
                         segs.forEach((seg: any) => {
                             const l3 = seg?.title ?? '';
-                            const cnt = Math.max(0, Number(seg?.count ?? 0));
-                            for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
-                                res.push({ level1: l1, level2: '', level3: l3, metric: metricLabels[p] });
+                            const subsegments = Array.isArray(seg?.subsegments) ? seg.subsegments : [];
+                            
+                            if (subsegments.length) {
+                                // 4-level: group → segment → subsegment → metric
+                                subsegments.forEach((subseg: any) => {
+                                    const l4 = subseg?.title ?? '';
+                                    const cnt = Math.max(1, Number(subseg?.count ?? 1));
+                                    for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
+                                        res.push({ level1: l1, level2: '', level3: l3, level4: l4, metric: metricLabels[p] });
+                                    }
+                                });
+                            } else {
+                                // 3-level: group → segment → metric
+                                const cnt = Math.max(1, Number(seg?.count ?? 1));
+                                for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
+                                    res.push({ level1: l1, level2: '', level3: l3, level4: '', metric: metricLabels[p] });
+                                }
                             }
                         });
                     } else {
-                        const total = segs.reduce((acc: number, s: any) => acc + Math.max(0, Number(s?.count ?? 0)), 0);
+                        const total = segs.reduce((acc: number, s: any) => {
+                            const subsegments = Array.isArray(s?.subsegments) ? s.subsegments : [];
+                            if (subsegments.length) {
+                                return acc + subsegments.reduce((subAcc: number, sub: any) => subAcc + Math.max(1, Number(sub?.count ?? 1)), 0);
+                            }
+                            return acc + Math.max(1, Number(s?.count ?? 1));
+                        }, 0);
                         for (let i = 0; i < total && p < metricLabels.length; i += 1, p += 1) {
-                            res.push({ level1: l1, level2: '', level3: '', metric: metricLabels[p] });
+                            res.push({ level1: l1, level2: '', level3: '', level4: '', metric: metricLabels[p] });
                         }
                     }
                 }
@@ -303,35 +458,60 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
             subgroups.forEach((sg: any) => {
                 const l2 = sg?.title ?? '';
                 const segs = Array.isArray(sg?.segments) ? sg.segments : [];
+                
                 if (segs.length) {
                     if (showSegments) {
                         segs.forEach((seg: any) => {
                             const l3 = seg?.title ?? '';
-                            const cnt = Math.max(0, Number(seg?.count ?? 0));
-                            for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
-                                res.push({ level1: l1, level2: l2, level3: l3, metric: metricLabels[p] });
+                            const subsegments = Array.isArray(seg?.subsegments) ? seg.subsegments : [];
+                            
+                            if (subsegments.length) {
+                                // 4-level: group → subgroup → segment → subsegment → metric
+                                subsegments.forEach((subseg: any) => {
+                                    const l4 = subseg?.title ?? '';
+                                    const cnt = Math.max(1, Number(subseg?.count ?? 1));
+                                    for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
+                                        res.push({ level1: l1, level2: l2, level3: l3, level4: l4, metric: metricLabels[p] });
+                                    }
+                                });
+                            } else {
+                                // 3-level: group → subgroup → segment → metric
+                                const cnt = Math.max(1, Number(seg?.count ?? 1));
+                                for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
+                                    res.push({ level1: l1, level2: l2, level3: l3, level4: '', metric: metricLabels[p] });
+                                }
                             }
                         });
                     } else {
-                        const total = segs.reduce((acc: number, s: any) => acc + Math.max(0, Number(s?.count ?? 0)), 0);
+                        const total = segs.reduce((acc: number, s: any) => {
+                            const subsegments = Array.isArray(s?.subsegments) ? s.subsegments : [];
+                            if (subsegments.length) {
+                                return acc + subsegments.reduce((subAcc: number, sub: any) => subAcc + Math.max(1, Number(sub?.count ?? 1)), 0);
+                            }
+                            return acc + Math.max(1, Number(s?.count ?? 1));
+                        }, 0);
                         for (let i = 0; i < total && p < metricLabels.length; i += 1, p += 1) {
-                            res.push({ level1: l1, level2: l2, level3: '', metric: metricLabels[p] });
+                            res.push({ level1: l1, level2: l2, level3: '', level4: '', metric: metricLabels[p] });
                         }
                     }
                 } else if (sg?.count !== undefined) {
-                    const cnt = Math.max(0, Number(sg.count));
+                    // Direct count in subgroup
+                    const cnt = Math.max(1, Number(sg.count ?? 1));
                     for (let i = 0; i < cnt && p < metricLabels.length; i += 1, p += 1) {
-                        res.push({ level1: l1, level2: l2, level3: '', metric: metricLabels[p] });
+                        res.push({ level1: l1, level2: l2, level3: '', level4: '', metric: metricLabels[p] });
                     }
                 }
             });
         });
+        
+        // Add remaining metrics as orphans
         if (p < metricLabels.length) {
             for (; p < metricLabels.length; p += 1) {
                 const m = metricLabels[p];
-                res.push({ level1: m, level2: '', level3: '', metric: m });
+                res.push({ level1: m, level2: '', level3: '', level4: '', metric: m });
             }
         }
+        
         return res;
     }, [tree, metricLabels, showSegments]);
 
@@ -361,18 +541,122 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     }, [tree]);
 
 
-    const slotsReordered = useMemo(() => swapByPairs(slots, swaps), [slots, swaps]);
+    const metricGroups = useMemo(() => {
+        const groups = groupMetricsByParent(slots, showSegments);
+        console.group('%cColumn Groups Info', 'color:#2eb85c;font-weight:bold');
+        Object.entries(groups).forEach(([groupKey, indices]) => {
+            const groupMetrics = indices.map(i => slots[i]?.metric).filter(Boolean);
+            console.log(`%c${groupKey}:`, 'color:#1890ff', `indices=[${indices.join(',')}]`, `metrics=[${groupMetrics.join(', ')}]`);
+        });
+        console.groupEnd();
+        return groups;
+    }, [slots, showSegments]);
+    
+    // Combine regular swaps with grouped swaps
+    const finalSwaps = useMemo(() => {
+        const groupedToGlobalSwaps = convertGroupedSwapsToGlobalSwaps(groupedSwaps, metricGroups);
+        const combinedSwaps = [...swaps, ...groupedToGlobalSwaps];
+        
+        console.group('%cSwaps Combination', 'color:#fa8c16;font-weight:bold');
+        console.log('Regular swaps:', swaps);
+        console.log('Grouped swaps:', groupedSwaps);
+        console.log('Converted to global:', groupedToGlobalSwaps);
+        console.log('Final combined swaps:', combinedSwaps);
+        console.groupEnd();
+        
+        return combinedSwaps;
+    }, [swaps, groupedSwaps, metricGroups]);
+    
+    const slotsReordered = useMemo(() => swapByPairs(slots, finalSwaps, metricGroups), [slots, finalSwaps, metricGroups]);
 
     const groupbyRows = useMemo(() => groupbyRowsRaw.map(getColumnLabel), [groupbyRowsRaw]);
     const groupbyColumns = useMemo(() => groupbyColumnsRaw.map(getColumnLabel), [groupbyColumnsRaw]);
 
-    const LEVEL_KEYS: string[] = useMemo(
-        () => (showSegments ? ['__m0', '__m1', '__m2', METRIC_KEY] : ['__m0', '__m1', METRIC_KEY]),
-        [showSegments],
-    );
+    const LEVEL_KEYS: string[] = useMemo(() => {
+        // Check if any slot has level4 to determine if we need __m3
+        const hasLevel4 = slots.some(slot => slot.level4);
+        
+        if (showSegments) {
+            return hasLevel4 ? ['__m0', '__m1', '__m2', '__m3', METRIC_KEY] : ['__m0', '__m1', '__m2', METRIC_KEY];
+        } else {
+            return ['__m0', '__m1', METRIC_KEY];
+        }
+    }, [showSegments, slots]);
 
     function applyRelocate(tuple: Record<string, any>, gb: Record<string, any>, ctx: { lbl: string; rec: any }) {
         const keyAlias = (k: string) => (String(k).toLowerCase() === 'metric' ? METRIC_KEY : k);
+        
+        // Apply platformMapping using new "from → to" format
+        if (Array.isArray(platformMapping) && platformMapping.length > 0) {
+            for (const rule of platformMapping) {
+                if (!rule.from || !rule.to) continue;
+                
+                let matched = false;
+                
+                // Check if current column matches "from" criteria
+                const currentLevels = {
+                    level1: tuple.__m0,
+                    level2: tuple.__m1,
+                    level3: tuple.__m2
+                };
+                
+                // Check level matching
+                const levelsMatch = Object.entries(rule.from).every(([key, value]) => {
+                    if (!value) return true; // undefined/null means "any"
+                    
+                    switch (key) {
+                        case 'level1':
+                        case 'level2':
+                        case 'level3':
+                            return norm(currentLevels[key as keyof typeof currentLevels]) === norm(value);
+                        case 'metric':
+                            return norm(ctx.lbl) === norm(value);
+                        case 'platform':
+                            // Check if any groupby column matches the platform value
+                            return groupbyColumns.some(col => norm(gb[col]) === norm(value));
+                        default:
+                            return true;
+                    }
+                });
+                
+                // Check additional conditions if specified
+                let conditionsMatch = true;
+                if (rule.from.conditions) {
+                    conditionsMatch = Object.entries(rule.from.conditions).every(([condKey, condValue]) => {
+                        if (condKey === 'metric') {
+                            return norm(ctx.lbl) === norm(condValue);
+                        }
+                        // Check if condition key exists in groupby columns
+                        const gbValue = gb[condKey];
+                        return gbValue && norm(gbValue) === norm(condValue);
+                    });
+                }
+                
+                matched = levelsMatch && conditionsMatch;
+                
+                if (matched) {
+                    console.groupCollapsed('platform mapping applied (from → to format)');
+                    console.log('mapping rule', rule);
+                    console.log('current state', { 
+                        levels: currentLevels,
+                        metric: ctx.lbl, 
+                        groupby: { ...gb } 
+                    });
+                    console.log('before mapping', { tuple: { ...tuple } });
+                    
+                    // Apply "to" mapping (level1-3 only, level4 are metrics)
+                    if (rule.to.level1) tuple.__m0 = rule.to.level1;
+                    if (rule.to.level2) tuple.__m1 = rule.to.level2;
+                    if (rule.to.level3) tuple.__m2 = rule.to.level3;
+                    
+                    console.log('after mapping', { tuple: { ...tuple } });
+                    console.groupEnd();
+                    break; // Apply only first matching rule
+                }
+            }
+        }
+        
+        // Apply relocateRules (advanced approach)
         for (const raw of relocateRules) {
             const r = {
                 when: Object.fromEntries(Object.entries(raw.when || {}).map(([k, v]) => [keyAlias(k), v])),
@@ -383,7 +667,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                 return norm(source[k]) === norm(v);
             });
             if (ok) {
-                console.groupCollapsed('relocate match');
+                console.groupCollapsed('relocate rule match');
                 console.log('rule', r);
                 console.log('before', { tuple: { ...tuple }, gb: { ...gb }, metricLbl: ctx.lbl });
                 Object.entries(r.set).forEach(([k, v]) => { if (k in gb) gb[k] = v; else tuple[k] = v; });
@@ -400,11 +684,11 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     metricLabels.map(lbl => {
                         const slot =
                             slotsReordered.find(s => s.metric === lbl) ||
-                            ({ level1: '—', level2: '', level3: '' } as Slot);
-                        const isOrphan = slot.level1 === lbl && slot.level2 === '' && slot.level3 === '';
+                            ({ level1: '—', level2: '', level3: '', level4: '' } as Slot);
+                        const isOrphan = slot.level1 === lbl && slot.level2 === '' && slot.level3 === '' && slot.level4 === '';
                         const metricKeyValue = isOrphan ? '' : lbl;
 
-                        const tuple: Record<string, any> = { __m0: slot.level1, __m1: slot.level2, __m2: slot.level3, [METRIC_KEY]: metricKeyValue };
+                        const tuple: Record<string, any> = { __m0: slot.level1, __m1: slot.level2, __m2: slot.level3, __m3: slot.level4, [METRIC_KEY]: metricKeyValue };
                         const gb: Record<string, any> = Object.fromEntries(groupbyColumns.map(k => [k, (rec as any)[k]]));
 
                         applyRelocate(tuple, gb, { lbl, rec });
@@ -440,6 +724,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                             __m0: tuple.__m0,
                             __m1: tuple.__m1,
                             __m2: tuple.__m2,
+                            __m3: tuple.__m3,
                             [METRIC_KEY]: tuple[METRIC_KEY],
                             __orphan_header__: isOrphan ? 1 : 0,
                             ...gb,
@@ -450,7 +735,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     }),
                 )
                 .filter((r: any) => r && r.value !== null && r.value !== undefined),
-        [data, metricLabels, slotsReordered, groupbyColumns, relocateRules, excludeRules],
+        [data, metricLabels, slotsReordered, groupbyColumns, relocateRules, excludeRules, platformMapping],
     );
 
     useMemo(() => {
@@ -508,6 +793,9 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
 
         // вместо порядка из данных — жёстко по JSON Header
         if (showSegments) base.__m2 = sortAs(m2HeaderOrder);
+        
+        // ВАЖНО: Сохраняем исходный порядок уровней из Header JSON, даже после Platform Mapping
+        // Порядок должен оставаться таким, как определен в структуре заголовков
 
         (cols || []).forEach(k => {
             // не трогаем фиксированные уровни и Metric — их порядок задаём вручную
@@ -701,6 +989,27 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         [onContextMenu, getCrossFilterDataMask, rows, cols],
     );
 
+    // Handler for column reordering via drag-and-drop
+    const handleColumnReorder = useCallback((newOrder: string[]) => {
+        // Convert new order to swaps array
+        const swapPairs: [number, number][] = [];
+        const currentOrder = slotsReordered.map(slot => slot.metric);
+        
+        for (let i = 0; i < newOrder.length; i++) {
+            const currentIndex = currentOrder.indexOf(newOrder[i]);
+            if (currentIndex !== -1 && currentIndex !== i) {
+                swapPairs.push([currentIndex, i]);
+                // Update currentOrder for next iteration
+                [currentOrder[currentIndex], currentOrder[i]] = [currentOrder[i], currentOrder[currentIndex]];
+            }
+        }
+
+        // Call the callback with swaps in the format expected by HeaderTreePivotChart
+        if (onColumnOrderChange && swapPairs.length > 0) {
+            onColumnOrderChange(JSON.stringify(swapPairs));
+        }
+    }, [slotsReordered, onColumnOrderChange]);
+
     return (
         <Styles height={height} width={width} margin={theme.gridUnit * 4}>
             <PivotTableWrapper>
@@ -720,6 +1029,8 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     subtotalOptions={subtotalOptions}
                     namesMapping={namesMapping}
                     onContextMenu={handleContextMenu}
+                    dragAndDropConfig={dragAndDropConfig}
+                    onColumnOrderChange={handleColumnReorder}
                 />
             </PivotTableWrapper>
         </Styles>

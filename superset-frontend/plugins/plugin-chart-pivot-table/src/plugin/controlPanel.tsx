@@ -159,9 +159,8 @@ const config: ControlPanelConfig = {
       ],
     },
     {
-      label: t('Options'),
-      expanded: true,
-      tabOverride: 'data',
+      label: t('Pivot Options'),
+      expanded: false,
       controlSetRows: [
         [
           {
@@ -276,11 +275,49 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'dragAndDropConfig',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Drag and Drop Configuration'),
+              default: JSON.stringify({ enabled: false, columnsDragEnabled: true, rowsDragEnabled: true }, null, 2),
+              description: t(
+                'JSON configuration for drag and drop functionality. Example: {"enabled": true, "columnsDragEnabled": true, "rowsDragEnabled": true}'
+              ),
+              renderTrigger: true,
+              resetOnHide: false,
+              language: 'json',
+              validators: [
+                (value: string) => {
+                  try {
+                    const parsed = JSON.parse(value || '{}');
+                    if (typeof parsed !== 'object' || parsed === null) {
+                      return t('Must be a valid JSON object');
+                    }
+                    if (parsed.enabled !== undefined && typeof parsed.enabled !== 'boolean') {
+                      return t('enabled must be a boolean');
+                    }
+                    if (parsed.columnsDragEnabled !== undefined && typeof parsed.columnsDragEnabled !== 'boolean') {
+                      return t('columnsDragEnabled must be a boolean');
+                    }
+                    if (parsed.rowsDragEnabled !== undefined && typeof parsed.rowsDragEnabled !== 'boolean') {
+                      return t('rowsDragEnabled must be a boolean');
+                    }
+                    return false;
+                  } catch (e) {
+                    return t('Invalid JSON format');
+                  }
+                }
+              ]
+            },
+          },
+        ],
       ],
     },
     {
-      label: t('Options'),
-      expanded: true,
+      label: t('Chart Options'),
+      expanded: false,
       controlSetRows: [
         [
           {
@@ -312,10 +349,37 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'platformMapping',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Platform to Header Mapping'),
+              description: t('Platform to Header Mapping with "from → to" format. Array of rules: [{"from": {"level1": "Начальные запасы", "level3": "Геологические", "platform": "PS2"}, "to": {"level2": "Другой газ"}}]. "from" specifies source location (level1-3, platform, metric, conditions), "to" specifies target (level1-3). Note: level4 = metrics, order preserved from Header JSON.'),
+              default: '[]',
+              language: 'json',
+              renderTrigger: true,
+              resetOnHide: false,
+              validators: [
+                (value: string) => {
+                  try {
+                    const parsed = JSON.parse(value || '[]');
+                    if (!Array.isArray(parsed)) {
+                      return t('Must be a valid JSON array');
+                    }
+                    return false;
+                  } catch (e) {
+                    return t('Invalid JSON format');
+                  }
+                }
+              ]
+            },
+          },
+        ],
+        [
+          {
             name: 'excludeColumnsRules',
             config: {
               type: 'TextAreaControl',
-              label: t('Relocate rules (re-parent columns)'),
+              label: t('Exclude columns rules'),
               description: t('JSON: [{"when": {...}, "set": {...}}].'),
               default: '[]',
               language: 'json',
@@ -324,6 +388,95 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'columnsIndexSwaps',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Columns Index Swaps (JSON)'),
+              description: t('JSON array of [from,to] pairs for column reordering: [[0,2],[1,3]]. Use the visual editor below for easier configuration.'),
+              default: '[]',
+              language: 'json',
+              renderTrigger: true,
+              resetOnHide: false,
+              validators: [
+                (value: string) => {
+                  try {
+                    const parsed = JSON.parse(value || '[]');
+                    if (!Array.isArray(parsed)) {
+                      return t('Must be an array');
+                    }
+                    for (const item of parsed) {
+                      if (!Array.isArray(item) || item.length !== 2 || 
+                          !Number.isInteger(item[0]) || !Number.isInteger(item[1])) {
+                        return t('Each item must be an array of two integers [from, to]');
+                      }
+                    }
+                    return false;
+                  } catch (e) {
+                    return t('Invalid JSON format');
+                  }
+                }
+              ]
+            },
+          },
+        ],
+        [
+          {
+            name: 'groupedSwaps',
+            config: {
+              type: 'TextAreaControl',
+              label: t('Grouped Column Swaps'),
+              description: t('Group column swaps by top-level headers. Example: {"Начальные запасы": [[0,1]], "Текущие показатели": [[2,3]]}. This allows moving columns within specific header groups.'),
+              default: '{}',
+              language: 'json',
+              renderTrigger: true,
+              resetOnHide: false,
+              validators: [
+                (value: string) => {
+                  try {
+                    const parsed = JSON.parse(value || '{}');
+                    if (typeof parsed !== 'object' || parsed === null) {
+                      return t('Must be a valid JSON object');
+                    }
+                    for (const [groupName, swaps] of Object.entries(parsed)) {
+                      if (!Array.isArray(swaps)) {
+                        return t(`Swaps for group "${groupName}" must be an array`);
+                      }
+                      for (const swap of swaps as any[]) {
+                        if (!Array.isArray(swap) || swap.length !== 2 || 
+                            !Number.isInteger(swap[0]) || !Number.isInteger(swap[1])) {
+                          return t(`Each swap must be an array of two integers [from, to]`);
+                        }
+                      }
+                    }
+                    return false;
+                  } catch (e) {
+                    return t('Invalid JSON format');
+                  }
+                }
+              ]
+            },
+          },
+        ],
+        [
+          {
+            name: 'columnReorderHelper',
+            config: {
+              type: 'InfoTooltipControl',
+              label: t('Column Reordering Rules'),
+              tooltip: t('You can only move columns within the same group. Groups are determined by the header tree structure (level1 → level2 → level3). Moving columns between different groups is not allowed and will show warnings in the browser console.'),
+              placement: 'right',
+              trigger: 'click'
+            },
+          },
+        ],
+      ],
+    },
+    {
+      label: t('Formatting'),
+      expanded: false,
+      controlSetRows: [
         [
           {
             name: 'valueFormat',
@@ -474,6 +627,9 @@ const config: ControlPanelConfig = {
       ],
     },
   ],
+  controlOverrides: {
+    // Убедимся, что платформенные контролы не попадают в data tab
+  },
   formDataOverrides: formData => {
     const groupbyColumns = getStandardizedControls().controls.columns.filter(
       col => !ensureIsArray(formData.groupbyRows).includes(col),

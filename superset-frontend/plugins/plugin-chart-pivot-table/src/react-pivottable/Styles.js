@@ -141,5 +141,34 @@ export const Styles = styled.div`
       background-color: ${theme.colors.primary.light4};
       cursor: pointer;
     }
+
+    /* Drag and Drop Styles */
+    .draggable {
+      transition: background-color 0.2s ease;
+    }
+
+    .draggable:hover {
+      background-color: ${theme.colors.primary.light4};
+    }
+
+    .dragging {
+      opacity: 0.5;
+      background-color: ${theme.colors.primary.light3} !important;
+    }
+
+    .pvtColLabel.draggable {
+      cursor: move;
+    }
+
+    .pvtTable thead th[draggable="true"] {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+
+    .pvtTable thead th.draggable:active {
+      background-color: ${theme.colors.primary.light2};
+    }
   `}
 `;
