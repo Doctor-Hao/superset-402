@@ -111,7 +111,7 @@ export const getComments = (varId: number) =>
   request<{ data: CommentBody[] }>('GET', `${ENDPOINT}/${varId}`);
 
 export const createComments = (payload: CommentaryPayload) =>
-  request<{ data: CommentBody[] }>('POST', ENDPOINT, payload);
+  request<{ info: string }>('POST', ENDPOINT, payload);
 
 export const patchComments = (payload: CommentaryPayload) =>
   request<{ info: string }>('PATCH', ENDPOINT, payload);
@@ -345,12 +345,10 @@ export default function EchartsMixedTimeseries({
     },
   };
 
-  const addEmptyComment = () => {
+  const addEmptyComment = async () => {
     if (variantId === undefined) return;
 
-    // ставим в левый-верхний угол (20 px, 20 px)
     const { x_pct, y_pct } = toPercents(20, 20);
-
     const temp: CommentItem = {
       tempId: genTempId(),
       x_coord: x_pct,
@@ -361,22 +359,20 @@ export default function EchartsMixedTimeseries({
       description: 'Новый комментарий',
     };
 
+    // оптимистично добавляем на экран
     setComments(prev => [...prev, temp]);
 
-    const toItem = (c: CommentBody): CommentItem => ({
-      ...c,
-      x_pct: c.x_coord,
-      y_pct: c.y_coord,
-    });
-
-    createComments({ var_id: variantId, data: [temp] })
-      .then(({ data }) =>
-        setComments(prev =>
-          prev.map(c => (c.tempId === temp.tempId ? toItem(data[0]) : c)),
-        ),
-      )
-      .catch(console.error);
+    try {
+      await createComments({ var_id: variantId, data: [temp] }); // вернёт {info: "Успех"}
+      await fetchAndSet(variantId); // перечитываем актуальные данные с id от сервера
+    } catch (err) {
+      console.error('❌ Ошибка создания комментария:', err);
+      // откат оптимистичного добавления
+      setComments(prev => prev.filter(c => c.tempId !== temp.tempId));
+      alert(`Не удалось создать комментарий: ${err}`);
+    }
   };
+
 
   const toItem = (c: CommentBody): CommentItem => ({
     ...c,
