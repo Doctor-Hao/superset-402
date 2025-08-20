@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   AxisType,
@@ -66,6 +66,7 @@ export interface CommentBody {
 
 export interface CommentaryPayload {
   var_id: number;
+  obj_name: string;
   data: CommentBody[];
 }
 
@@ -73,123 +74,176 @@ export type CommentItem = CommentBody & {
   tempId?: string;
   x_pct: number;
   y_pct: number;
+};
+
+interface CommentaryGetResponse {
+  var_id: number;
+  obj_name: string;
+  data: CommentBody[];
 }
 
 const ENDPOINT = '/variant/profile_design/commentary';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-export async function request<T>(
-  method: HttpMethod,
-  endpoint: string,
-  body?: unknown,
-): Promise<T> {
+async function request<T>(method: HttpMethod, endpoint: string, body?: unknown): Promise<T> {
   const fetchOptions: RequestInit = {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
-  if (body) {
-    fetchOptions.body = JSON.stringify(body);
-  }
-  const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, fetchOptions);
+  if (body) fetchOptions.body = JSON.stringify(body);
 
+  const response = await fetch(`${process.env.BACKEND_URL}${endpoint}`, fetchOptions);
   if (!response.ok) {
     let backendMsg = '';
     try {
       const { message } = await response.clone().json();
       backendMsg = message ? `: ${message}` : '';
-    } catch {
-      /* тело не JSON – игнор */
-    }
+    } catch { }
     throw new Error(`HTTP ${response.status}${backendMsg}`);
   }
-
   return response.json();
 }
 
-export const getComments = (varId: number) =>
-  request<{ data: CommentBody[] }>('GET', `${ENDPOINT}/${varId}`);
-
-export const createComments = (payload: CommentaryPayload) =>
+// API
+export const getComments = (varId: number, objName: string) =>
+  request<{ data: CommentBody[] }>(
+    'GET',
+    `${ENDPOINT}/${varId}?obj_name=${encodeURIComponent(objName)}`,
+  );
+const createComments = (payload: CommentaryPayload) =>
   request<{ info: string }>('POST', ENDPOINT, payload);
-
-export const patchComments = (payload: CommentaryPayload) =>
+const patchComments = (payload: CommentaryPayload) =>
   request<{ info: string }>('PATCH', ENDPOINT, payload);
-
-export const deleteComment = (commentId: number) =>
+const deleteComment = (commentId: number) =>
   request<void>('DELETE', `${ENDPOINT}/del_comm/${commentId}`);
 
-export default function EchartsMixedTimeseries({
-  height,
-  width,
-  echartOptions,
-  setDataMask,
-  labelMap,
-  labelMapB,
-  groupby,
-  groupbyB,
-  selectedValues,
-  formData,
-  emitCrossFilters,
-  seriesBreakdown,
-  onContextMenu,
-  onFocusedSeries,
-  xValueFormatter,
-  xAxis,
-  refs,
-  coltypeMapping,
-  queriesData,
-}: EchartsMixedTimeseriesChartTransformedProps) {
-  const isFirstQuery = useCallback(
-    (seriesIndex: number) => seriesIndex < seriesBreakdown,
-    [seriesBreakdown],
-  );
+// --- helpers ---
+function valuesFromAdhoc(fd: any, col: string): any[] {
+  const adhoc = Array.isArray(fd?.adhoc_filters) ? fd.adhoc_filters : [];
+  const out: any[] = [];
+  adhoc.forEach((f: any) => {
+    if (f?.expressionType === 'SIMPLE' && f?.subject === col) {
+      const op = String(f?.operator ?? '').toUpperCase();
+      if (op === 'IN' || op === '==' || op === 'EQ' || op === 'EQUALS') {
+        if (Array.isArray(f?.comparator)) out.push(...f.comparator);
+        else if (f?.comparator != null) out.push(f.comparator);
+      }
+    }
+  });
+  return out;
+}
+function valuesFromExtra(fd: any, col: string): any[] {
+  const filters = Array.isArray(fd?.extraFormData?.filters) ? fd.extraFormData.filters : [];
+  const out: any[] = [];
+  filters.forEach((fl: any) => {
+    if (fl?.col === col) {
+      if (Array.isArray(fl?.val)) out.push(...fl.val);
+      else if (fl?.val != null) out.push(fl.val);
+    }
+  });
+  return out;
+}
+function uniq<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
+}
+
+export default function EchartsMixedTimeseries(props: EchartsMixedTimeseriesChartTransformedProps) {
+  const {
+    height,
+    width,
+    echartOptions,
+    setDataMask,
+    labelMap,
+    labelMapB,
+    groupby,
+    groupbyB,
+    selectedValues,
+    formData,
+    emitCrossFilters,
+    seriesBreakdown,
+    onContextMenu,
+    onFocusedSeries,
+    xValueFormatter,
+    xAxis,
+    refs,
+    coltypeMapping,
+    queriesData,
+  } = props;
+
+  const isFirstQuery = useCallback((seriesIndex: number) => seriesIndex < seriesBreakdown, [seriesBreakdown]);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { variantId: rawVariantId, hint } = useProjectVariantIds(queriesData);
-  const variantId = React.useMemo<number | undefined>(() => {
+  // 1) Вариант
+  const { variantId: rawVariantId, hint: variantHint } = useProjectVariantIds(queriesData);
+  const variantId = useMemo<number | undefined>(() => {
     if (rawVariantId == null) return undefined;
     return typeof rawVariantId === 'string' ? Number(rawVariantId) : rawVariantId;
   }, [rawVariantId]);
 
-  console.log("varId", variantId);
+  // 2) Объект (из фильтра fclt_name)
+  const objectSelections = useMemo<string[]>(() => {
+    const vals = uniq<string>([
+      ...valuesFromAdhoc(formData, 'fclt_name'),
+      ...valuesFromExtra(formData, 'fclt_name'),
+    ].map(String));
+    return vals;
+  }, [formData]);
 
+  const objName: string | undefined = useMemo(() => {
+    return objectSelections.length === 1 ? String(objectSelections[0]) : undefined;
+  }, [objectSelections]);
 
-  useEffect(() => {
-    if (!formData.comments || variantId === undefined) return;
+  const objectHint: string | undefined = useMemo(() => {
+    if (objectSelections.length === 0) return 'Выберите 1 объект в фильтре.';
+    if (objectSelections.length > 1) return `Выбрано ${objectSelections.length} объектов. Нужен ровно 1.`;
+    return undefined;
+  }, [objectSelections]);
 
-    const fetchComments = async () => {
+  const commentsAllowed =
+    Boolean(formData?.comments) &&
+    variantId !== undefined &&
+    objName !== undefined;
+
+  const combinedHint = useMemo(() => {
+    const parts = [variantHint, objectHint].filter(Boolean) as string[];
+    return parts.length ? parts.join(' ') : undefined;
+  }, [variantHint, objectHint]);
+
+  const toItem = (c: CommentBody): CommentItem => ({
+    ...c,
+    x_pct: c.x_coord,
+    y_pct: c.y_coord,
+  });
+
+  const fetchAndSet = async (varId: number, name: string) => {
+    try {
       setLoading(true);
-      try {
-        const { data } = await getComments(variantId);
+      const resp = await getComments(varId, name); // сервер сам вернёт подходящий obj_name
+      setComments(resp.data.map(toItem));
+    } catch (err) {
+      console.error('❌ Ошибка загрузки комментариев:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const items: CommentItem[] = data.map(c => ({
-          ...c,
-          x_pct: c.x_coord,
-          y_pct: c.y_coord,
-        }));
+  // грузим только когда разрешено (1 вариант и 1 объект)
+  useEffect(() => {
+    if (!commentsAllowed) return;
+    fetchAndSet(variantId!, objName);
+  }, [commentsAllowed, variantId, objName]); // objName влияет на разрешение
 
-        setComments(items);
-      } catch (err) {
-        console.error('❌ Ошибка загрузки комментариев:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchComments();
-  }, [variantId, formData.comments]);
-
+  // следим за ресайзом контейнера
   const [, force] = useState({});
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    const ro = new ResizeObserver(() => force({})); // триггерит перерисовку
+    const ro = new ResizeObserver(() => force({}));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -208,22 +262,16 @@ export default function EchartsMixedTimeseries({
     return { x_pct: x / w, y_pct: y / h };
   };
 
-
   const getCrossFilterDataMask = useCallback(
     (seriesName, seriesIndex) => {
       const selected: string[] = Object.values(selectedValues || {});
-      let values: string[];
-      if (selected.includes(seriesName)) {
-        values = selected.filter(v => v !== seriesName);
-      } else {
-        values = [seriesName];
-      }
+      const values = selected.includes(seriesName)
+        ? selected.filter(v => v !== seriesName)
+        : [seriesName];
 
       const currentGroupBy = isFirstQuery(seriesIndex) ? groupby : groupbyB;
       const currentLabelMap = isFirstQuery(seriesIndex) ? labelMap : labelMapB;
-      const groupbyValues = values
-        .map(value => currentLabelMap?.[value])
-        .filter(value => !!value);
+      const groupbyValues = values.map(value => currentLabelMap?.[value]).filter(Boolean) as any[];
 
       return {
         dataMask: {
@@ -232,23 +280,12 @@ export default function EchartsMixedTimeseries({
             filters:
               values.length === 0
                 ? []
-                : [
-                  ...currentGroupBy.map((col, idx) => {
-                    const val: DataRecordValue[] = groupbyValues.map(
-                      v => v[idx],
-                    );
-                    if (val === null || val === undefined)
-                      return {
-                        col,
-                        op: 'IS NULL' as const,
-                      };
-                    return {
-                      col,
-                      op: 'IN' as const,
-                      val: val as (string | number | boolean)[],
-                    };
-                  }),
-                ],
+                : currentGroupBy.map((col, idx) => {
+                  const val: DataRecordValue[] = groupbyValues.map(v => v[idx]);
+                  if (val === null || val === undefined)
+                    return { col, op: 'IS NULL' as const };
+                  return { col, op: 'IN' as const, val: val as (string | number | boolean)[] };
+                }),
           },
           filterState: {
             value: !groupbyValues.length ? null : groupbyValues,
@@ -263,89 +300,77 @@ export default function EchartsMixedTimeseries({
 
   const handleChange = useCallback(
     (seriesName: string, seriesIndex: number) => {
-      if (!emitCrossFilters) {
-        return;
-      }
-
+      if (!emitCrossFilters) return;
       setDataMask(getCrossFilterDataMask(seriesName, seriesIndex).dataMask);
     },
     [emitCrossFilters, setDataMask, getCrossFilterDataMask],
   );
 
   const eventHandlers: EventHandlers = {
-    click: props => {
-      const { seriesName, seriesIndex } = props;
+    click: params => {
+      const { seriesName, seriesIndex } = params;
       handleChange(seriesName, seriesIndex);
     },
-    mouseout: () => {
-      onFocusedSeries(null);
-    },
-    mouseover: params => {
-      onFocusedSeries(params.seriesName);
-    },
+    mouseout: () => onFocusedSeries(null),
+    mouseover: params => onFocusedSeries(params.seriesName),
     contextmenu: async eventParams => {
-      if (onContextMenu) {
-        eventParams.event.stop();
-        const { data, seriesName, seriesIndex } = eventParams;
-        const pointerEvent = eventParams.event.event;
-        const drillToDetailFilters: BinaryQueryObjectFilterClause[] = [];
-        const drillByFilters: BinaryQueryObjectFilterClause[] = [];
-        const isFirst = isFirstQuery(seriesIndex);
-        const values = [
-          ...(eventParams.name ? [eventParams.name] : []),
-          ...(isFirst ? labelMap : labelMapB)[eventParams.seriesName],
-        ];
-        if (data && xAxis.type === AxisType.Time) {
-          drillToDetailFilters.push({
-            col:
-              xAxis.label === DTTM_ALIAS
-                ? formData.granularitySqla
-                : xAxis.label,
-            grain: formData.timeGrainSqla,
-            op: '==',
-            val: data[0],
-            formattedVal: xValueFormatter(data[0]),
-          });
-        }
-        [
-          ...(data && xAxis.type === AxisType.Category ? [xAxis.label] : []),
-          ...(isFirst ? formData.groupby : formData.groupbyB),
-        ].forEach((dimension, i) =>
-          drillToDetailFilters.push({
-            col: dimension,
-            op: '==',
-            val: values[i],
-            formattedVal: String(values[i]),
-          }),
-        );
-
-        [...(isFirst ? formData.groupby : formData.groupbyB)].forEach(
-          (dimension, i) =>
-            drillByFilters.push({
-              col: dimension,
-              op: '==',
-              val: values[i],
-              formattedVal: formatSeriesName(values[i], {
-                timeFormatter: getTimeFormatter(formData.dateFormat),
-                numberFormatter: getNumberFormatter(formData.numberFormat),
-                coltype: coltypeMapping?.[getColumnLabel(dimension)],
-              }),
-            }),
-        );
-        onContextMenu(pointerEvent.clientX, pointerEvent.clientY, {
-          drillToDetail: drillToDetailFilters,
-          crossFilter: getCrossFilterDataMask(seriesName, seriesIndex),
-          drillBy: {
-            filters: drillByFilters,
-            groupbyFieldName: isFirst ? 'groupby' : 'groupby_b',
-            adhocFilterFieldName: isFirst ? 'adhoc_filters' : 'adhoc_filters_b',
-          },
+      if (!onContextMenu) return;
+      eventParams.event.stop();
+      const { data, seriesName, seriesIndex } = eventParams;
+      const pointerEvent = eventParams.event.event;
+      const drillToDetailFilters: BinaryQueryObjectFilterClause[] = [];
+      const drillByFilters: BinaryQueryObjectFilterClause[] = [];
+      const isFirst = isFirstQuery(seriesIndex);
+      const values = [
+        ...(eventParams.name ? [eventParams.name] : []),
+        ...(isFirst ? labelMap : labelMapB)[eventParams.seriesName],
+      ];
+      if (data && xAxis.type === AxisType.Time) {
+        drillToDetailFilters.push({
+          col: xAxis.label === DTTM_ALIAS ? (formData as any).granularitySqla : xAxis.label,
+          grain: (formData as any).timeGrainSqla,
+          op: '==',
+          val: data[0],
+          formattedVal: xValueFormatter(data[0]),
         });
       }
+      [
+        ...(data && xAxis.type === AxisType.Category ? [xAxis.label] : []),
+        ...(isFirst ? (formData as any).groupby : (formData as any).groupbyB),
+      ].forEach((dimension, i) =>
+        drillToDetailFilters.push({
+          col: dimension,
+          op: '==',
+          val: values[i],
+          formattedVal: String(values[i]),
+        }),
+      );
+
+      [...(isFirst ? (formData as any).groupby : (formData as any).groupbyB)].forEach((dimension, i) =>
+        drillByFilters.push({
+          col: dimension,
+          op: '==',
+          val: values[i],
+          formattedVal: formatSeriesName(values[i], {
+            timeFormatter: getTimeFormatter((formData as any).dateFormat),
+            numberFormatter: getNumberFormatter((formData as any).numberFormat),
+            coltype: coltypeMapping?.[getColumnLabel(dimension)],
+          }),
+        }),
+      );
+      onContextMenu(pointerEvent.clientX, pointerEvent.clientY, {
+        drillToDetail: drillToDetailFilters,
+        crossFilter: getCrossFilterDataMask(seriesName, seriesIndex),
+        drillBy: {
+          filters: drillByFilters,
+          groupbyFieldName: isFirst ? 'groupby' : 'groupby_b',
+          adhocFilterFieldName: isFirst ? 'adhoc_filters' : 'adhoc_filters_b',
+        },
+      });
     },
   };
 
-  const addEmptyComment = async () => {
+  const addEmptyComment = () => {
     if (variantId === undefined) return;
 
     const { x_pct, y_pct } = toPercents(20, 20);
@@ -359,53 +384,52 @@ export default function EchartsMixedTimeseries({
       description: 'Новый комментарий',
     };
 
-    // оптимистично добавляем на экран
+    // Просто добавляем локально, без сети.
     setComments(prev => [...prev, temp]);
-
-    try {
-      await createComments({ var_id: variantId, data: [temp] }); // вернёт {info: "Успех"}
-      await fetchAndSet(variantId); // перечитываем актуальные данные с id от сервера
-    } catch (err) {
-      console.error('❌ Ошибка создания комментария:', err);
-      // откат оптимистичного добавления
-      setComments(prev => prev.filter(c => c.tempId !== temp.tempId));
-      alert(`Не удалось создать комментарий: ${err}`);
-    }
-  };
-
-
-  const toItem = (c: CommentBody): CommentItem => ({
-    ...c,
-    x_pct: c.x_coord,
-    y_pct: c.y_coord,
-  });
-
-  const fetchAndSet = async (varId: number) => {
-    try {
-      const { data } = await getComments(varId);
-      setComments(data.map(toItem));
-    } catch (err) {
-      console.error('❌ Ошибка загрузки комментариев:', err);
-    }
   };
 
 
   const handleSave = async () => {
-    if (variantId === undefined) return;
+    if (variantId === undefined || !objName) return;
 
     setSaving(true);
     try {
-      const payload: CommentaryPayload = {
-        var_id: variantId,
-        data: comments.map(({ x_pct, y_pct, ...rest }) => ({
+      const toPost = comments
+        .filter(c => !c.id)
+        .map(({ x_pct, y_pct, tempId, id, ...rest }) => ({
           ...rest,
           x_coord: x_pct,
           y_coord: y_pct,
-        })),
-      };
+        }));
 
-      await patchComments(payload);   // если дошли сюда – сохранение прошло
-      await fetchAndSet(variantId);   // перечитываем - всегда актуальные данные
+      const toPatch = comments
+        .filter(c => c.id)
+        .map(({ x_pct, y_pct, tempId, ...rest }) => ({
+          ...rest,
+          x_coord: x_pct,
+          y_coord: y_pct,
+        }));
+
+      // 1) создаём новые (без id)
+      if (toPost.length) {
+        await createComments({
+          var_id: variantId,
+          obj_name: objName,
+          data: toPost, // без id!
+        });
+      }
+
+      // 2) обновляем существующие (с id)
+      if (toPatch.length) {
+        await patchComments({
+          var_id: variantId,
+          obj_name: objName,
+          data: toPatch, // с id внутри
+        });
+      }
+
+      // 3) перечитать актуальные данные
+      await fetchAndSet(variantId, objName);
     } catch (err) {
       alert(`❌ Не удалось сохранить комментарии: ${err}`);
     } finally {
@@ -418,11 +442,9 @@ export default function EchartsMixedTimeseries({
       const target = cs[idx];
       const rest = cs.filter((_, i) => i !== idx);
 
-      // optimistic UI: убираем сразу
       if (target.id) {
         deleteComment(target.id).catch(err => {
           alert(`❌ Не удалось удалить: ${err.message}`);
-          // откатываем, если сервер упал
           setComments(prev => [...prev.slice(0, idx), target, ...prev.slice(idx)]);
         });
       }
@@ -431,18 +453,15 @@ export default function EchartsMixedTimeseries({
   };
 
   const onDragStop = (idx: number, pos: { x: number; y: number }) => {
-    const { width: w, height: h } = containerRef.current!.getBoundingClientRect();
+    const el = containerRef.current;
+    if (!el) return;
+    const { width: w, height: h } = el.getBoundingClientRect();
     setComments(cs => {
       const copy = [...cs];
-      copy[idx] = {
-        ...copy[idx],
-        x_pct: pos.x / w,
-        y_pct: pos.y / h,
-      };
+      copy[idx] = { ...copy[idx], x_pct: pos.x / w, y_pct: pos.y / h };
       return copy;
     });
   };
-
 
   const onBlur = (idx: number, text: string) => {
     setComments(cs => {
@@ -452,74 +471,9 @@ export default function EchartsMixedTimeseries({
     });
   };
 
-
-  // Подстройка высоты textarea
-  // const autoResize = (textarea: HTMLTextAreaElement) => {
-  //   textarea.style.height = 'auto';
-  //   textarea.style.height = `${textarea.scrollHeight}px`;
-  // };
-
   return (
     <div ref={containerRef} style={{ position: 'relative', height, width }}>
-      {loading ? (
-        <p>Загрузка...</p>
-      ) : (
-        <>
-          {hint && formData.comments && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                maxWidth: 320,
-                padding: '2px 10px',
-                background: '#fff8d1',
-                border: '1px solid #e6d48c',
-                borderRadius: 4,
-                fontSize: 13,
-                lineHeight: 1.4,
-                zIndex: 20,
-                boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
-              }}
-            >
-              {hint}
-            </div>
-          )}
-
-          {!hint && formData.comments && (
-            <div style={{ marginBottom: 0 }}>
-              <button
-                onClick={addEmptyComment}
-                style={{
-                  padding: '2px 10px',
-                  background: '#4CAF50',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  marginRight: '10px',
-                }}
-              >
-                Добавить комментарий
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{
-                  padding: '2px 10px',
-                  background: '#4CAF50',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 4,
-                  opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving ? 'Сохранение…' : 'Сохранить'}
-              </button>
-            </div>
-          )}
-        </>
-      )}
+      {/* График */}
       <Echart
         refs={refs}
         height={height}
@@ -528,7 +482,97 @@ export default function EchartsMixedTimeseries({
         eventHandlers={eventHandlers}
         selectedValues={selectedValues}
       />
-      {!hint && formData.comments &&
+
+      {/* Подсказка, если нельзя показывать комментарии */}
+      {formData.comments && !commentsAllowed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            maxWidth: 420,
+            padding: '6px 10px',
+            background: '#fff8d1',
+            border: '1px solid #e6d48c',
+            borderRadius: 4,
+            fontSize: 13,
+            lineHeight: 1.4,
+            zIndex: 30,
+            boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
+          }}
+        >
+          {combinedHint ||
+            'Чтобы работать с комментариями, выберите ровно 1 вариант и ровно 1 объект в фильтре «fclt_name».'
+          }
+        </div>
+      )}
+
+      {/* Панель действий — абсолютная, не двигает график */}
+      {formData.comments && commentsAllowed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            display: 'flex',
+            gap: 8,
+            zIndex: 30,
+            pointerEvents: 'none',
+          }}
+        >
+          <button
+            onClick={addEmptyComment}
+            style={{
+              padding: '2px 10px',
+              background: '#4CAF50',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+            }}
+          >
+            Добавить комментарий
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '2px 10px',
+              background: '#4CAF50',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              opacity: saving ? 0.6 : 1,
+              pointerEvents: 'auto',
+            }}
+          >
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+        </div>
+      )}
+
+      {/* Иконка загрузки — абсолютная */}
+      {loading && commentsAllowed && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            padding: '2px 8px',
+            background: '#ffffffcc',
+            borderRadius: 4,
+            fontSize: 12,
+            zIndex: 30,
+          }}
+        >
+          Загрузка…
+        </div>
+      )}
+
+      {/* Комментарии — только если разрешено */}
+      {formData.comments &&
+        commentsAllowed &&
         comments.map((c, idx) => {
           const { x, y } = toPixels(c);
           return (
@@ -545,7 +589,7 @@ export default function EchartsMixedTimeseries({
                   padding: 6,
                   borderRadius: 4,
                   width: 250,
-                  zIndex: 10,
+                  zIndex: 25,
                   boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
                 }}
               >
@@ -575,7 +619,8 @@ export default function EchartsMixedTimeseries({
                   </button>
                 </div>
               </div>
-            </Draggable>)
+            </Draggable>
+          );
         })}
     </div>
   );
