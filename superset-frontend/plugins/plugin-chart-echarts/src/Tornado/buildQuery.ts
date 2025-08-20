@@ -20,40 +20,29 @@ import {
   buildQueryContext,
   ensureIsArray,
   QueryFormData,
-  QueryFormOrderBy,
 } from '@superset-ui/core';
 
 export default function buildQuery(formData: QueryFormData) {
   const {
-    x_axis,
-    granularity_sqla,
-    groupby,
-    sort_column,
-    sort_desc = false,
-  } = formData as QueryFormData & {
-    sort_column?: string | null;
-    sort_desc?: boolean;
-  };
+    category_column,
+    left_metric,
+    right_metric,
+  } = formData;
 
-  const columns = [
-    ...ensureIsArray(x_axis || granularity_sqla),
-    ...ensureIsArray(groupby),
+  // Get category column
+  const columns = ensureIsArray(category_column);
+  
+  // Get both metrics
+  const metrics = [
+    ...(left_metric ? ensureIsArray(left_metric) : []),
+    ...(right_metric ? ensureIsArray(right_metric) : []),
   ];
-  if (sort_column && !columns.includes(sort_column)) {
-    columns.push(sort_column);
-  }
-
-  /* основной ORDER BY */
-  const orderby: QueryFormOrderBy[] = sort_column
-    ? [[sort_column, !sort_desc]]
-    : columns.map(col => [col, !sort_desc]);
-
 
   return buildQueryContext(formData, base => [
     {
       ...base,
       columns,
-      orderby,
+      metrics,
     },
   ]);
 }

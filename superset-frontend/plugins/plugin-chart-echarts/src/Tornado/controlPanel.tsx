@@ -1,30 +1,43 @@
 /**
- * Tornado controlPanel.tsx
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 import React from 'react';
+import { t, validateNonEmpty } from '@superset-ui/core';
 import {
   ControlPanelConfig,
   ControlSubSectionHeader,
   sharedControls,
-  formatSelectOptions,
 } from '@superset-ui/chart-controls';
-import { t, validateNonEmpty } from '@superset-ui/core';
+import { showValueControl } from '../controls';
 
 const config: ControlPanelConfig = {
   controlPanelSections: [
-    /* ====== ДАННЫЕ / ЗАПРОС ====== */
     {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
         [
           {
-            // фактор (категория)
-            name: 'groupby',
+            name: 'category_column',
             config: {
               ...sharedControls.groupby,
-              label: t('Фактор'),
-              description: t('Столбец с названиями факторов'),
+              label: t('Category Column'),
+              description: t('Column containing category names for the tornado chart'),
               multi: false,
               validators: [validateNonEmpty],
             },
@@ -32,153 +45,194 @@ const config: ControlPanelConfig = {
         ],
         [
           {
-            // левая граница
-            name: 'metric_min',
+            name: 'left_metric',
             config: {
               ...sharedControls.metric,
-              label: t('Метрика (минимум)'),
-              description: t('Значение при нижнем сценарии / −Δ'),
+              label: t('Left Side Metric'),
+              description: t('Metric for the left side of the tornado chart'),
+              validators: [validateNonEmpty],
             },
           },
         ],
         [
           {
-            // правая граница
-            name: 'metric_max',
+            name: 'right_metric',
             config: {
               ...sharedControls.metric,
-              label: t('Метрика (максимум)'),
-              description: t('Значение при верхнем сценарии / +Δ'),
+              label: t('Right Side Metric'),
+              description: t('Metric for the right side of the tornado chart'),
+              validators: [validateNonEmpty],
             },
           },
         ],
-        // стандартная фильтрация
         ['adhoc_filters'],
-
-        // сортировка по min/max (простая и надёжная)
-        [
-          {
-            name: 'sort_by_edge',
-            config: {
-              type: 'SelectControl',
-              label: t('Сортировать по'),
-              choices: formatSelectOptions(['min', 'max']),
-              default: 'max',
-              clearable: false,
-              renderTrigger: true,
-              description: t('Какой край использовать для сортировки стобиков'),
-            },
-          },
-        ],
-        [
-          {
-            name: 'sort_desc',
-            config: {
-              type: 'CheckboxControl',
-              label: t('По убыванию'),
-              default: true,
-              renderTrigger: true,
-            },
-          },
-        ],
         ['row_limit'],
       ],
     },
-
-    /* ====== ОПЦИИ ЧАРТА ====== */
     {
       label: t('Chart Options'),
       expanded: true,
       controlSetRows: [
+        [showValueControl],
         [
-          {
-            name: 'baseline',
-            config: {
-              type: 'TextControl',
-              label: t('Базис'),
-              description: t('Число, относительно которого строятся плечи. На графике это вертикальная линия посередине.'),
-              default: '0',
-              renderTrigger: true,
-            },
-          },
-        ],
-        [
-          {
-            name: 'show_labels',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Подписи значений'),
-              default: true,
-              renderTrigger: true,
-            },
-          },
           {
             name: 'show_legend',
             config: {
               type: 'CheckboxControl',
-              label: t('Легенда'),
-              default: false,
+              label: t('Show Legend'),
               renderTrigger: true,
+              default: true,
+              description: t('Whether to display a legend for the chart'),
             },
           },
         ],
         [
           {
-            name: 'bar_color',
+            name: 'sort_by_impact',
             config: {
-              type: 'ColorPickerControl',
-              label: t('Цвет баров'),
+              type: 'CheckboxControl',
+              label: t('Sort by Impact'),
               renderTrigger: true,
+              default: true,
+              description: t('Sort categories by impact (difference between metrics)'),
             },
           },
+        ],
+        [
           {
-            name: 'y_axis_label_width',
+            name: 'show_absolute_values',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show Absolute Values'),
+              renderTrigger: true,
+              default: true,
+              description: t('Display absolute values on the X-axis'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'impact_threshold',
             config: {
               type: 'TextControl',
-              label: t('Ширина подписей по Y'),
-              description: t('Чтобы длинные названия факторов помещались'),
-              default: '220',
-              isInt: true,
+              label: t('Impact Threshold'),
               renderTrigger: true,
+              default: '0',
+              description: t('Minimum impact to display a category'),
+              isInt: true,
             },
           },
         ],
         [
-          <ControlSubSectionHeader key="x">{t('X Axis')}</ControlSubSectionHeader>,
+          <ControlSubSectionHeader>
+            {t('Axis Labels')}
+          </ControlSubSectionHeader>,
         ],
+        [
+          {
+            name: 'x_axis_title',
+            config: {
+              type: 'TextControl',
+              label: t('X Axis Title'),
+              renderTrigger: true,
+              default: '',
+              description: t('Custom title for X axis'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'left_legend_name',
+            config: {
+              type: 'TextControl',
+              label: t('Left Legend Name'),
+              renderTrigger: true,
+              default: 'Base Cost',
+              description: t('Custom name for left side legend'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'right_legend_name',
+            config: {
+              type: 'TextControl',
+              label: t('Right Legend Name'),
+              renderTrigger: true,
+              default: 'Target Cost',
+              description: t('Custom name for right side legend'),
+            },
+          },
+        ],
+        [
+          <ControlSubSectionHeader>
+            {t('Chart Colors')}
+          </ControlSubSectionHeader>,
+        ],
+        [
+          {
+            name: 'left_color',
+            config: {
+              label: t('Left Side Color'),
+              type: 'ColorPickerControl',
+              default: { r: 224, g: 67, b: 85, a: 1 },
+              renderTrigger: true,
+            },
+          },
+          {
+            name: 'right_color',
+            config: {
+              label: t('Right Side Color'),
+              type: 'ColorPickerControl',
+              default: { r: 90, g: 193, b: 137, a: 1 },
+              renderTrigger: true,
+            },
+          },
+        ],
+        [<ControlSubSectionHeader>{t('X Axis')}</ControlSubSectionHeader>],
         [
           {
             name: 'x_axis_label',
             config: {
               type: 'TextControl',
-              label: t('Подпись оси X'),
-              default: '',
+              label: t('X Axis Label'),
               renderTrigger: true,
+              default: '',
             },
           },
         ],
+        [<ControlSubSectionHeader>{t('Y Axis')}</ControlSubSectionHeader>],
         [
-          <ControlSubSectionHeader key="y">{t('Y Axis')}</ControlSubSectionHeader>,
+          {
+            name: 'category_label',
+            config: {
+              type: 'TextControl',
+              label: t('Category Label'),
+              renderTrigger: true,
+              default: '',
+            },
+          },
         ],
         [
           {
             name: 'y_axis_label',
             config: {
               type: 'TextControl',
-              label: t('Подпись оси Y'),
-              default: '',
+              label: t('Y Axis Label'),
               renderTrigger: true,
+              default: '',
             },
           },
         ],
+        ['y_axis_format'],
+        ['currency_format'],
       ],
     },
   ],
-
-  /* мелкая правка стандартных контролов */
   controlOverrides: {
-    groupby: {
-      label: t('Фактор'),
+    category_column: {
+      label: t('Category'),
+      description: t('Select the column that contains category names'),
       multi: false,
     },
   },

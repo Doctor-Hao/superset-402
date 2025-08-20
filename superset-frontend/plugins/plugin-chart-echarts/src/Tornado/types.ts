@@ -28,45 +28,90 @@ import { BarDataItemOption } from 'echarts/types/src/chart/bar/BarSeries';
 import { CallbackDataParams } from 'echarts/types/src/util/types';
 import { BaseTransformedProps, LegendFormData } from '../types';
 
-export type WaterfallFormXTicksLayout =
+export type TornadoFormXTicksLayout =
   | '45°'
   | '90°'
   | 'auto'
   | 'flat'
   | 'staggered';
 
-export type ISeriesData = {
+/**
+ * Extended bar data item with tornado-specific properties
+ */
+export type ITornadoSeriesData = {
+  /** Original value before transformation */
   originalValue?: number;
-  totalSum?: number;
+  /** Category name */
+  category?: string;
+  /** Impact value (difference between metrics) */
+  impact?: number;
 } & BarDataItemOption;
 
-export type ICallbackDataParams = CallbackDataParams & {
+/**
+ * Callback data parameters for tornado chart interactions
+ */
+export type ITornadoCallbackDataParams = CallbackDataParams & {
+  /** Label for axis value */
   axisValueLabel: string;
-  data: ISeriesData;
+  /** Tornado-specific data */
+  data: ITornadoSeriesData;
 };
 
-export type EchartsWaterfallFormData = QueryFormData &
+/**
+ * Form data configuration for Tornado chart
+ */
+export type EchartsTornadoFormData = QueryFormData &
   LegendFormData & {
-    increaseColor: RgbaColor;
-    decreaseColor: RgbaColor;
-    totalColor: RgbaColor;
-    metric: QueryFormMetric;
-    xAxis: QueryFormColumn;
-    xAxisLabel: string;
-    xAxisTimeFormat?: string;
-    xTicksLayout?: WaterfallFormXTicksLayout;
-    yAxisLabel: string;
-    yAxisFormat: string;
+    /** Color for left side bars */
+    leftColor: RgbaColor;
+    /** Color for right side bars */
+    rightColor: RgbaColor;
+    /** Metric displayed on left side */
+    left_metric: QueryFormMetric;
+    /** Metric displayed on right side */
+    right_metric: QueryFormMetric;
+    /** Column used for categories */
+    category_column: QueryFormColumn;
+    /** Custom label for categories */
+    category_label: string;
+    /** Custom label for x-axis */
+    x_axis_label: string;
+    /** Custom title for x-axis */
+    x_axis_title?: string;
+    /** Custom label for y-axis */
+    y_axis_label: string;
+    /** Format string for y-axis values */
+    y_axis_format: string;
+    /** Custom name for left legend */
+    left_legend_name?: string;
+    /** Custom name for right legend */
+    right_legend_name?: string;
+    /** Whether to sort by impact */
+    sort_by_impact: boolean;
+    /** Whether to show absolute values */
+    show_absolute_values: boolean;
+    /** Minimum impact threshold */
+    impact_threshold?: number;
   };
 
-export const DEFAULT_FORM_DATA: Partial<EchartsWaterfallFormData> = {
+export const DEFAULT_FORM_DATA: Partial<EchartsTornadoFormData> = {
   showLegend: true,
+  sort_by_impact: true,
+  show_absolute_values: true,
 };
 
-export interface EchartsWaterfallChartProps extends ChartProps {
-  formData: EchartsWaterfallFormData;
+/**
+ * Props interface for Tornado chart component
+ */
+export interface EchartsTornadoChartProps extends ChartProps {
+  /** Form configuration data */
+  formData: EchartsTornadoFormData;
+  /** Query results data */
   queriesData: ChartDataResponseResult[];
 }
 
-export type WaterfallChartTransformedProps =
-  BaseTransformedProps<EchartsWaterfallFormData>;
+/**
+ * Transformed properties for Tornado chart rendering
+ */
+export type TornadoChartTransformedProps =
+  BaseTransformedProps<EchartsTornadoFormData>;

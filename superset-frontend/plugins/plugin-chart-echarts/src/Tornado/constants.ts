@@ -19,11 +19,16 @@
 
 import { t } from '@superset-ui/core';
 
-export const TOTAL_MARK = t('Total');
-export const ASSIST_MARK = t('Assist');
-export const LEGEND = {
-  INCREASE: t('Increase'),
-  DECREASE: t('Decrease'),
-  TOTAL: t('Total'),
+export const TORNADO_LEGEND = {
+  LEFT_SIDE: t('Base Cost'),
+  RIGHT_SIDE: t('Target Cost'),
 };
-export const TOKEN = '-';
+
+export const TORNADO_CHART_TYPE = 'echarts-tornado';
+export const DEFAULT_IMPACT_THRESHOLD = 0;
+
+export const ECONOMIC_CONSTANTS = {
+  DEFAULT_TIME_PERIOD: 20, // years
+  CURRENCY_FORMAT: '$,.0f',
+  IMPACT_THRESHOLD_PERCENT: 0.05, // 5% minimum impact
+};

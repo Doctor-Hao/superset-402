@@ -18,12 +18,18 @@
  */
 import React from 'react';
 import Echart from '../components/Echart';
-import { WaterfallChartTransformedProps } from './types';
+import { TornadoChartTransformedProps } from './types';
 import { EventHandlers } from '../types';
 
-export default function EchartsWaterfall(
-  props: WaterfallChartTransformedProps,
+/**
+ * Main Tornado Chart component that renders the ECharts visualization
+ * @param {TornadoChartTransformedProps} props - Transformed chart properties
+ * @returns {JSX.Element} Rendered tornado chart component
+ */
+export default function EchartsTornado(
+  props: TornadoChartTransformedProps,
 ) {
+  console.log('EchartsTornado component rendered with props:', props);
   const { height, width, echartOptions, refs, onLegendStateChanged } = props;
 
   const eventHandlers: EventHandlers = {

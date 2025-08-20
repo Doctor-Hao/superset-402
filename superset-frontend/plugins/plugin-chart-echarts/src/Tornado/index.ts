@@ -23,11 +23,11 @@ import controlPanel from './controlPanel';
 import transformProps from './transformProps';
 import thumbnail from './images/example1.png';
 import example1 from './images/example1.png';
-import { EchartsWaterfallChartProps, EchartsWaterfallFormData } from './types';
+import { EchartsTornadoChartProps, EchartsTornadoFormData } from './types';
 
 export default class EchartsTornadoChartPlugin extends ChartPlugin<
-  EchartsWaterfallFormData,
-  EchartsWaterfallChartProps
+  EchartsTornadoFormData,
+  EchartsTornadoChartProps
 > {
   /**
    * The constructor is used to pass relevant metadata and callbacks that get
@@ -43,19 +43,19 @@ export default class EchartsTornadoChartPlugin extends ChartPlugin<
     super({
       buildQuery,
       controlPanel,
-      loadChart: () => import('./EchartsWaterfall'),
+      loadChart: () => import('./EchartsTornado'),
       metadata: new ChartMetadata({
         behaviors: [Behavior.InteractiveChart],
         credits: ['https://echarts.apache.org'],
-        category: t('Evolution'),
+        category: t('Financial'),
         description: t(
-          `График чувствительности: прямоугольник от min до max вокруг baseline`,
+          'Economic tornado chart showing delta cost analysis by parameters over calculated time periods (20 years) for economic models. Displays bidirectional impact of different variables on total costs.',
         ),
         exampleGallery: [
           { url: example1 },
         ],
-        name: t('Tornado Chart'),
-        tags: [t('Categorical'), t('Comparison'), t('ECharts'), t('Popular')],
+        name: t('Economic Tornado Chart'),
+        tags: [t('Economic'), t('Cost Analysis'), t('Delta'), t('Financial'), t('ECharts'), t('Sensitivity'), t('20 Years')],
         thumbnail,
       }),
       transformProps,
