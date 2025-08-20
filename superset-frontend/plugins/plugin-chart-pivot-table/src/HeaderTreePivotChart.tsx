@@ -95,52 +95,6 @@ const aggregatorsFactory = (formatter: NumberFormatter) => ({
     ),
 });
 
-function swapByPairs<T>(arr: T[], swaps: [number, number][], groups?: { [groupKey: string]: number[] }): T[] {
-    const a = arr.slice();
-    
-    if (groups) {
-        const validation = validateSwapsWithinGroups(swaps, groups);
-        if (!validation.valid) {
-            console.warn('Invalid swaps detected:', validation.errors);
-            validation.errors.forEach(error => console.warn(error));
-            return a;
-        }
-    }
-    
-    for (const [from, to] of swaps) {
-        if (
-            Number.isInteger(from) && Number.isInteger(to) &&
-            from >= 0 && to >= 0 && from < a.length && to < a.length
-        ) {
-            const tmp = a[from];
-            a[from] = a[to];
-            a[to] = tmp;
-        }
-    }
-    return a;
-}
-
-function parseSwaps(input: unknown): [number, number][] {
-    try {
-        if (!input) return [];
-        if (typeof input === 'string') return JSON.parse(input);
-        if (Array.isArray(input)) return input as [number, number][];
-        return [];
-    } catch {
-        return [];
-    }
-}
-
-function parseRelocateRules(input: unknown): { when: Record<string, any>; set: Record<string, any> }[] {
-    try {
-        if (!input) return [];
-        if (typeof input === 'string') return JSON.parse(input);
-        if (Array.isArray(input)) return input as any[];
-        return [];
-    } catch {
-        return [];
-    }
-}
 
 function parseExcludeRules(input: unknown): any[] {
     try {
@@ -179,43 +133,7 @@ function parsePlatformMapping(input: unknown): Array<{
     }
 }
 
-function parseGroupedSwaps(input: unknown): Record<string, [number, number][]> {
-    try {
-        if (!input) return {};
-        if (typeof input === 'string') return JSON.parse(input);
-        if (typeof input === 'object' && input !== null) return input as any;
-        return {};
-    } catch {
-        return {};
-    }
-}
 
-function convertGroupedSwapsToGlobalSwaps(
-    groupedSwaps: Record<string, [number, number][]>,
-    groups: { [groupKey: string]: number[] }
-): [number, number][] {
-    const globalSwaps: [number, number][] = [];
-    
-    Object.entries(groupedSwaps).forEach(([groupName, swaps]) => {
-        // Find matching group by level1 name
-        const matchingGroupKey = Object.keys(groups).find(key => key.startsWith(groupName));
-        if (matchingGroupKey) {
-            const groupIndices = groups[matchingGroupKey];
-            
-            swaps.forEach(([localFrom, localTo]) => {
-                // Convert local indices within group to global indices
-                const globalFrom = groupIndices[localFrom];
-                const globalTo = groupIndices[localTo];
-                
-                if (globalFrom !== undefined && globalTo !== undefined) {
-                    globalSwaps.push([globalFrom, globalTo]);
-                }
-            });
-        }
-    });
-    
-    return globalSwaps;
-}
 
 function groupMetricsByParent(slots: { level1: string; level2: string; level3: string; level4: string; metric: string }[], showSegments: boolean): { [groupKey: string]: number[] } {
     const groups: { [groupKey: string]: number[] } = {};
@@ -243,28 +161,6 @@ function groupMetricsByParent(slots: { level1: string; level2: string; level3: s
     return groups;
 }
 
-function validateSwapsWithinGroups(swaps: [number, number][], groups: { [groupKey: string]: number[] }): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    
-    for (const [from, to] of swaps) {
-        let fromGroup = '';
-        let toGroup = '';
-        
-        for (const [groupKey, indices] of Object.entries(groups)) {
-            if (indices.includes(from)) fromGroup = groupKey;
-            if (indices.includes(to)) toGroup = groupKey;
-        }
-        
-        if (fromGroup !== toGroup) {
-            errors.push(`Cannot move metric from group "${fromGroup}" to group "${toGroup}". Swaps only allowed within the same group.`);
-        }
-    }
-    
-    return {
-        valid: errors.length === 0,
-        errors
-    };
-}
 
 function logPivotBuild(tag: string, payload: Record<string, unknown>) {
     console.group(`%cPivot build ▶ ${tag}`, 'color:#7f54b3;font-weight:bold');
@@ -319,33 +215,21 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     };
     const theme = useTheme();
 
-    const columnsIndexSwapsRaw = (props as any).columnsIndexSwaps ?? formData?.columnsIndexSwaps;
-    const relocateRulesRaw = (props as any).relocateRules ?? formData?.relocateRules;
     const excludeColumnsRulesRaw = (props as any).excludeColumnsRules ?? formData?.excludeColumnsRules;
     const platformMappingRaw = (props as any).platformMapping ?? formData?.platformMapping;
-    const groupedSwapsRaw = (props as any).groupedSwaps ?? formData?.groupedSwaps;
 
     console.groupCollapsed('HeaderTreePivotChart ▶ inputs');
     console.log('formData', formData);
-    console.log('columnsIndexSwapsRaw', columnsIndexSwapsRaw);
-    console.log('relocateRulesRaw', relocateRulesRaw);
     console.log('excludeColumnsRulesRaw', excludeColumnsRulesRaw);
     console.log('platformMappingRaw', platformMappingRaw);
-    console.log('groupedSwapsRaw', groupedSwapsRaw);
     console.groupEnd();
 
-    const swaps = useMemo(() => parseSwaps(columnsIndexSwapsRaw), [columnsIndexSwapsRaw]);
-    const relocateRules = useMemo(() => parseRelocateRules(relocateRulesRaw), [relocateRulesRaw]);
     const excludeRules = useMemo(() => parseExcludeRules(excludeColumnsRulesRaw), [excludeColumnsRulesRaw]);
     const platformMapping = useMemo(() => parsePlatformMapping(platformMappingRaw), [platformMappingRaw]);
-    const groupedSwaps = useMemo(() => parseGroupedSwaps(groupedSwapsRaw), [groupedSwapsRaw]);
 
     console.groupCollapsed('HeaderTreePivotChart ▶ parsed');
-    console.log('swaps', swaps);
-    console.log('relocateRules', relocateRules);
     console.log('excludeRules', excludeRules);
     console.log('platformMapping', platformMapping);
-    console.log('groupedSwaps', groupedSwaps);
     console.groupEnd();
 
     const defaultFormatter = useMemo(
@@ -515,30 +399,45 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         return res;
     }, [tree, metricLabels, showSegments]);
 
-    // порядок m2 из header JSON в исходной последовательности
-    const m2HeaderOrder = useMemo(() => {
-        const order: string[] = [];
-        const push = (v?: string) => {
+    // Порядки из header JSON в исходной последовательности
+    const headerOrders = useMemo(() => {
+        const m0Order: string[] = []; // level1 (groups)
+        const m1Order: string[] = []; // level2 (subgroups)  
+        const m2Order: string[] = []; // level3 (segments)
+        
+        const pushUnique = (arr: string[], v?: string) => {
             const t = String(v ?? '');
-            if (t && !order.includes(t)) order.push(t);
+            if (t && !arr.includes(t)) arr.push(t);
         };
 
         const groups = Array.isArray((tree as any)?.groups) ? (tree as any).groups : [];
         groups.forEach((g: any) => {
+            // level1 (groups)
+            pushUnique(m0Order, g?.title);
+            
             const subgroups = Array.isArray(g?.subgroups) ? g.subgroups : [];
             if (!subgroups.length) {
                 const segs = Array.isArray(g?.segments) ? g.segments : [];
-                segs.forEach((s: any) => push(s?.title));
+                segs.forEach((s: any) => pushUnique(m2Order, s?.title));
             } else {
                 subgroups.forEach((sg: any) => {
+                    // level2 (subgroups)
+                    pushUnique(m1Order, sg?.title);
+                    
                     const segs = Array.isArray(sg?.segments) ? sg.segments : [];
-                    segs.forEach((s: any) => push(s?.title));
+                    segs.forEach((s: any) => pushUnique(m2Order, s?.title));
                 });
             }
         });
 
-        return order;
+        return {
+            m0Order,
+            m1Order, 
+            m2Order
+        };
     }, [tree]);
+    
+    const m2HeaderOrder = headerOrders.m2Order;
 
 
     const metricGroups = useMemo(() => {
@@ -552,22 +451,8 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
         return groups;
     }, [slots, showSegments]);
     
-    // Combine regular swaps with grouped swaps
-    const finalSwaps = useMemo(() => {
-        const groupedToGlobalSwaps = convertGroupedSwapsToGlobalSwaps(groupedSwaps, metricGroups);
-        const combinedSwaps = [...swaps, ...groupedToGlobalSwaps];
-        
-        console.group('%cSwaps Combination', 'color:#fa8c16;font-weight:bold');
-        console.log('Regular swaps:', swaps);
-        console.log('Grouped swaps:', groupedSwaps);
-        console.log('Converted to global:', groupedToGlobalSwaps);
-        console.log('Final combined swaps:', combinedSwaps);
-        console.groupEnd();
-        
-        return combinedSwaps;
-    }, [swaps, groupedSwaps, metricGroups]);
-    
-    const slotsReordered = useMemo(() => swapByPairs(slots, finalSwaps, metricGroups), [slots, finalSwaps, metricGroups]);
+    // Slots are used as-is without reordering
+    const slotsReordered = slots;
 
     const groupbyRows = useMemo(() => groupbyRowsRaw.map(getColumnLabel), [groupbyRowsRaw]);
     const groupbyColumns = useMemo(() => groupbyColumnsRaw.map(getColumnLabel), [groupbyColumnsRaw]);
@@ -655,26 +540,6 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                 }
             }
         }
-        
-        // Apply relocateRules (advanced approach)
-        for (const raw of relocateRules) {
-            const r = {
-                when: Object.fromEntries(Object.entries(raw.when || {}).map(([k, v]) => [keyAlias(k), v])),
-                set: Object.fromEntries(Object.entries(raw.set || {}).map(([k, v]) => [keyAlias(k), v])),
-            };
-            const ok = Object.entries(r.when).every(([k, v]) => {
-                const source = k in gb ? gb : tuple;
-                return norm(source[k]) === norm(v);
-            });
-            if (ok) {
-                console.groupCollapsed('relocate rule match');
-                console.log('rule', r);
-                console.log('before', { tuple: { ...tuple }, gb: { ...gb }, metricLbl: ctx.lbl });
-                Object.entries(r.set).forEach(([k, v]) => { if (k in gb) gb[k] = v; else tuple[k] = v; });
-                console.log('after', { tuple: { ...tuple }, gb: { ...gb } });
-                console.groupEnd();
-            }
-        }
     }
 
     const unpivotedData = useMemo(
@@ -735,7 +600,7 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
                     }),
                 )
                 .filter((r: any) => r && r.value !== null && r.value !== undefined),
-        [data, metricLabels, slotsReordered, groupbyColumns, relocateRules, excludeRules, platformMapping],
+        [data, metricLabels, slotsReordered, groupbyColumns, excludeRules, platformMapping],
     );
 
     useMemo(() => {
@@ -764,7 +629,29 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
     const lvl0Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m0))), [unpivotedData]);
     const lvl1Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m1))), [unpivotedData]);
     const lvl2Order = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r.__m2))), [unpivotedData]);
-    const metricLeafOrder = useMemo(() => Array.from(new Set(unpivotedData.map((r: any) => r[METRIC_KEY]))), [unpivotedData]);
+    const metricLeafOrder = useMemo(() => {
+        // Создаем порядок метрик на основе последовательности в slots (которая идет из Header JSON)
+        // а потом добавляем orphan метрики
+        const headerMetrics: string[] = [];
+        const orphanMetrics: string[] = [];
+        
+        slotsReordered.forEach(slot => {
+            const metricValue = slot.metric;
+            const isOrphan = slot.level1 === slot.metric && slot.level2 === '' && slot.level3 === '';
+            
+            if (isOrphan) {
+                if (!orphanMetrics.includes(metricValue)) orphanMetrics.push(metricValue);
+            } else {
+                if (!headerMetrics.includes(metricValue)) headerMetrics.push(metricValue);
+            }
+        });
+        
+        // Порядок: сначала метрики из Header JSON, потом orphan метрики
+        const finalOrder = [...headerMetrics, ...orphanMetrics];
+        
+        console.log('Metric order:', { headerMetrics, orphanMetrics, finalOrder });
+        return finalOrder;
+    }, [slotsReordered]);
 
     const perAttrOrder = useMemo(() => {
         const map: Record<string, (string | number | boolean)[]> = {};
@@ -786,27 +673,34 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
 
     const sorters = useMemo(() => {
         const base: Record<string, any> = {
-            __m0: sortAs(lvl0Order),
-            __m1: sortAs(lvl1Order),
+            // Используем порядок из Header JSON вместо порядка из данных
+            __m0: sortAs(headerOrders.m0Order),
+            __m1: sortAs(headerOrders.m1Order),
             [METRIC_KEY]: sortAs(metricLeafOrder),
         };
 
-        // вместо порядка из данных — жёстко по JSON Header
-        if (showSegments) base.__m2 = sortAs(m2HeaderOrder);
+        // level3 тоже из Header JSON 
+        if (showSegments) base.__m2 = sortAs(headerOrders.m2Order);
         
-        // ВАЖНО: Сохраняем исходный порядок уровней из Header JSON, даже после Platform Mapping
-        // Порядок должен оставаться таким, как определен в структуре заголовков
+        // ВАЖНО: Теперь используем исходный порядок из Header JSON, игнорируя Platform Mapping
+        // Это гарантирует, что "Свободный газ" всегда будет перед "Газовая шапка"
 
         (cols || []).forEach(k => {
-            // не трогаем фиксированные уровни и Metric — их порядок задаём вручную
+            // не трогаем фиксированные уровни и Metric — их порядок задаём из Header JSON
             if (k === '__m0' || k === '__m1' || k === '__m2' || k === METRIC_KEY) return;
             const order = (perAttrOrder as any)[k];
             if (order && order.length) base[k] = sortAs(order);
         });
 
-        logPivotBuild('sorters', { lvl0Order, lvl1Order, m2HeaderOrder, metricLeafOrder, perAttrOrder });
+        logPivotBuild('sorters', { 
+            headerOrders, 
+            m2HeaderOrder, 
+            metricLeafOrder, 
+            perAttrOrder,
+            note: 'Using Header JSON order to preserve column sequence after Platform Mapping'
+        });
         return base;
-    }, [lvl0Order, lvl1Order, m2HeaderOrder, metricLeafOrder, showSegments, perAttrOrder, cols]);
+    }, [headerOrders, metricLeafOrder, showSegments, perAttrOrder, cols]);
 
 
     const namesMapping = useMemo(
@@ -991,24 +885,9 @@ export default function HeaderTreePivotChart(props: PivotTableProps) {
 
     // Handler for column reordering via drag-and-drop
     const handleColumnReorder = useCallback((newOrder: string[]) => {
-        // Convert new order to swaps array
-        const swapPairs: [number, number][] = [];
-        const currentOrder = slotsReordered.map(slot => slot.metric);
-        
-        for (let i = 0; i < newOrder.length; i++) {
-            const currentIndex = currentOrder.indexOf(newOrder[i]);
-            if (currentIndex !== -1 && currentIndex !== i) {
-                swapPairs.push([currentIndex, i]);
-                // Update currentOrder for next iteration
-                [currentOrder[currentIndex], currentOrder[i]] = [currentOrder[i], currentOrder[currentIndex]];
-            }
-        }
-
-        // Call the callback with swaps in the format expected by HeaderTreePivotChart
-        if (onColumnOrderChange && swapPairs.length > 0) {
-            onColumnOrderChange(JSON.stringify(swapPairs));
-        }
-    }, [slotsReordered, onColumnOrderChange]);
+        // Column reordering is disabled since we removed swaps functionality
+        console.log('Column reordering is disabled - swaps functionality removed');
+    }, []);
 
     return (
         <Styles height={height} width={width} margin={theme.gridUnit * 4}>

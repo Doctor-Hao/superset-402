@@ -104,9 +104,7 @@ export type PivotTableQueryFormData = QueryFormData &
   PivotTableStylesProps &
   PivotTableCustomizeProps & {
     dragAndDropConfig?: string;
-    columnsIndexSwaps?: string;
     platformMapping?: string;
-    groupedSwaps?: string;
   };
 
 export type PivotTableProps = PivotTableStylesProps &
@@ -114,7 +112,5 @@ export type PivotTableProps = PivotTableStylesProps &
   TableDragHandlers & {
     data: DataRecord[];
     dragAndDropConfig?: string;
-    columnsIndexSwaps?: string;
     platformMapping?: string;
-    groupedSwaps?: string;
   };

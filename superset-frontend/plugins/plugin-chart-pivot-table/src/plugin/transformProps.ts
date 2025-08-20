@@ -106,9 +106,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     timeGrainSqla,
     currencyFormat,
     dragAndDropConfig,
-    columnsIndexSwaps,
     platformMapping,
-    groupedSwaps,
   } = formData;
   const { selectedFilters } = filterState;
   const granularity = extractTimegrain(rawFormData);
@@ -183,9 +181,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     timeGrainSqla,
     headerTree,
     dragAndDropConfig,
-    columnsIndexSwaps,
     platformMapping,
-    groupedSwaps,
     formData
   };
 }

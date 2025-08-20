@@ -335,20 +335,6 @@ const config: ControlPanelConfig = {
         ],
         [
           {
-            name: 'relocateRules',
-            config: {
-              type: 'TextAreaControl',
-              label: t('Relocate rules (re-parent columns)'),
-              description: t('JSON: [{"when": {...}, "set": {...}}]. Keys: __m0/__m1/__m2 and/or groupby columns (e.g. "platform").'),
-              default: '[]',
-              language: 'json',
-              renderTrigger: true,
-              resetOnHide: false,
-            },
-          },
-        ],
-        [
-          {
             name: 'platformMapping',
             config: {
               type: 'TextAreaControl',
@@ -385,77 +371,6 @@ const config: ControlPanelConfig = {
               language: 'json',
               renderTrigger: true,
               resetOnHide: false,
-            },
-          },
-        ],
-        [
-          {
-            name: 'columnsIndexSwaps',
-            config: {
-              type: 'TextAreaControl',
-              label: t('Columns Index Swaps (JSON)'),
-              description: t('JSON array of [from,to] pairs for column reordering: [[0,2],[1,3]]. Use the visual editor below for easier configuration.'),
-              default: '[]',
-              language: 'json',
-              renderTrigger: true,
-              resetOnHide: false,
-              validators: [
-                (value: string) => {
-                  try {
-                    const parsed = JSON.parse(value || '[]');
-                    if (!Array.isArray(parsed)) {
-                      return t('Must be an array');
-                    }
-                    for (const item of parsed) {
-                      if (!Array.isArray(item) || item.length !== 2 || 
-                          !Number.isInteger(item[0]) || !Number.isInteger(item[1])) {
-                        return t('Each item must be an array of two integers [from, to]');
-                      }
-                    }
-                    return false;
-                  } catch (e) {
-                    return t('Invalid JSON format');
-                  }
-                }
-              ]
-            },
-          },
-        ],
-        [
-          {
-            name: 'groupedSwaps',
-            config: {
-              type: 'TextAreaControl',
-              label: t('Grouped Column Swaps'),
-              description: t('Group column swaps by top-level headers. Example: {"Начальные запасы": [[0,1]], "Текущие показатели": [[2,3]]}. This allows moving columns within specific header groups.'),
-              default: '{}',
-              language: 'json',
-              renderTrigger: true,
-              resetOnHide: false,
-              validators: [
-                (value: string) => {
-                  try {
-                    const parsed = JSON.parse(value || '{}');
-                    if (typeof parsed !== 'object' || parsed === null) {
-                      return t('Must be a valid JSON object');
-                    }
-                    for (const [groupName, swaps] of Object.entries(parsed)) {
-                      if (!Array.isArray(swaps)) {
-                        return t(`Swaps for group "${groupName}" must be an array`);
-                      }
-                      for (const swap of swaps as any[]) {
-                        if (!Array.isArray(swap) || swap.length !== 2 || 
-                            !Number.isInteger(swap[0]) || !Number.isInteger(swap[1])) {
-                          return t(`Each swap must be an array of two integers [from, to]`);
-                        }
-                      }
-                    }
-                    return false;
-                  } catch (e) {
-                    return t('Invalid JSON format');
-                  }
-                }
-              ]
             },
           },
         ],
