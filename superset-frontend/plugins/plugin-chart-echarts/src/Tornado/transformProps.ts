@@ -408,20 +408,35 @@ export default function transformProps(
       type: 'value',
       name: finalXAxisTitle,
       nameTextStyle: {
-        padding: [theme.gridUnit * 4, 0, 0, 0],
+        padding: [0, 0, theme.gridUnit * 4, 0],
+        color: theme.colors.grayscale.dark2,
+        fontWeight: 'bold',
       },
       nameLocation: 'middle',
+      position: 'top', // Move X-axis to top
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: theme.colors.grayscale.dark2,
+          width: 1,
+          type: 'solid',
+        },
+      },
       axisLabel: {
+        color: theme.colors.grayscale.dark2,
         formatter: (value: number) => {
           const absValue = show_absolute_values ? Math.abs(value) : value;
           return defaultFormatter(absValue);
         },
       },
-      splitLine: {
+      axisTick: {
         show: true,
         lineStyle: {
-          type: 'dashed',
+          color: theme.colors.grayscale.dark2,
         },
+      },
+      splitLine: {
+        show: false,
       },
     },
     yAxis: {
