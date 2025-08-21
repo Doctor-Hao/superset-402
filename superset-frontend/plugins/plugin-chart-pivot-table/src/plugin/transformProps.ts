@@ -107,6 +107,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     currencyFormat,
     dragAndDropConfig,
     platformMapping,
+    externalApiColumns,
   } = formData;
   const { selectedFilters } = filterState;
   const granularity = extractTimegrain(rawFormData);
@@ -147,6 +148,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
   let headerTree = { groups: [] as Array<{ title: string; subgroups: Array<{ title: string; count: number }> }> };
   try { headerTree = JSON.parse(formData.metricHeaderTreeJson || '{}'); } catch (e) { console.error(e) }
 
+
   return {
     width,
     height,
@@ -182,6 +184,7 @@ export default function transformProps(chartProps: ChartProps<QueryFormData>) {
     headerTree,
     dragAndDropConfig,
     platformMapping,
+    externalApiColumns,
     formData
   };
 }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { MinusSquareOutlined, PlusSquareOutlined } from '@ant-design/icons';
 import {
   AdhocMetric,
@@ -44,6 +44,7 @@ import {
   SelectedFiltersType,
 } from './types';
 import HeaderTreePivotChart from './HeaderTreePivotChart';
+import ApiErrorNotifications, { ApiError } from './components/ApiErrorNotifications';
 
 const Styles = styled.div<PivotTableStylesProps>`
   ${({ height, width, margin }) => `
@@ -58,6 +59,22 @@ const PivotTableWrapper = styled.div`
   height: 100%;
   max-width: inherit;
   overflow: auto;
+  position: relative;
+`;
+
+const LoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-size: 14px;
+  color: #666;
 `;
 
 const METRIC_KEY = t('Metric');
@@ -184,8 +201,287 @@ export default function PivotTableChart(props: PivotTableProps) {
     dragAndDropConfig,
     columnsIndexSwaps,
     onColumnOrderChange,
-    onRowOrderChange
+    onRowOrderChange,
+    externalApiColumns,
   } = props;
+
+  const [enrichedData, setEnrichedData] = useState(data);
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const [updatingCells, setUpdatingCells] = useState<Set<string>>(new Set());
+  const [apiConfig, setApiConfig] = useState<any>(null);
+  const [apiErrors, setApiErrors] = useState<ApiError[]>([]);
+
+  const addApiError = useCallback((error: Omit<ApiError, 'id' | 'timestamp'>) => {
+    const newError: ApiError = {
+      ...error,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+    };
+    setApiErrors(prev => [...prev, newError]);
+  }, []);
+
+  const dismissApiError = useCallback((errorId: string) => {
+    setApiErrors(prev => prev.filter(error => error.id !== errorId));
+  }, []);
+
+  const dismissAllApiErrors = useCallback(() => {
+    setApiErrors([]);
+  }, []);
+
+  const fetchExternalData = useCallback(async (apiConfig: any, uniqueIds: string[]): Promise<Record<string, any>> => {
+    const { apiUrl, headers = {}, timeout = 10000, retryCount = 3 } = apiConfig;
+    const cache: Record<string, any> = {};
+
+    const fetchWithRetry = async (id: string, attempts: number = 0): Promise<any> => {
+      try {
+        const url = apiUrl.replace('{id}', encodeURIComponent(id));
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        return result;
+      } catch (error) {
+        if (attempts < retryCount) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+          return fetchWithRetry(id, attempts + 1);
+        }
+        
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const isNetworkError = error instanceof TypeError || errorMessage.includes('Failed to fetch');
+        const is404Error = errorMessage.includes('HTTP 404');
+        
+        let errorType: ApiError['type'] = 'network_error';
+        let displayMessage = errorMessage;
+        
+        if (is404Error) {
+          errorType = 'load_error';
+          displayMessage = `Data not found for ID ${id}`;
+        } else if (isNetworkError) {
+          errorType = 'network_error';
+          displayMessage = `Network error while loading data for ID ${id}`;
+        } else {
+          errorType = 'load_error';
+          displayMessage = `Failed to load data for ID ${id}: ${errorMessage}`;
+        }
+        
+        console.warn(`Failed to fetch data for ID ${id}:`, error);
+        return null;
+      }
+    };
+
+    const failedIds: string[] = [];
+    const promises = uniqueIds.map(async id => {
+      const result = await fetchWithRetry(id);
+      if (result === null) {
+        failedIds.push(id);
+      } else {
+        cache[id] = result;
+      }
+    });
+
+    await Promise.allSettled(promises);
+    
+    if (failedIds.length > 0) {
+      addApiError({
+        type: 'load_error',
+        message: `Failed to load data for ${failedIds.length} record${failedIds.length > 1 ? 's' : ''}`,
+        details: `IDs: ${failedIds.join(', ')}`,
+      });
+    }
+    
+    return cache;
+  }, [addApiError]);
+
+  const updateExternalData = useCallback(async (id: string, columnName: string, newValue: string): Promise<void> => {
+    if (!apiConfig || !apiConfig.patchApiUrl) {
+      throw new Error('PATCH API URL not configured');
+    }
+
+    const cellKey = `${id}-${columnName}`;
+    setUpdatingCells(prev => new Set([...prev, cellKey]));
+
+    try {
+      const { patchApiUrl, headers = {}, timeout = 10000, retryCount = 3, patchMethod = 'PATCH' } = apiConfig;
+      const url = patchApiUrl.replace('{id}', encodeURIComponent(id));
+
+      const column = apiConfig.columns.find((col: any) => col.name === columnName);
+      if (!column) {
+        throw new Error(`Column ${columnName} not found in configuration`);
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(url, {
+        method: patchMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          [column.apiKey]: newValue,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      setEnrichedData(prevData => 
+        prevData.map(row => 
+          row[apiConfig.idColumn] === id 
+            ? { ...row, [columnName]: newValue }
+            : row
+        )
+      );
+
+      if (apiConfig.refreshAfterUpdate) {
+        const cache = await fetchExternalData(apiConfig, [id]);
+        const updatedData = enrichDataWithExternalColumns(
+          enrichedData.filter(row => row[apiConfig.idColumn] !== id),
+          apiConfig,
+          cache
+        );
+        const existingData = enrichedData.filter(row => row[apiConfig.idColumn] !== id);
+        setEnrichedData([...existingData, ...updatedData]);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isNetworkError = error instanceof TypeError || errorMessage.includes('Failed to fetch');
+      const is404Error = errorMessage.includes('HTTP 404');
+      const is400Error = errorMessage.includes('HTTP 400');
+      const is403Error = errorMessage.includes('HTTP 403');
+      
+      let errorType: ApiError['type'] = 'save_error';
+      let displayMessage = errorMessage;
+      
+      if (is404Error) {
+        displayMessage = `Record not found (ID: ${id})`;
+      } else if (is400Error) {
+        errorType = 'validation_error';
+        displayMessage = `Invalid data format for ${columnName}`;
+      } else if (is403Error) {
+        displayMessage = `Access denied for updating ${columnName}`;
+      } else if (isNetworkError) {
+        errorType = 'network_error';
+        displayMessage = `Network error while saving ${columnName}`;
+      } else {
+        displayMessage = `Failed to save ${columnName}: ${errorMessage}`;
+      }
+      
+      addApiError({
+        type: errorType,
+        message: displayMessage,
+        details: errorMessage,
+        columnName,
+        recordId: id,
+      });
+      
+      console.error(`Failed to update ${columnName} for ID ${id}:`, error);
+      throw error;
+    } finally {
+      setUpdatingCells(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cellKey);
+        return newSet;
+      });
+    }
+  }, [apiConfig, enrichedData, fetchExternalData, addApiError]);
+
+  const enrichDataWithExternalColumns = useCallback((originalData: any[], apiConfig: any, externalCache: Record<string, any>): any[] => {
+    const { idColumn, columns } = apiConfig;
+
+    if (!idColumn || !columns || columns.length === 0) {
+      return originalData;
+    }
+
+    return originalData.map(row => {
+      const enrichedRow = { ...row };
+      const id = row[idColumn];
+
+      if (id && externalCache[id]) {
+        const apiData = externalCache[id];
+        columns.forEach((col: any) => {
+          const { name, apiKey, defaultValue = 'N/A' } = col;
+          enrichedRow[name] = apiData[apiKey] || defaultValue;
+        });
+      } else {
+        columns.forEach((col: any) => {
+          const { name, defaultValue = 'N/A' } = col;
+          enrichedRow[name] = defaultValue;
+        });
+      }
+
+      return enrichedRow;
+    });
+  }, []);
+
+  useEffect(() => {
+    const loadExternalApiData = async () => {
+      try {
+        if (!externalApiColumns) {
+          setEnrichedData(data);
+          return;
+        }
+
+        const parsedConfig = JSON.parse(externalApiColumns);
+        setApiConfig(parsedConfig);
+        
+        if (!parsedConfig.apiUrl || !parsedConfig.idColumn || !parsedConfig.columns?.length) {
+          setEnrichedData(data);
+          return;
+        }
+
+        const uniqueIds = Array.from(new Set(
+          data
+            .map(row => row[parsedConfig.idColumn])
+            .filter(id => id !== null && id !== undefined && id !== '')
+        ));
+
+        if (uniqueIds.length === 0) {
+          setEnrichedData(data);
+          return;
+        }
+
+        setIsLoadingApi(true);
+        
+        const cache = await fetchExternalData(parsedConfig, uniqueIds as string[]);
+        const enriched = enrichDataWithExternalColumns(data, parsedConfig, cache);
+        
+        setEnrichedData(enriched);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        addApiError({
+          type: 'load_error',
+          message: 'Failed to load external API data',
+          details: errorMessage,
+        });
+        console.error('Failed to load external API data:', error);
+        setEnrichedData(data);
+      } finally {
+        setIsLoadingApi(false);
+      }
+    };
+
+    loadExternalApiData();
+  }, [data, externalApiColumns, fetchExternalData, enrichDataWithExternalColumns, addApiError]);
 
   const hasHeaderTree =
     !!headerTree &&
@@ -265,7 +561,7 @@ export default function PivotTableChart(props: PivotTableProps) {
 
   const unpivotedData = useMemo(
     () =>
-      data.reduce(
+      enrichedData.reduce(
         (acc: Record<string, any>[], record: Record<string, any>) => [
           ...acc,
           ...reorderedMetricNames
@@ -278,7 +574,7 @@ export default function PivotTableChart(props: PivotTableProps) {
         ],
         [],
       ),
-    [data, reorderedMetricNames],
+    [enrichedData, reorderedMetricNames],
   );
   const groupbyRows = useMemo(
     () => groupbyRowsRaw.map(getColumnLabel),
@@ -591,7 +887,19 @@ export default function PivotTableChart(props: PivotTableProps) {
 
   return (
     <Styles height={height} width={width} margin={theme.gridUnit * 4}>
+      {apiConfig?.columns?.length > 0 && (
+        <ApiErrorNotifications
+          errors={apiErrors}
+          onDismiss={dismissApiError}
+          onDismissAll={dismissAllApiErrors}
+        />
+      )}
       <PivotTableWrapper>
+        {isLoadingApi && (
+          <LoadingOverlay>
+            Loading external data...
+          </LoadingOverlay>
+        )}
         <PivotTable
           data={unpivotedData}
           rows={rows}

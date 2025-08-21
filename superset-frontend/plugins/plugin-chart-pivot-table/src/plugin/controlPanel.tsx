@@ -541,6 +541,116 @@ const config: ControlPanelConfig = {
         ],
       ],
     },
+    {
+      label: t('External API Columns'),
+      expanded: false,
+      controlSetRows: [
+        [
+          {
+            name: 'externalApiColumns',
+            config: {
+              type: 'TextAreaControl',
+              label: t('External API Columns Configuration'),
+              description: t('JSON configuration for external API columns with editable fields support. Example with editable columns: {"apiUrl": "https://api.example.com/data/{id}", "patchApiUrl": "https://api.example.com/data/{id}", "idColumn": "user_id", "columns": [{"name": "user_name", "label": "Name", "apiKey": "name", "editable": true, "inputType": "text", "placeholder": "Enter name"}, {"name": "user_email", "label": "Email", "apiKey": "email", "editable": true, "inputType": "email", "validation": {"required": true, "pattern": "^[^@]+@[^@]+\\.[^@]+$"}}]}'),
+              default: JSON.stringify({
+                apiUrl: "",
+                patchApiUrl: "",
+                idColumn: "",
+                columns: [],
+                headers: {},
+                timeout: 10000,
+                retryCount: 3,
+                patchMethod: "PATCH",
+                refreshAfterUpdate: false
+              }, null, 2),
+              renderTrigger: true,
+              resetOnHide: false,
+              language: 'json',
+              validators: [
+                (value: string) => {
+                  try {
+                    const parsed = JSON.parse(value || '{}');
+                    if (typeof parsed !== 'object' || parsed === null) {
+                      return t('Must be a valid JSON object');
+                    }
+                    if (parsed.apiUrl && typeof parsed.apiUrl !== 'string') {
+                      return t('apiUrl must be a string');
+                    }
+                    if (parsed.idColumn && typeof parsed.idColumn !== 'string') {
+                      return t('idColumn must be a string');
+                    }
+                    if (parsed.columns && !Array.isArray(parsed.columns)) {
+                      return t('columns must be an array');
+                    }
+                    if (parsed.columns) {
+                      for (const col of parsed.columns) {
+                        if (!col.name || typeof col.name !== 'string') {
+                          return t('Each column must have a name (string)');
+                        }
+                        if (!col.label || typeof col.label !== 'string') {
+                          return t('Each column must have a label (string)');
+                        }
+                        if (!col.apiKey || typeof col.apiKey !== 'string') {
+                          return t('Each column must have an apiKey (string)');
+                        }
+                      }
+                    }
+                    if (parsed.timeout && (typeof parsed.timeout !== 'number' || parsed.timeout <= 0)) {
+                      return t('timeout must be a positive number');
+                    }
+                    if (parsed.retryCount && (typeof parsed.retryCount !== 'number' || parsed.retryCount < 0)) {
+                      return t('retryCount must be a non-negative number');
+                    }
+                    if (parsed.patchMethod && !['PATCH', 'PUT', 'POST'].includes(parsed.patchMethod)) {
+                      return t('patchMethod must be one of: PATCH, PUT, POST');
+                    }
+                    return false;
+                  } catch (e) {
+                    return t('Invalid JSON format');
+                  }
+                }
+              ]
+            },
+          },
+        ],
+        [
+          {
+            name: 'externalApiInfo',
+            config: {
+              type: 'InfoTooltipControl',
+              label: t('External API Configuration Help'),
+              tooltip: t(`
+                Configure external API columns with editable fields support:
+                
+                • apiUrl: GET endpoint with {id} placeholder for fetching data
+                • patchApiUrl: PATCH/PUT/POST endpoint for updating data (optional)
+                • idColumn: Column name containing IDs for API requests
+                • columns: Array of column definitions with:
+                  - name: Internal column name
+                  - label: Display name in table
+                  - apiKey: Key in API response
+                  - editable: Enable inline editing (boolean)
+                  - inputType: Input type (text, number, email)
+                  - placeholder: Input placeholder text
+                  - validation: Validation rules (required, minLength, maxLength, pattern)
+                  - defaultValue: Value when API fails
+                • headers: HTTP headers for requests (optional)
+                • timeout: Request timeout in milliseconds (default: 10000)
+                • retryCount: Number of retry attempts (default: 3)
+                • patchMethod: HTTP method for updates (PATCH, PUT, POST)
+                • refreshAfterUpdate: Refresh data after successful update
+                
+                Example URLs:
+                - GET: https://api.example.com/user/{id}
+                - PATCH: https://api.example.com/user/{id}
+              `),
+              placement: 'right',
+              trigger: 'click'
+            },
+          },
+        ],
+      ],
+    },
   ],
   controlOverrides: {
     // Убедимся, что платформенные контролы не попадают в data tab

@@ -100,11 +100,41 @@ export interface TableDragHandlers {
   onRowOrderChange?: (newOrder: string[]) => void;
 }
 
+export interface ExternalColumnConfig {
+  name: string;
+  label: string;
+  apiKey: string;
+  format?: string;
+  defaultValue?: string;
+  editable?: boolean;
+  inputType?: 'text' | 'number' | 'email';
+  placeholder?: string;
+  validation?: {
+    required?: boolean;
+    minLength?: number;
+    maxLength?: number;
+    pattern?: string;
+  };
+}
+
+export interface ApiColumnSettings {
+  apiUrl: string;
+  patchApiUrl?: string;
+  idColumn: string;
+  columns: ExternalColumnConfig[];
+  headers?: Record<string, string>;
+  timeout?: number;
+  retryCount?: number;
+  patchMethod?: 'PATCH' | 'PUT' | 'POST';
+  refreshAfterUpdate?: boolean;
+}
+
 export type PivotTableQueryFormData = QueryFormData &
   PivotTableStylesProps &
   PivotTableCustomizeProps & {
     dragAndDropConfig?: string;
     platformMapping?: string;
+    externalApiColumns?: string;
   };
 
 export type PivotTableProps = PivotTableStylesProps &
@@ -113,4 +143,8 @@ export type PivotTableProps = PivotTableStylesProps &
     data: DataRecord[];
     dragAndDropConfig?: string;
     platformMapping?: string;
+    externalApiColumns?: string;
+    enrichedData?: DataRecord[];
+    headerTree?: any;
+    columnsIndexSwaps?: any;
   };
