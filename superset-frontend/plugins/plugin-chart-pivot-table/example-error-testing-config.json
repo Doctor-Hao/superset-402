@@ -1,0 +1,49 @@
+{
+  "apiUrl": "https://jsonplaceholder.typicode.com/users/{id}",
+  "patchApiUrl": "https://httpstat.us/500",
+  "idColumn": "user_id",
+  "patchMethod": "PATCH",
+  "refreshAfterUpdate": false,
+  "columns": [
+    {
+      "name": "user_name",
+      "label": "Name (will fail to save)", 
+      "apiKey": "name",
+      "editable": true,
+      "inputType": "text",
+      "placeholder": "Try to edit - will show 500 error",
+      "validation": {
+        "required": true,
+        "minLength": 2
+      },
+      "defaultValue": "Test User"
+    },
+    {
+      "name": "user_email",
+      "label": "Email (validation error)",
+      "apiKey": "email",
+      "editable": true, 
+      "inputType": "email",
+      "placeholder": "Enter invalid email",
+      "validation": {
+        "required": true,
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "defaultValue": "test@example.com"
+    },
+    {
+      "name": "missing_data",
+      "label": "Missing Data (404 error)",
+      "apiKey": "nonexistent_field",
+      "editable": false,
+      "defaultValue": "Will show as N/A due to missing API field"
+    }
+  ],
+  "headers": {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+  },
+  "timeout": 5000,
+  "retryCount": 1,
+  "_comment": "This configuration is designed to test error handling. The patchApiUrl points to httpstat.us/500 which will always return a 500 error, allowing you to test the error notification system."
+}

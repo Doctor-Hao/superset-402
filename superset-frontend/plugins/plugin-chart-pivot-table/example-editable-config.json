@@ -1,0 +1,56 @@
+{
+  "apiUrl": "https://jsonplaceholder.typicode.com/users/{id}",
+  "patchApiUrl": "https://jsonplaceholder.typicode.com/users/{id}",
+  "idColumn": "user_id",
+  "patchMethod": "PATCH",
+  "refreshAfterUpdate": false,
+  "columns": [
+    {
+      "name": "user_name",
+      "label": "Name", 
+      "apiKey": "name",
+      "editable": true,
+      "inputType": "text",
+      "placeholder": "Enter full name",
+      "validation": {
+        "required": true,
+        "minLength": 2,
+        "maxLength": 100
+      },
+      "defaultValue": "Unknown User"
+    },
+    {
+      "name": "user_email",
+      "label": "Email Address",
+      "apiKey": "email",
+      "editable": true, 
+      "inputType": "email",
+      "placeholder": "user@domain.com",
+      "validation": {
+        "required": true,
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "defaultValue": "N/A"
+    },
+    {
+      "name": "user_website",
+      "label": "Website",
+      "apiKey": "website", 
+      "editable": false,
+      "defaultValue": "No website"
+    },
+    {
+      "name": "user_company",
+      "label": "Company",
+      "apiKey": "company.name",
+      "editable": false,
+      "defaultValue": "No company"
+    }
+  ],
+  "headers": {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+  },
+  "timeout": 10000,
+  "retryCount": 3
+}
