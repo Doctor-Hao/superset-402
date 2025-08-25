@@ -235,6 +235,7 @@ export default function transformProps(
     sliceId,
     timeGrainSqla,
     percentageThreshold,
+    showAllYearsOnXAxis,
     metrics = [],
     metricsB = [],
     metricsC = [],
@@ -563,6 +564,13 @@ export default function transformProps(
       ? getXAxisFormatter(xAxisTimeFormat)
       : String;
 
+  console.log('xAxisFormatter info:', {
+    xAxisDataType,
+    xAxisTimeFormat,
+    isTemporalType: xAxisDataType === GenericDataType.Temporal,
+    formatterType: typeof xAxisFormatter,
+  });
+
   const addYAxisTitleOffset = !!(yAxisTitle || yAxisTitleSecondary);
   const addXAxisTitleOffset = !!xAxisTitle;
 
@@ -581,6 +589,17 @@ export default function transformProps(
   const { setDataMask = () => { }, onContextMenu } = hooks;
   const alignTicks = yAxisIndex !== yAxisIndexB;
 
+  console.log('MixedTimeseries Debug:', {
+    showAllYearsOnXAxis,
+    xAxisType,
+    timeGrainSqla,
+    xAxisLabel,
+    data1Length: data1.length,
+    data2Length: data2.length,
+    firstData1Row: data1[0],
+    lastData1Row: data1[data1.length - 1],
+  });
+
   const echartOptions: EChartsCoreOption = {
     useUTC: true,
     grid: {
@@ -592,17 +611,46 @@ export default function transformProps(
       name: xAxisTitle,
       nameGap: convertInteger(xAxisTitleMargin),
       nameLocation: 'middle',
-      axisLabel: {
-        formatter: xAxisFormatter,
-        rotate: xAxisLabelRotation,
-      },
+      axisLabel: (() => {
+        console.log('xAxis axisLabel config:', {
+          showAllYearsOnXAxis,
+          xAxisType,
+          isTimeAxis: xAxisType === AxisType.Time,
+        });
+        
+        if (showAllYearsOnXAxis && xAxisType === AxisType.Time) {
+          const customYearFormatter = (value: any) => {
+            const date = new Date(value);
+            return date.getFullYear().toString();
+          };
+          
+          return {
+            formatter: customYearFormatter,
+            rotate: xAxisLabelRotation,
+            interval: 0,
+            showMinLabel: false,
+            showMaxLabel: false,
+          };
+        }
+        
+        return {
+          formatter: xAxisFormatter,
+          rotate: xAxisLabelRotation,
+          showMinLabel: true,
+          showMaxLabel: true,
+        };
+      })(),
       minorTick: { show: minorTicks },
       minInterval:
         xAxisType === AxisType.Time &&
           timeGrainSqla &&
-          TIMEGRAIN_TO_TIMESTAMP.hasOwnProperty(timeGrainSqla)
+          TIMEGRAIN_TO_TIMESTAMP.hasOwnProperty(timeGrainSqla) &&
+          !showAllYearsOnXAxis
           ? TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla as keyof typeof TIMEGRAIN_TO_TIMESTAMP]
           : 0,
+      ...(showAllYearsOnXAxis && xAxisType === AxisType.Time && {
+        splitNumber: data1.length > 0 ? data1.length : 20,
+      }),
       ...getMinAndMaxFromBounds(
         xAxisType,
         truncateXAxis,
@@ -763,6 +811,15 @@ export default function transformProps(
       ]
       : [],
   };
+
+  // Попробуем добавить данные для xAxis если включена опция показа всех лет
+  if (showAllYearsOnXAxis && xAxisType === AxisType.Time && data1.length > 0) {
+    const uniqueYears = [...new Set(data1.map(row => row[xAxisLabel]))].sort();
+    console.log('Unique years from data:', uniqueYears);
+    (echartOptions.xAxis as any).data = uniqueYears;
+  }
+
+  console.log('Final echartOptions.xAxis:', JSON.stringify(echartOptions.xAxis, null, 2));
 
   const onFocusedSeries = (seriesName: string | null) => {
     focusedSeries = seriesName;

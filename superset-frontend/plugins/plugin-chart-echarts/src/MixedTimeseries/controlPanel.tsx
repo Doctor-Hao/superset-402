@@ -382,6 +382,18 @@ const config: ControlPanelConfig = {
         [<ControlSubSectionHeader>{t('X Axis')}</ControlSubSectionHeader>],
         ['x_axis_time_format'],
         [xAxisLabelRotation],
+        [
+          {
+            name: 'showAllYearsOnXAxis',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show all years on X-axis'),
+              default: false,
+              renderTrigger: true,
+              description: t('Display all year labels on the x-axis instead of auto-selecting intervals'),
+            },
+          },
+        ],
         ...richTooltipSection,
         // eslint-disable-next-line react/jsx-key
         [<ControlSubSectionHeader>{t('Y Axis')}</ControlSubSectionHeader>],
