@@ -72,6 +72,8 @@ export type EchartsTornadoFormData = QueryFormData &
     right_metric: QueryFormMetric;
     /** Column used for categories */
     category_column: QueryFormColumn;
+    /** Metric for base value for X-axis offset */
+    base_value_metric?: QueryFormMetric;
     /** Custom label for categories */
     category_label: string;
     /** Custom label for x-axis */

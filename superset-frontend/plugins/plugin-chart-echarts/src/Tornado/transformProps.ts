@@ -35,7 +35,6 @@ import {
 } from './types';
 import { getDefaultTooltip } from '../utils/tooltip';
 import { defaultGrid } from '../defaults';
-import { TORNADO_LEGEND } from './constants';
 import { Refs } from '../types';
 import { NULL_STRING } from '../constants';
 
@@ -126,6 +125,7 @@ function transformTornadoData({
   leftMetricLabel,
   rightMetricLabel,
   categoryField,
+  baseValueLabel,
   sortByImpact,
   impactThreshold,
 }: {
@@ -133,27 +133,38 @@ function transformTornadoData({
   leftMetricLabel: string;
   rightMetricLabel: string;
   categoryField: string;
+  baseValueLabel: string;
   sortByImpact: boolean;
   impactThreshold: number;
 }): TornadoDataPoint[] {
   const transformedData: TornadoDataPoint[] = data.map(row => {
     const category = String(row[categoryField] || NULL_STRING);
-    const leftValue = Number(row[leftMetricLabel]) || 0;
-    const rightValue = Number(row[rightMetricLabel]) || 0;
+    const leftValue = Number(row[leftMetricLabel]) || 0;   // Left Side Metric → всегда левая сторона
+    const rightValue = Number(row[rightMetricLabel]) || 0;  // Right Side Metric → всегда правая сторона
+    const baseValue = Number(row[baseValueLabel]) || 0;
+    
+    // Impact is the total range of uncertainty (difference between left and right values)
     const impact = Math.abs(rightValue - leftValue);
+    
+    // Calculate deviations from base value
+    const leftDeviation = leftValue - baseValue;
+    const rightDeviation = rightValue - baseValue;
     
     console.log('Processing row:', {
       category,
       leftValue,
       rightValue,
+      baseValue,
+      leftDeviation,
+      rightDeviation,
       impact,
       rawRow: row
     });
     
     return {
       category,
-      leftValue,
-      rightValue,
+      leftValue: leftDeviation, // Store deviation instead of absolute value
+      rightValue: rightDeviation, // Store deviation instead of absolute value
       impact,
     };
   }).filter(item => item.impact >= impactThreshold);
@@ -166,14 +177,20 @@ function transformTornadoData({
     // If filtering by impact results in no data, try showing all data regardless of impact
     const allData = data.map(row => {
       const category = String(row[categoryField] || NULL_STRING);
-      const leftValue = Number(row[leftMetricLabel]) || 0;
-      const rightValue = Number(row[rightMetricLabel]) || 0;
+      const leftValue = Number(row[leftMetricLabel]) || 0;   // Left Side Metric → всегда левая сторона
+      const rightValue = Number(row[rightMetricLabel]) || 0;  // Right Side Metric → всегда правая сторона
+      const baseValue = Number(row[baseValueLabel]) || 0;
+      
       const impact = Math.abs(rightValue - leftValue);
+      
+      // Calculate deviations from base value
+      const leftDeviation = leftValue - baseValue;
+      const rightDeviation = rightValue - baseValue;
       
       return {
         category,
-        leftValue,
-        rightValue,
+        leftValue: leftDeviation, // Store deviation instead of absolute value
+        rightValue: rightDeviation, // Store deviation instead of absolute value
         impact,
       };
     });
@@ -222,6 +239,8 @@ export default function transformProps(
     rightMetric, // camelCase version
     category_column,
     categoryColumn, // camelCase version
+    base_value_metric,
+    baseValueMetric, // camelCase version
     category_label,
     x_axis_label,
     x_axis_title,
@@ -246,6 +265,10 @@ export default function transformProps(
     : isAdhocColumn(categoryCol)
     ? categoryCol?.label || 'category'
     : 'category';
+    
+  // Handle both snake_case and camelCase field names for base value metric
+  const baseValueMetricValue = base_value_metric || baseValueMetric;
+  const baseValueLabel = baseValueMetricValue ? getMetricLabel(baseValueMetricValue) : '';
     
   // Handle legend names and axis titles
   const finalXAxisTitle = x_axis_title || xAxisTitle || x_axis_label;
@@ -333,30 +356,56 @@ export default function transformProps(
     leftMetricLabel,
     rightMetricLabel,
     categoryField,
+    baseValueLabel,
     sortByImpact: sort_by_impact,
     impactThreshold: impact_threshold,
   });
+  
+  console.log('Tornado data after transformation:', tornadoData);
 
-  // Create series data - align bars at the same level (zero baseline)
+  // Calculate base value for X-axis offset - use first value from BaseValue metric
+  let baseValue = 0;
+  console.log('baseValueLabel:', baseValueLabel);
+  console.log('data.length:', data.length);
+  if (baseValueLabel && data.length > 0) {
+    console.log('First row keys:', Object.keys(data[0]));
+    console.log('First row data:', data[0]);
+    // Find first non-null, non-undefined value from BaseValue metric
+    for (const row of data) {
+      console.log('Checking row for baseValueLabel:', baseValueLabel, 'raw value:', row[baseValueLabel]);
+      const value = Number(row[baseValueLabel]);
+      console.log('Converted to number:', value, 'isNaN:', isNaN(value));
+      if (!isNaN(value)) {
+        baseValue = value;
+        console.log('Using first base value from metric:', baseValueLabel, '=', baseValue);
+        break;
+      }
+    }
+    console.log('Final baseValue:', baseValue);
+  }
+
+  // Create series data - leftValue and rightValue are already deviations from base value
   const categories = tornadoData.map(item => item.category);
   const leftSideData: ITornadoSeriesData[] = tornadoData.map(item => ({
-    value: -Math.abs(item.leftValue), // Always negative for left side
-    originalValue: item.leftValue,
+    value: item.leftValue, // Already deviation from base value
+    originalValue: item.leftValue + baseValue, // Convert back to original value for display
     category: item.category,
     impact: item.impact,
   }));
   const rightSideData: ITornadoSeriesData[] = tornadoData.map(item => ({
-    value: Math.abs(item.rightValue), // Always positive for right side
-    originalValue: item.rightValue,
+    value: item.rightValue, // Already deviation from base value
+    originalValue: item.rightValue + baseValue, // Convert back to original value for display
     category: item.category,
     impact: item.impact,
   }));
 
   const seriesformatter = (params: ITornadoCallbackDataParams) => {
     const { data } = params;
+    // Show deviation from base value instead of absolute value
+    const deviationValue = data.value || 0;
     const value = show_absolute_values 
-      ? Math.abs(data.originalValue || 0)
-      : (data.originalValue || 0);
+      ? Math.abs(deviationValue)
+      : deviationValue;
     return defaultFormatter(value);
   };
 
@@ -374,6 +423,7 @@ export default function transformProps(
         position: 'left',
         formatter: seriesformatter,
       },
+      zlevel: 1, // Lower zlevel to render behind y-axis
     },
     {
       name: finalRightLegendName,
@@ -388,6 +438,7 @@ export default function transformProps(
         position: 'right',
         formatter: seriesformatter,
       },
+      zlevel: 1, // Lower zlevel to render behind y-axis
     },
   ];
 
@@ -425,8 +476,9 @@ export default function transformProps(
       axisLabel: {
         color: theme.colors.grayscale.dark2,
         formatter: (value: number) => {
-          const absValue = show_absolute_values ? Math.abs(value) : value;
-          return defaultFormatter(absValue);
+          // Convert axis value back to actual value by adding base value
+          const actualValue = baseValue + value;
+          return defaultFormatter(actualValue);
         },
       },
       axisTick: {
@@ -436,7 +488,21 @@ export default function transformProps(
         },
       },
       splitLine: {
-        show: false,
+        show: true,
+        lineStyle: {
+          color: theme.colors.grayscale.light2,
+          width: 1,
+          type: 'solid',
+        },
+      },
+      // Mark the base value line at zero (center)
+      axisPointer: {
+        value: 0,
+        lineStyle: {
+          color: theme.colors.grayscale.dark2,
+          width: 2,
+          type: 'solid',
+        },
       },
     },
     yAxis: {
@@ -451,6 +517,20 @@ export default function transformProps(
         interval: 0, // Show all labels
       },
       inverse: false, // Categories from top to bottom
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: theme.colors.grayscale.dark2,
+          width: 1,
+        },
+      },
+      axisTick: {
+        show: true,
+        lineStyle: {
+          color: theme.colors.grayscale.dark2,
+        },
+      },
+      zlevel: 10, // Higher zlevel to appear above bars
     },
     tooltip: {
       ...getDefaultTooltip(refs),

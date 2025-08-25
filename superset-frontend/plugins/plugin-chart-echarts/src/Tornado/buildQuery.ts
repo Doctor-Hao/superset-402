@@ -27,15 +27,17 @@ export default function buildQuery(formData: QueryFormData) {
     category_column,
     left_metric,
     right_metric,
+    base_value_metric,
   } = formData;
 
   // Get category column
   const columns = ensureIsArray(category_column);
   
-  // Get both metrics
+  // Get all metrics including base value metric
   const metrics = [
     ...(left_metric ? ensureIsArray(left_metric) : []),
     ...(right_metric ? ensureIsArray(right_metric) : []),
+    ...(base_value_metric ? ensureIsArray(base_value_metric) : []),
   ];
 
   return buildQueryContext(formData, base => [

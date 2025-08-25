@@ -65,6 +65,17 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'base_value_metric',
+            config: {
+              ...sharedControls.metric,
+              label: t('Base Value Metric'),
+              description: t('Metric for base value to offset X-axis from zero (e.g. AVG(BASEVALUE))'),
+              clearable: true,
+            },
+          },
+        ],
         ['adhoc_filters'],
         ['row_limit'],
       ],
