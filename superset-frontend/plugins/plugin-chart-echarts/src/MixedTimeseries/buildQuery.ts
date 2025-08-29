@@ -44,6 +44,8 @@ import {
 export default function buildQuery(formData: QueryFormData) {
   const baseFormData = {
     ...formData,
+    // Если включен disable_time_grain, убираем time_grain_sqla
+    ...(formData.disable_time_grain && { time_grain_sqla: null }),
   };
 
   // 1) Query A — убираем все суффиксы _b и _c
@@ -90,7 +92,15 @@ export default function buildQuery(formData: QueryFormData) {
           ...ensureIsArray(fd.groupby),
         ],
         series_columns: fd.groupby,
-        ...(isXAxisSet(formData) ? {} : { is_timeseries: true }),
+        // Если disable_time_grain активен, принудительно отключаем временную обработку
+        ...(isXAxisSet(formData) || fd.disable_time_grain ? {} : { is_timeseries: true }),
+        // Принудительно отключаем временные группировки
+        ...(fd.disable_time_grain && {
+          time_grain_sqla: null,
+          granularity_sqla: null,
+          granularity: null,
+          time_range: null
+        }),
       };
 
       const pivotOperatorInRuntime: PostProcessingPivot = isTimeComparison(

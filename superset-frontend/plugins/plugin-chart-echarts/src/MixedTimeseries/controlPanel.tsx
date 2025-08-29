@@ -346,7 +346,74 @@ const config: ControlPanelConfig = {
     {
       label: t('Shared query fields'),
       expanded: true,
-      controlSetRows: [['x_axis'], ['time_grain_sqla']],
+      controlSetRows: [
+        ['x_axis'],
+        [
+          {
+            name: 'disable_time_grain',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Disable Time Grain'),
+              default: false,
+              renderTrigger: true,
+              description: t('Disable automatic time grain grouping for temporal columns'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'custom_date_format_monthly',
+            config: {
+              ...sharedControls.x_axis_time_format,
+              label: t('Monthly data format'),
+              default: 'smart_date',
+              description: t('Date format for monthly data (e.g., 2022-02-01)'),
+              visibility: ({ controls }) => Boolean(controls?.disable_time_grain?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'custom_date_format_yearly',
+            config: {
+              type: 'SelectControl',
+              freeForm: true,
+              label: t('Yearly data format'),
+              default: '%Y',
+              choices: [
+                ['smart_date', t('Adaptive formatting')],
+                ['%Y', '%Y | 2019'],
+                ['%Y г.', '%Y г. | 2019 г.'],
+                ['%y', '%y | 19'],
+                ['Year %Y', 'Year %Y | Year 2019'],
+                ['%B %Y', '%B %Y | Январь 2019'],
+                ['%B %Y г.', '%B %Y г. | Январь 2019 г.'],
+                // Добавляем стандартные форматы из D3_TIME_FORMAT_OPTIONS
+                ['%d/%m/%Y', '%d/%m/%Y | 01/01/2019'],
+                ['%m/%d/%Y', '%m/%d/%Y | 01/01/2019'],
+                ['%Y-%m-%d', '%Y-%m-%d | 2019-01-01'],
+                ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S | 2019-01-01 00:00:00'],
+                ['%d-%m-%Y %H:%M:%S', '%d-%m-%Y %H:%M:%S | 01-01-2019 00:00:00'],
+                ['%H:%M:%S', '%H:%M:%S | 00:00:00'],
+              ],
+              description: t('Date format for yearly data (e.g., 2022-01-01)'),
+              renderTrigger: true,
+              filterOption: ({ data: option }, search) =>
+                option.label.includes(search) || option.value.includes(search),
+              visibility: ({ controls }) => Boolean(controls?.disable_time_grain?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'time_grain_sqla',
+            config: {
+              ...sharedControls.time_grain_sqla,
+              visibility: ({ controls }) => !controls?.disable_time_grain?.value,
+            },
+          },
+        ],
+      ],
     },
     createQuerySection(t('Query A'), ''),
     createAdvancedAnalyticsSection(t('Advanced analytics Query A'), ''),
@@ -382,18 +449,6 @@ const config: ControlPanelConfig = {
         [<ControlSubSectionHeader>{t('X Axis')}</ControlSubSectionHeader>],
         ['x_axis_time_format'],
         [xAxisLabelRotation],
-        [
-          {
-            name: 'showAllYearsOnXAxis',
-            config: {
-              type: 'CheckboxControl',
-              label: t('Show all years on X-axis'),
-              default: false,
-              renderTrigger: true,
-              description: t('Display all year labels on the x-axis instead of auto-selecting intervals'),
-            },
-          },
-        ],
         ...richTooltipSection,
         // eslint-disable-next-line react/jsx-key
         [<ControlSubSectionHeader>{t('Y Axis')}</ControlSubSectionHeader>],

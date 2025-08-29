@@ -62,7 +62,9 @@ export type EchartsMixedTimeseriesFormData = QueryFormData & {
   richTooltip: boolean;
   xAxisLabelRotation: number;
   colorScheme?: string;
-  showAllYearsOnXAxis?: boolean;
+  disable_time_grain?: boolean;
+  custom_date_format_monthly?: string;
+  custom_date_format_yearly?: string;
   // types specific to Query A and Query B
   area: boolean;
   areaB: boolean;
@@ -135,8 +137,10 @@ export const DEFAULT_FORM_DATA: EchartsMixedTimeseriesFormData = {
   zoomable: TIMESERIES_DEFAULTS.zoomable,
   richTooltip: TIMESERIES_DEFAULTS.richTooltip,
   xAxisLabelRotation: TIMESERIES_DEFAULTS.xAxisLabelRotation,
-  showAllYearsOnXAxis: false,
   show_comments: false,
+  disable_time_grain: false,
+  custom_date_format_monthly: 'smart_date',
+  custom_date_format_yearly: '%Y',
   ...DEFAULT_TITLE_FORM_DATA,
 };
 

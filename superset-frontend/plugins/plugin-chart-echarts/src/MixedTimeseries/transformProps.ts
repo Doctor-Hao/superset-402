@@ -98,21 +98,20 @@ const VARIANT_METRIC = '__variant_id';
 const stripVariantMetric = <T extends Record<string, any>>(rows: T[]) =>
   rows.map(({ [VARIANT_METRIC]: _omit, ...rest }) => rest);
 
-
 const getFormatter = (
   customFormatters: Record<string, ValueFormatter>,
   defaultFormatter: ValueFormatter,
   metrics: QueryFormMetric[],
-  formatterKey: string,
-  forcePercentFormat: boolean,
-) => {
-  if (forcePercentFormat) {
+  metricLabel?: string,
+  isContributionMode?: boolean,
+): ValueFormatter => {
+  if (isContributionMode) {
     return getNumberFormatter(',.0%');
   }
-  return (
-    getCustomFormatter(customFormatters, metrics, formatterKey) ??
-    defaultFormatter
-  );
+  if (metricLabel && customFormatters[metricLabel]) {
+    return customFormatters[metricLabel];
+  }
+  return defaultFormatter;
 };
 
 export default function transformProps(
@@ -125,26 +124,18 @@ export default function transformProps(
     queriesData,
     hooks,
     filterState,
-    datasource,
-    theme,
     inContextMenu,
-    emitCrossFilters,
+    theme,
+    verboseMap,
+    currencyFormats,
+    columnFormats,
   } = chartProps;
-
+  const { emitCrossFilters }: any = hooks;
   let focusedSeries: string | null = null;
-
-  const {
-    verboseMap = {},
-    currencyFormats = {},
-    columnFormats = {},
-  } = datasource;
-  const { label_map: labelMap = {} } = (queriesData[0] as TimeseriesChartDataResponseResult) || {};
-  const { label_map: labelMapB = {} } = (queriesData[1] as TimeseriesChartDataResponseResult) || {};
-
-  // const data1 = (queriesData[0].data || []) as TimeseriesDataRecord[];
-  // const data2 = (queriesData[1].data || []) as TimeseriesDataRecord[];
-
-  // let data3: TimeseriesDataRecord[] = [];
+  const labelMap = (queriesData[0] as TimeseriesChartDataResponseResult)
+    ?.label_map;
+  const labelMapB = (queriesData[1] as TimeseriesChartDataResponseResult)
+    ?.label_map;
 
   const data1Raw = (queriesData[0].data || []) as TimeseriesDataRecord[];
   const data2Raw = (queriesData[1].data || []) as TimeseriesDataRecord[];
@@ -158,9 +149,10 @@ export default function transformProps(
   }
 
   // ⚠️ Для построения серий берём «очищенные» массивы
-  const data1 = stripVariantMetric(data1Raw);
-  const data2 = stripVariantMetric(data2Raw);
-  const data3 = stripVariantMetric(data3Raw);
+  let data1 = stripVariantMetric(data1Raw);
+  let data2 = stripVariantMetric(data2Raw);
+  let data3 = stripVariantMetric(data3Raw);
+  
 
   const annotationData = getAnnotationData(chartProps);
   const coltypeMapping = {
@@ -235,11 +227,96 @@ export default function transformProps(
     sliceId,
     timeGrainSqla,
     percentageThreshold,
-    showAllYearsOnXAxis,
     metrics = [],
     metricsB = [],
     metricsC = [],
+    disable_time_grain = false,
+    custom_date_format_monthly = 'smart_date',
+    custom_date_format_yearly = '%Y',
   }: EchartsMixedTimeseriesFormData = { ...DEFAULT_FORM_DATA, ...formData };
+
+  // Исправляем: берем настройки из rawFormData если они там есть
+  const actualDisableTimeGrain = chartProps.rawFormData?.disable_time_grain || disable_time_grain;
+  const actualMonthlyFormat = chartProps.rawFormData?.custom_date_format_monthly || custom_date_format_monthly;
+  const actualYearlyFormat = chartProps.rawFormData?.custom_date_format_yearly || custom_date_format_yearly;
+
+  // Функция для гибкого форматирования дат с использованием D3/Superset форматтеров
+  const formatCustomDate = (timestamp: number, isYearly: boolean): string => {
+    const format = isYearly ? actualYearlyFormat : actualMonthlyFormat;
+    
+    // Если используется smart_date, применяем адаптивное форматирование
+    if (format === 'smart_date') {
+      const date = new Date(timestamp);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      
+      if (isYearly) {
+        return year.toString();
+      } else {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${monthNames[month - 1]} ${year}`;
+      }
+    }
+    
+    // Проверяем, содержит ли формат русские элементы или %B - используем fallback
+    const hasRussianElements = format.includes('г.') || format.includes('%B');
+    
+    if (!hasRussianElements) {
+      // Для стандартных D3 форматов без русских элементов используем встроенное форматирование
+      try {
+        const formatter = getXAxisFormatter(format);
+        if (typeof formatter === 'function') {
+          return formatter(timestamp);
+        }
+      } catch (error) {
+        console.warn('Error formatting date with D3 formatter:', error);
+      }
+    }
+    
+    // Fallback форматирование для всех остальных случаев (включая русские форматы)
+    const date = new Date(timestamp);
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNamesRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                         'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    
+    let formattedDate = format
+      .replace('%Y', date.getFullYear().toString())
+      .replace('%y', date.getFullYear().toString().slice(-2))
+      .replace('%m', (date.getMonth() + 1).toString().padStart(2, '0'))
+      .replace('%d', date.getDate().toString().padStart(2, '0'))
+      .replace('%H', '00')
+      .replace('%M', '00') 
+      .replace('%S', '00');
+    
+    // Для русских форматов используем русские названия месяцев
+    if (format.includes('%B %Y г.') || format.includes('%B') && format.includes('г.')) {
+      formattedDate = formattedDate.replace('%B', monthNamesRu[date.getMonth()]);
+    } else if (format.includes('%B')) {
+      // Для %B %Y (без "г.") используем русские названия тоже, если это yearly формат
+      formattedDate = formattedDate.replace('%B', 
+        isYearly ? monthNamesRu[date.getMonth()] : monthNames[date.getMonth()]);
+    }
+    
+    return formattedDate;
+  };
+
+  console.log('=== MixedTimeseries transformProps DEBUG ===');
+  console.log('formData disable_time_grain:', disable_time_grain);
+  console.log('rawFormData disable_time_grain:', chartProps.rawFormData?.disable_time_grain);
+  console.log('actualDisableTimeGrain:', actualDisableTimeGrain);
+  console.log('actualMonthlyFormat:', actualMonthlyFormat);
+  console.log('actualYearlyFormat:', actualYearlyFormat);
+  console.log('timeGrainSqla:', timeGrainSqla);
+  console.log('data1 length:', data1.length);
+  console.log('data2 length:', data2.length);
+  if (data1.length > 0) {
+    console.log('First data1 record:', data1[0]);
+  }
+  if (data2.length > 0) {
+    console.log('First data2 record:', data2[0]);
+  }
 
   const refs: Refs = {};
   const colorScale = CategoricalColorNamespace.getScale(colorScheme as string);
@@ -249,22 +326,31 @@ export default function transformProps(
   ) as string;
   if (
     isPhysicalColumn(chartProps.rawFormData?.x_axis) &&
+    verboseMap &&
     isDefined(verboseMap[xAxisLabel])
   ) {
     xAxisLabel = verboseMap[xAxisLabel];
   }
 
-  const rebasedDataA = rebaseForecastDatum(data1, verboseMap);
+  // Temporary debug to check xAxisLabel vs actual data field
+  if (data1Raw.length > 0) {
+    console.log('DEBUG: xAxisLabel =', xAxisLabel);
+    console.log('DEBUG: Available keys =', Object.keys(data1Raw[0]));
+    console.log('DEBUG: data1Raw[0][xAxisLabel] =', data1Raw[0][xAxisLabel]);
+    console.log('DEBUG: data1Raw[0].month =', data1Raw[0].month);
+  }
+
+  const rebasedDataA = rebaseForecastDatum(data1, verboseMap || {});
   const [rawSeriesA] = extractSeries(rebasedDataA, {
     fillNeighborValue: stack ? 0 : undefined,
     xAxis: xAxisLabel,
   });
-  const rebasedDataB = rebaseForecastDatum(data2, verboseMap);
+  const rebasedDataB = rebaseForecastDatum(data2, verboseMap || {});
   const [rawSeriesB] = extractSeries(rebasedDataB, {
     fillNeighborValue: stackB ? 0 : undefined,
     xAxis: xAxisLabel,
   });
-  const rebasedDataC = rebaseForecastDatum(data3, verboseMap);
+  const rebasedDataC = rebaseForecastDatum(data3, verboseMap || {});
   const [rawSeriesC] = extractSeries(rebasedDataC, {
     fillNeighborValue: stackC ? 0 : undefined,
     xAxis: xAxisLabel,
@@ -273,6 +359,26 @@ export default function transformProps(
   const dataTypes = getColtypesMapping(queriesData[0]);
   const xAxisDataType = dataTypes?.[xAxisLabel] ?? dataTypes?.[xAxisOrig];
   const xAxisType = getAxisType(stack, xAxisForceCategorical, xAxisDataType);
+
+  // Определяем форматтеры раньше для использования в трансформации
+  const tooltipFormatter =
+    xAxisDataType === GenericDataType.Temporal
+      ? getTooltipTimeFormatter(tooltipTimeFormat)
+      : String;
+  const xAxisFormatter =
+    xAxisDataType === GenericDataType.Temporal
+      ? getXAxisFormatter(xAxisTimeFormat)
+      : String;
+
+  let transformedXAxisType = xAxisType;
+
+  // Если disable_time_grain включен, принудительно используем категориальную ось
+  if (actualDisableTimeGrain && xAxisType === AxisType.Time) {
+    transformedXAxisType = AxisType.Category;
+    console.log('=== Forcing Category Axis ===');
+    console.log('Changed X-axis type from Time to Category due to disable_time_grain');
+  }
+
   const series: SeriesOption[] = [];
   const formatter = contributionMode
     ? getNumberFormatter(',.0%')
@@ -407,13 +513,40 @@ export default function transformProps(
 
   // yAxisBounds need to be parsed to replace incompatible values with undefined
   const [xAxisMin, xAxisMax] = (xAxisBounds || []).map(parseAxisBound);
+  
+  // Debug информация для понимания проблем с пустыми пространствами
+  // console.log('=== AXIS BOUNDS DEBUG ===');
+  // console.log('Original xAxisBounds:', xAxisBounds);
+  // console.log('Parsed xAxisMin:', xAxisMin, 'xAxisMax:', xAxisMax);
+  // console.log('data1 length:', data1.length);
+  // console.log('hideEmptyMonths:', hideEmptyMonths);
+  // console.log('data1Raw length before transformation:', data1Raw.length);
+  // console.log('mixedTimeTransformation result:', mixedTimeTransformation ? {
+  //   useCategoryAxis: mixedTimeTransformation.useCategoryAxis,
+  //   transformedDataLength: mixedTimeTransformation.transformedData.length,
+  //   originalDataLength: data1Raw.length
+  // } : 'no transformation applied');
+  
+  if (data1.length > 0) {
+    // console.log('First 3 data1 points:', data1.slice(0, 3).map(row => ({
+    //   date: row[xAxisLabel],
+    //   values: Object.keys(row).filter(key => key !== xAxisLabel).map(key => `${key}: ${row[key]}`)
+    // })));
+    // console.log('Last 3 data1 points:', data1.slice(-3).map(row => ({
+    //   date: row[xAxisLabel],
+    //   values: Object.keys(row).filter(key => key !== xAxisLabel).map(key => `${key}: ${row[key]}`)
+    // })));
+  }
+  // console.log('transformedXAxisType:', transformedXAxisType);
+  // console.log('mixedTimeTransformation?.useCategoryAxis:', mixedTimeTransformation?.useCategoryAxis);
+  // console.log('truncateXAxis:', truncateXAxis);
   let [yAxisMin, yAxisMax] = (yAxisBounds || []).map(parseAxisBound);
   let [minSecondary, maxSecondary] = (yAxisBoundsSecondary || []).map(
     parseAxisBound,
   );
 
   const array = ensureIsArray(chartProps.rawFormData?.time_compare);
-  const inverted = invert(verboseMap);
+  const inverted = invert(verboseMap || {});
 
   rawSeriesA.forEach(entry => {
     const entryName = String(entry.name || '');
@@ -555,21 +688,6 @@ export default function transformProps(
     if (maxSecondary === undefined) maxSecondary = 1;
   }
 
-  const tooltipFormatter =
-    xAxisDataType === GenericDataType.Temporal
-      ? getTooltipTimeFormatter(tooltipTimeFormat)
-      : String;
-  const xAxisFormatter =
-    xAxisDataType === GenericDataType.Temporal
-      ? getXAxisFormatter(xAxisTimeFormat)
-      : String;
-
-  console.log('xAxisFormatter info:', {
-    xAxisDataType,
-    xAxisTimeFormat,
-    isTemporalType: xAxisDataType === GenericDataType.Temporal,
-    formatterType: typeof xAxisFormatter,
-  });
 
   const addYAxisTitleOffset = !!(yAxisTitle || yAxisTitleSecondary);
   const addXAxisTitleOffset = !!xAxisTitle;
@@ -589,16 +707,6 @@ export default function transformProps(
   const { setDataMask = () => { }, onContextMenu } = hooks;
   const alignTicks = yAxisIndex !== yAxisIndexB;
 
-  console.log('MixedTimeseries Debug:', {
-    showAllYearsOnXAxis,
-    xAxisType,
-    timeGrainSqla,
-    xAxisLabel,
-    data1Length: data1.length,
-    data2Length: data2.length,
-    firstData1Row: data1[0],
-    lastData1Row: data1[data1.length - 1],
-  });
 
   const echartOptions: EChartsCoreOption = {
     useUTC: true,
@@ -607,60 +715,106 @@ export default function transformProps(
       ...chartPadding,
     },
     xAxis: {
-      type: xAxisType,
+      type: transformedXAxisType,
       name: xAxisTitle,
       nameGap: convertInteger(xAxisTitleMargin),
       nameLocation: 'middle',
       axisLabel: (() => {
-        console.log('xAxis axisLabel config:', {
-          showAllYearsOnXAxis,
-          xAxisType,
-          isTimeAxis: xAxisType === AxisType.Time,
-        });
-        
-        if (showAllYearsOnXAxis && xAxisType === AxisType.Time) {
-          const customYearFormatter = (value: any) => {
-            const date = new Date(value);
-            return date.getFullYear().toString();
-          };
-          
+        // Специальная обработка для actualDisableTimeGrain
+        if (actualDisableTimeGrain && transformedXAxisType === AxisType.Category) {
           return {
-            formatter: customYearFormatter,
+            formatter: (value: any) => {
+              const timestamp = parseInt(value);
+              if (isNaN(timestamp)) return value;
+              
+              const date = new Date(timestamp);
+              const month = date.getMonth() + 1;
+              
+              // Определяем это годовые данные (январь) или месячные
+              const isYearly = month === 1 && date.getDate() === 1;
+              
+              return formatCustomDate(timestamp, isYearly);
+            },
             rotate: xAxisLabelRotation,
             interval: 0,
             showMinLabel: false,
             showMaxLabel: false,
           };
         }
-        
+
         return {
-          formatter: xAxisFormatter,
+          formatter: typeof xAxisFormatter === 'function' ? xAxisFormatter : undefined,
           rotate: xAxisLabelRotation,
-          showMinLabel: true,
-          showMaxLabel: true,
+          interval: 'auto',
+          showMinLabel: false,
+          showMaxLabel: false,
         };
       })(),
       minorTick: { show: minorTicks },
       minInterval:
-        xAxisType === AxisType.Time &&
+        transformedXAxisType === AxisType.Time &&
           timeGrainSqla &&
-          TIMEGRAIN_TO_TIMESTAMP.hasOwnProperty(timeGrainSqla) &&
-          !showAllYearsOnXAxis
-          ? TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla as keyof typeof TIMEGRAIN_TO_TIMESTAMP]
-          : 0,
-      ...(showAllYearsOnXAxis && xAxisType === AxisType.Time && {
-        splitNumber: data1.length > 0 ? data1.length : 20,
-      }),
-      ...getMinAndMaxFromBounds(
-        xAxisType,
-        truncateXAxis,
-        xAxisMin,
-        xAxisMax,
-        seriesType === EchartsTimeseriesSeriesType.Bar ||
-          seriesTypeB === EchartsTimeseriesSeriesType.Bar
-          ? EchartsTimeseriesSeriesType.Bar
-          : undefined,
-      ),
+          !actualDisableTimeGrain &&
+          TIMEGRAIN_TO_TIMESTAMP.hasOwnProperty(timeGrainSqla)
+          ? (() => {
+              const interval = TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla as keyof typeof TIMEGRAIN_TO_TIMESTAMP];
+              console.log('=== minInterval calculation ===');
+              console.log('transformedXAxisType:', transformedXAxisType);
+              console.log('timeGrainSqla:', timeGrainSqla);
+              console.log('actualDisableTimeGrain:', actualDisableTimeGrain);
+              console.log('Final interval:', interval);
+              return interval;
+            })()
+          : (() => {
+              console.log('=== minInterval set to 0 ===');
+              console.log('Conditions not met or actualDisableTimeGrain is true');
+              return 0;
+            })(),
+      ...(() => {
+        const bounds = getMinAndMaxFromBounds(
+          transformedXAxisType,
+          truncateXAxis,
+          xAxisMin,
+          xAxisMax,
+          seriesType === EchartsTimeseriesSeriesType.Bar ||
+            seriesTypeB === EchartsTimeseriesSeriesType.Bar
+            ? EchartsTimeseriesSeriesType.Bar
+            : undefined,
+        );
+        
+        // Для временных осей автоматически устанавливаем границы по фактическим данным
+        if (transformedXAxisType === AxisType.Time && data1.length > 0) {
+          try {
+            const firstDate = data1[0]?.[xAxisLabel];
+            const lastDate = data1[data1.length - 1]?.[xAxisLabel];
+            
+            if (!firstDate || !lastDate) {
+              console.warn('Missing date values in data1:', { firstDate, lastDate });
+              return bounds;
+            }
+            
+            const actualMin = new Date(firstDate as string).getTime();
+            const actualMax = new Date(lastDate as string).getTime();
+            
+            if (isNaN(actualMin) || isNaN(actualMax)) {
+              console.warn('Invalid dates:', { firstDate, lastDate, actualMin, actualMax });
+              return bounds;
+            }
+            
+            return {
+              ...bounds,
+              min: bounds.min !== undefined ? bounds.min : actualMin,
+              max: bounds.max !== undefined ? bounds.max : actualMax,
+              boundaryGap: false,
+            };
+          } catch (error) {
+            console.error('Error processing time bounds:', error);
+            return bounds;
+          }
+        }
+        
+        return bounds;
+      })(),
     },
     yAxis: [
       {
@@ -721,7 +875,9 @@ export default function transformProps(
           forecastValue.sort((a, b) => b.data[1] - a.data[1]);
         }
 
-        const rows: Array<string> = [`${tooltipFormatter(xValue)}`];
+        const formattedValue = tooltipFormatter(xValue);
+        
+        const rows: Array<string> = [`${formattedValue}`];
         const forecastValues =
           extractForecastValuesFromTooltipParams(forecastValue);
 
@@ -737,14 +893,14 @@ export default function transformProps(
             formatterKey =
               groupbyB.length === 0 ? inverted[key] : labelMapB[key]?.[0];
           }
-          const tooltipFormatter = getFormatter(
+          const metricTooltipFormatter = getFormatter(
             customFormatters,
             formatter,
             metrics,
             formatterKey,
             !!contributionMode,
           );
-          const tooltipFormatterSecondary = getFormatter(
+          const metricTooltipFormatterSecondary = getFormatter(
             customFormattersSecondary,
             formatterSecondary,
             metricsB,
@@ -755,8 +911,8 @@ export default function transformProps(
             ...value,
             seriesName: key,
             formatter: primarySeries.has(key)
-              ? tooltipFormatter
-              : tooltipFormatterSecondary,
+              ? metricTooltipFormatter
+              : metricTooltipFormatterSecondary,
           });
           const contentStyle =
             key === focusedSeries ? 'font-weight: 700' : 'opacity: 0.7';
@@ -812,14 +968,6 @@ export default function transformProps(
       : [],
   };
 
-  // Попробуем добавить данные для xAxis если включена опция показа всех лет
-  if (showAllYearsOnXAxis && xAxisType === AxisType.Time && data1.length > 0) {
-    const uniqueYears = [...new Set(data1.map(row => row[xAxisLabel]))].sort();
-    console.log('Unique years from data:', uniqueYears);
-    (echartOptions.xAxis as any).data = uniqueYears;
-  }
-
-  console.log('Final echartOptions.xAxis:', JSON.stringify(echartOptions.xAxis, null, 2));
 
   const onFocusedSeries = (seriesName: string | null) => {
     focusedSeries = seriesName;
@@ -845,7 +993,7 @@ export default function transformProps(
     xValueFormatter: tooltipFormatter,
     xAxis: {
       label: xAxisLabel,
-      type: xAxisType,
+      type: transformedXAxisType,
     },
     refs,
     coltypeMapping,

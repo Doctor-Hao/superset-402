@@ -20,6 +20,12 @@ const Draggable: React.FC<DraggableProps> = ({
 
     /* ---------- pointer handlers ---------- */
     const handlePointerDown = (e: React.PointerEvent) => {
+        // Проверяем, что клик не на textarea или input
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.contentEditable === 'true') {
+            return; // Не начинаем перетаскивание
+        }
+        
         offset.current = {
             dx: e.clientX - posRef.current.x,
             dy: e.clientY - posRef.current.y,

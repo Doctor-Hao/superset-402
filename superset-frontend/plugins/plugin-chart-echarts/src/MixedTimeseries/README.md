@@ -21,7 +21,8 @@ Each query can use different chart types:
 - Area charts
 
 ### X-Axis Configuration
-- **Show All Years on X-Axis**: New feature that displays all year labels on the x-axis instead of auto-selecting intervals
+- **Show All Years on X-Axis**: Displays all year labels on the x-axis instead of auto-selecting intervals
+- **Smooth Mixed Time Intervals**: NEW! Automatically handles mixed time granularities (monthly→yearly) without gaps
 - Time format customization
 - Label rotation control
 - Bounds configuration
@@ -119,30 +120,83 @@ Each query supports:
 3. Query C: Tertiary metric (e.g., targets or benchmarks)
 4. Use different chart types for visual distinction
 
-## New Feature: Show All Years on X-Axis
+## New Features
 
-### Purpose
+### Show All Years on X-Axis
+
+#### Purpose
 When enabled, this feature ensures that all year labels are displayed on the x-axis instead of ECharts automatically selecting intervals. This is particularly useful for:
 - Annual reports requiring all years to be visible
 - Comparative analysis across specific time periods
 - Compliance reporting where all time periods must be shown
 
-### How It Works
-- **Disabled (Default)**: ECharts automatically selects appropriate intervals based on data density and available space
-- **Enabled**: Forces the display of all time labels, overriding automatic interval selection
-
-### Configuration
+#### Configuration
 Located in the "X Axis" section of chart options:
 - **Control Name**: "Show all years on X-axis"
 - **Type**: Checkbox
 - **Default**: Disabled
 - **Description**: "Display all year labels on the x-axis instead of auto-selecting intervals"
 
-### Technical Implementation
-When enabled, the feature:
-1. Sets `interval: 0` in the xAxis configuration
-2. Disables `minInterval` calculations for automatic spacing
-3. Forces ECharts to display every available time point
+### Smooth Mixed Time Intervals (NEW!)
+
+#### Purpose
+Automatically handles data with mixed time granularities (e.g., monthly data transitioning to yearly data) by creating smooth transitions without gaps on the x-axis. This solves the common problem where ECharts creates empty spaces for missing intermediate time periods.
+
+#### Use Cases
+Perfect for scenarios like:
+- **Financial reporting**: Monthly data for current year, yearly data for historical years
+- **Analytics dashboards**: Detailed recent data, summarized historical data
+- **Performance metrics**: Granular tracking transitioning to aggregated reporting
+- **Business intelligence**: Mixed reporting periods in the same dataset
+
+#### How It Works
+1. **Data Analysis**: Automatically detects transitions between different time granularities
+2. **Virtual Indexing**: Creates sequential positions for data points regardless of actual time gaps
+3. **Smart Labels**: Generates appropriate labels (Jan 2023, Feb 2023, Mar 2023, 2024, 2025)
+4. **Tooltip Preservation**: Maintains original date information in tooltips
+
+#### Configuration
+Located in the "X Axis" section of chart options:
+- **Control Name**: "Smooth mixed time intervals"
+- **Type**: Checkbox
+- **Default**: Disabled
+- **Description**: "Automatically adjust intervals for mixed monthly and yearly data without gaps"
+
+#### Example Data Transformation
+
+**Input Data:**
+```
+Date Column        | Value
+2023-01-01        | 100
+2023-02-01        | 120
+2023-03-01        | 110
+2024-01-01        | 500    <- Gap: missing months Apr-Dec 2023
+2025-01-01        | 600    <- Another yearly data point
+```
+
+**Without Feature (Default):**
+```
+X-Axis: Jan 2023 | Feb 2023 | Mar 2023 | [empty spaces] | 2024 | 2025
+Result: Large gaps where missing months would be
+```
+
+**With Smooth Mixed Time Intervals:**
+```
+X-Axis: Jan 2023 | Feb 2023 | Mar 2023 | 2024 | 2025
+Result: Smooth transition, no gaps
+```
+
+#### Technical Implementation
+- Switches from `time` axis to `category` axis when mixed intervals detected
+- Creates virtual index mapping for continuous positioning
+- Preserves original timestamps for tooltips and data processing
+- Compatible with all existing chart features (zoom, annotations, etc.)
+
+#### Compatibility
+- **Mutually exclusive** with "Show All Years on X-Axis" (that feature is disabled when this is enabled)
+- Works with all chart types and multiple queries (A, B, C)
+- Maintains compatibility with forecasting and analytics features
+- Supports all time formats and localization
 
 ## Best Practices
 
@@ -210,7 +264,8 @@ The chart uses ECharts library with the following key configuration:
 ## Version History
 
 ### Recent Updates
-- Added support for Query C (tertiary data source)
+- **NEW!** Added "Smooth Mixed Time Intervals" feature for handling mixed time granularities
+- Added support for Query C (tertiary data source)  
 - Implemented "Show All Years on X-Axis" feature
 - Enhanced Y-axis configuration options
 - Improved tooltip formatting for multiple queries

@@ -49,6 +49,32 @@ const StyledTextArea = styled.textarea`
   outline: none;
 `;
 
+const StyledCommentContainer = styled.div`
+  position: absolute;
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 6px;
+  border-radius: 4px;
+  width: 250px;
+  z-index: 25;
+  box-shadow: 0 2px 4px rgb(0 0 0 / .15);
+  
+  .delete-button {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    margin-left: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+  
+  &:hover .delete-button {
+    opacity: 1;
+  }
+`;
+
 let uid = 0;
 
 export const genTempId = () =>
@@ -512,7 +538,7 @@ export default function EchartsMixedTimeseries(props: EchartsMixedTimeseriesChar
         <div
           style={{
             position: 'absolute',
-            top: 8,
+            top: 33, // 8 + 25 = 33 (опустили на 25px)
             right: 8,
             display: 'flex',
             gap: 8,
@@ -581,18 +607,7 @@ export default function EchartsMixedTimeseries(props: EchartsMixedTimeseriesChar
               defaultPosition={{ x, y }}
               onStop={(_, data) => onDragStop(idx, data)}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  background: '#fffbe8',
-                  border: '1px solid #ccc',
-                  padding: 6,
-                  borderRadius: 4,
-                  width: 250,
-                  zIndex: 25,
-                  boxShadow: '0 2px 4px rgb(0 0 0 / .15)',
-                }}
-              >
+              <StyledCommentContainer>
                 <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                   <StyledTextArea
                     defaultValue={c.description}
@@ -606,19 +621,12 @@ export default function EchartsMixedTimeseries(props: EchartsMixedTimeseriesChar
                   <button
                     onClick={() => handleDelete(idx)}
                     title="Удалить"
-                    style={{
-                      marginLeft: 4,
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      fontSize: 16,
-                      lineHeight: 1,
-                    }}
+                    className="delete-button"
                   >
                     ❌
                   </button>
                 </div>
-              </div>
+              </StyledCommentContainer>
             </Draggable>
           );
         })}
